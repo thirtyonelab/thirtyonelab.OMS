@@ -544,7 +544,8 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
           box-sizing: border-box;
           background: #ffffff;
           padding: 12mm;
-          box-shadow: var(--shadow-lg);
+          box-shadow: none;
+          border: 1px solid var(--border-color);
           margin: 0 auto;
           overflow: hidden;
         }

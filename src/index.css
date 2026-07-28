@@ -725,7 +725,7 @@ input[type=number] {
   .A4-sheet {
     padding: 0 !important;
     overflow-x: auto;
-    background-color: var(--border-color);
+    background-color: var(--white);
   }
 
   .invoice-container {
@@ -733,7 +733,7 @@ input[type=number] {
     margin: 1.5rem auto !important;
     background: var(--white);
     padding: 3rem !important;
-    box-shadow: var(--shadow-md);
+    box-shadow: none;
   }
 }
 

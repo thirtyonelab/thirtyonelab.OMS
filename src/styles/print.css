@@ -7,7 +7,10 @@
   .btn,
   .modal-close,
   .modal-header,
-  .modal-footer {
+  .modal-footer,
+  .mobile-top-bar,
+  .mobile-bottom-nav,
+  .mobile-only {
     display: none !important;
   }
 
@@ -65,12 +68,18 @@
     color: #000000 !important;
   }
 
-  .table th {
+  .table th,
+  .invoice-print-table th {
     border-bottom: 2px solid #000000 !important;
+    padding: 0.35rem 0.25rem !important;
+    font-size: 0.65rem !important;
   }
 
-  .table td {
+  .table td,
+  .invoice-print-table td {
     border-bottom: 1px solid #e0e0e0 !important;
+    padding: 0.4rem 0.25rem !important;
+    font-size: 0.7rem !important;
   }
 
   .table tr:hover td {
@@ -94,18 +103,44 @@
     position: relative !important;
     overflow: hidden !important; /* Strictly clip to 1 page */
     transform: none !important; /* Reset visual scale during print */
+    box-shadow: none !important; /* Remove shadow during print */
+    border: none !important; /* Remove any border during print */
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+  }
+
+  .A4-scroll-wrapper {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
   }
 
   .A4-scale-container {
-    height: auto !important;
+    width: 210mm !important;
+    height: 297mm !important;
     overflow: visible !important;
+    transform: none !important;
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .invoice-container {
+    width: 100% !important;
+    max-width: 100% !important;
     height: auto !important; /* Flow naturally on print to prevent stretching overflow */
     display: flex !important;
     flex-direction: column !important;
-    gap: 0.75rem !important;
+    gap: 0.6rem !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
   }
 
   .invoice-table-section {
