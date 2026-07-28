@@ -1,0 +1,118 @@
+@media print {
+  /* Hide interactive, layout and navigation elements */
+  .sidebar,
+  .main-content,
+  .no-print,
+  button,
+  .btn,
+  .modal-close,
+  .modal-header,
+  .modal-footer {
+    display: none !important;
+  }
+
+  /* Reset main layout wrappers so the invoice can take full width */
+  body, 
+  #root, 
+  .app-layout {
+    background: #ffffff !important;
+    color: #111111 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+    box-shadow: none !important;
+  }
+
+  /* Reset modal styles to lay out inline as a regular page element */
+  .modal-overlay {
+    position: static !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    display: block !important;
+    z-index: auto !important;
+    padding: 0 !important;
+    animation: none !important;
+  }
+
+  .modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+    animation: none !important;
+    display: block !important;
+  }
+
+  .modal-body {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* A4 Portrait size settings */
+  @page {
+    size: A4 portrait;
+    margin: 0; /* Hides default browser header and footer */
+  }
+
+  /* Text formatting optimizations for printing */
+  h1, h2, h3, h4, h5, h6, p, td, th {
+    color: #000000 !important;
+  }
+
+  .table th {
+    border-bottom: 2px solid #000000 !important;
+  }
+
+  .table td {
+    border-bottom: 1px solid #e0e0e0 !important;
+  }
+
+  .table tr:hover td {
+    background-color: transparent !important;
+  }
+
+  /* Prevent elements from breaking across pages awkwardly */
+  .print-avoid-break {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Enforce A4 proportions and single-page constraint on print */
+  .A4-sheet {
+    width: 210mm !important;
+    height: 297mm !important;
+    padding: 12mm !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    display: block !important;
+    position: relative !important;
+    overflow: hidden !important; /* Strictly clip to 1 page */
+  }
+
+  .invoice-container {
+    height: auto !important; /* Flow naturally on print to prevent stretching overflow */
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+  }
+
+  .invoice-table-section {
+    flex-grow: 0 !important;
+  }
+
+  .thank-you-footer {
+    position: absolute !important;
+    bottom: 12mm !important;
+    left: 12mm !important;
+    right: 12mm !important;
+    margin: 0 !important;
+    padding-top: 0.5rem !important;
+    border-top: 1px solid #e6e2dc !important;
+  }
+}
