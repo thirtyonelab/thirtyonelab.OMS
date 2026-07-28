@@ -1511,7 +1511,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
           box-sizing: border-box;
           background: #ffffff;
           padding: 12mm;
-          box-shadow: var(--shadow-lg);
+          box-shadow: none;
+          border: 1px solid var(--border-color);
           margin: 0 auto;
           overflow: hidden;
         }
