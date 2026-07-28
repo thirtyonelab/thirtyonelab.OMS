@@ -1,9 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getSettings } from '../services/storage';
-import { X, Printer, Receipt } from 'lucide-react';
-import { getBasePrice, getSizeCost, CUTTINGS, NECKS } from './InvoiceModal';
+import { X, Printer, Receipt, ChevronDown, ChevronUp } from 'lucide-react';
+import { getBasePrice, getSizeCost, CUTTINGS, NECKS, MATERIALS } from './InvoiceModal';
 
-const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL', '7XL', '8XL', '9XL', '10XL', '11XL'];
+const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL', '7XL', '8XL', '9XL', '10XL', '11XL', '12XL', '13XL'];
+
+const getPrintModeLabel = (mode) => {
+  if (mode === 'Invoice') return 'Invoice';
+  if (mode === 'DepositReceipt') return 'Deposit Receipt';
+  if (mode === 'FullReceipt') return 'Full Receipt';
+  return '';
+};
 
 const highlightTerms = (text) => {
   if (!text) return { __html: '' };
@@ -32,6 +39,37 @@ const highlightTerms = (text) => {
 export default function InvoiceDetailModal({ invoice, onClose }) {
   const [settings, setSettings] = useState(null);
   const [printMode, setPrintMode] = useState('Invoice'); // 'Invoice' | 'DepositReceipt' | 'FullReceipt'
+  const [controlsExpanded, setControlsExpanded] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [zoom, setZoom] = useState(1);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 768) {
+        // A4 sheet width is 210mm (approx 794px).
+        // Scale to fit screen width with 16px margins on each side.
+        const targetWidth = window.innerWidth - 32;
+        const scaleFactor = Math.min(1, targetWidth / 794);
+        setScale(scaleFactor);
+      } else {
+        setScale(1);
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const lastTapRef = useRef(0);
+  const handleDoubleTap = (e) => {
+    const now = Date.now();
+    const DOUBLE_PRESS_DELAY = 300;
+    if (now - lastTapRef.current < DOUBLE_PRESS_DELAY) {
+      setZoom(prev => (prev > 1 ? 1 : 1.8));
+    }
+    lastTapRef.current = now;
+  };
 
   useEffect(() => {
     loadSettings();
@@ -82,8 +120,8 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
   // Calculations for display
   const totalQty = invoice.items.reduce((total, item) => {
     return total + SIZES.reduce((itemTotal, size) => {
-      const sQty = item.sizes[size]?.short || 0;
-      const lQty = item.sizes[size]?.long || 0;
+      const sQty = parseInt(item.sizes[size]?.short || 0, 10);
+      const lQty = parseInt(item.sizes[size]?.long || 0, 10);
       return itemTotal + sQty + lQty;
     }, 0);
   }, 0);
@@ -92,8 +130,8 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
 
   const calculateItemQty = (item) => {
     return SIZES.reduce((itemTotal, size) => {
-      const sQty = item.sizes[size]?.short || 0;
-      const lQty = item.sizes[size]?.long || 0;
+      const sQty = parseInt(item.sizes[size]?.short || 0, 10);
+      const lQty = parseInt(item.sizes[size]?.long || 0, 10);
       return itemTotal + sQty + lQty;
     }, 0);
   };
@@ -102,14 +140,15 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     let itemBaseTotal = 0;
     let itemAddonTotal = 0;
 
+    const materialPrice = MATERIALS.find(m => m.id === item.material)?.price || 0;
     const cuttingPrice = CUTTINGS.find(c => c.id === item.cutting)?.price || 0;
     const neckPrice = NECKS.find(n => n.id === item.neck)?.price || 0;
     const nameSetPrice = item.name_set === 'Yes' ? 3 : 0;
-    const designWideAddons = cuttingPrice + neckPrice + nameSetPrice;
+    const designWideAddons = materialPrice + cuttingPrice + neckPrice + nameSetPrice;
 
     SIZES.forEach(size => {
-      const shortQty = item.sizes[size]?.short || 0;
-      const longQty = item.sizes[size]?.long || 0;
+      const shortQty = parseInt(item.sizes[size]?.short || 0, 10);
+      const longQty = parseInt(item.sizes[size]?.long || 0, 10);
       const subQty = shortQty + longQty;
 
       if (subQty > 0) {
@@ -124,52 +163,110 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     return itemBaseTotal + itemAddonTotal;
   };
 
+  const finalScale = scale * zoom;
+
   return (
     <div className="modal-overlay print-modal-overlay" onClick={onClose}>
       <div className="modal-content A4-modal-container" onClick={(e) => e.stopPropagation()}>
         
         {/* Header Controls (Hides during printing) */}
-        <div className="modal-header print-controls no-print">
-          <div className="print-header-title">
-            <span style={{ fontFamily: 'var(--font-primary)', fontSize: '0.75rem', fontWeight: 800, letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-light)' }}>
-              Invoice Preview
-            </span>
+        <div className="modal-header print-controls no-print" style={{ flexDirection: 'column', alignItems: 'stretch', gap: controlsExpanded ? '1rem' : '0' }}>
+          
+          {/* Always Visible Compact Bar */}
+          <div className="print-compact-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+            
+            {/* Left Controls (Title, Active Selection, Print, & Zoom) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div className="print-header-title">
+                <span style={{ fontFamily: 'var(--font-primary)', fontSize: '0.75rem', fontWeight: 800, letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-light)' }}>
+                  Invoice Preview
+                </span>
+              </div>
+              
+              {/* Current Document Selection Trigger Button */}
+              <button 
+                onClick={() => setControlsExpanded(!controlsExpanded)}
+                className="btn btn-secondary btn-sm active-preview-btn"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textTransform: 'uppercase' }}
+              >
+                {getPrintModeLabel(printMode)} {controlsExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              </button>
+              
+              {/* Quick Print Button */}
+              <button 
+                onClick={() => window.print()} 
+                className="btn btn-primary btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              >
+                <Printer size={14} /> Print
+              </button>
+
+            </div>
+            
+            {/* Right Controls (Close Modal Button aligned to far right) */}
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <button className="modal-close" onClick={onClose} style={{ display: 'flex', alignItems: 'center' }}>
+                <X size={20} />
+              </button>
+            </div>
+
           </div>
-          <div className="print-controls-right">
-            <button 
-              onClick={() => setPrintMode('Invoice')} 
-              className={`btn btn-secondary btn-sm ${printMode === 'Invoice' ? 'active-preview-btn' : ''}`}
-            >
-              Invoice
-            </button>
-            <button 
-              onClick={() => setPrintMode('DepositReceipt')} 
-              className={`btn btn-secondary btn-sm ${printMode === 'DepositReceipt' ? 'active-preview-btn' : ''}`}
-            >
-              Deposit Receipt
-            </button>
-            <button 
-              onClick={() => setPrintMode('FullReceipt')} 
-              className={`btn btn-secondary btn-sm ${printMode === 'FullReceipt' ? 'active-preview-btn' : ''}`}
-            >
-              Full Receipt
-            </button>
-            <button 
-              onClick={() => window.print()} 
-              className="btn btn-primary btn-sm"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-            >
-              <Printer size={14} /> Print
-            </button>
-            <button className="modal-close" onClick={onClose} style={{ marginLeft: '0.5rem' }}>
-              <X size={20} />
-            </button>
-          </div>
+
+          {/* Collapsible Options Panel */}
+          {controlsExpanded && (
+            <div className="print-selectors-panel" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', borderTop: '1px dashed var(--border-color)', paddingTop: '0.75rem' }}>
+              <button 
+                onClick={() => { setPrintMode('Invoice'); setControlsExpanded(false); }} 
+                className={`btn btn-secondary btn-sm ${printMode === 'Invoice' ? 'active-preview-btn' : ''}`}
+                style={{ flex: 1, minWidth: '100px' }}
+              >
+                Invoice
+              </button>
+              <button 
+                onClick={() => { setPrintMode('DepositReceipt'); setControlsExpanded(false); }} 
+                className={`btn btn-secondary btn-sm ${printMode === 'DepositReceipt' ? 'active-preview-btn' : ''}`}
+                style={{ flex: 1, minWidth: '100px' }}
+              >
+                Deposit Receipt
+              </button>
+              <button 
+                onClick={() => { setPrintMode('FullReceipt'); setControlsExpanded(false); }} 
+                className={`btn btn-secondary btn-sm ${printMode === 'FullReceipt' ? 'active-preview-btn' : ''}`}
+                style={{ flex: 1, minWidth: '100px' }}
+              >
+                Full Receipt
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Printable Area */}
-        <div className="modal-body A4-sheet">
-          <div className="invoice-container">
+        <div className="A4-scroll-wrapper" style={{ overflow: 'auto', flex: 1, padding: '1rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div 
+            className="A4-scale-container" 
+            onTouchEnd={handleDoubleTap}
+            onDoubleClick={() => setZoom(prev => (prev > 1 ? 1 : 1.8))}
+            style={{ 
+              width: `${794 * finalScale}px`, 
+              height: `${1122 * finalScale}px`, 
+              overflow: 'hidden',
+              flexShrink: 0,
+              cursor: zoom > 1 ? 'zoom-out' : 'zoom-in'
+            }}
+          >
+            <div 
+              className="modal-body A4-sheet"
+              style={{
+                transform: `scale(${finalScale})`,
+                transformOrigin: 'top left',
+                margin: 0,
+                flex: 'none',
+                width: '210mm',
+                height: '297mm',
+                overflow: 'hidden'
+              }}
+            >
+            <div className="invoice-container">
             
             {/* Header: Company Details (Left Aligned Stack) */}
             <div className="invoice-header print-avoid-break">
@@ -395,6 +492,8 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
 
           </div>
         </div>
+        </div>
+      </div>
 
       </div>
 
@@ -748,25 +847,27 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
         }
 
         @media screen and (max-width: 768px) {
+          .print-header-title {
+            display: none !important;
+          }
+          .print-controls {
+            padding: 0.6rem 0.75rem !important;
+          }
           .print-modal-overlay {
             padding: 0;
           }
           .A4-modal-container {
             width: 100%;
           }
-          .A4-sheet {
+          .A4-scroll-wrapper {
             width: 100%;
-            padding: 1rem;
+            overflow-x: auto;
+            background-color: var(--border-color);
+            padding: 1rem 0;
           }
-          .invoice-billing-block {
-            gap: 0.5rem;
-          }
-          .invoice-bottom-grid {
-            grid-template-columns: 1fr;
-            gap: 1.5rem;
-          }
-          .bottom-grid-right {
-            align-items: flex-start;
+          .A4-sheet {
+            width: 210mm; /* Keep A4 width to prevent squishing */
+            margin: 0 auto;
           }
         }
       `}</style>

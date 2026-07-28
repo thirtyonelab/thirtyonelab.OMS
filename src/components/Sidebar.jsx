@@ -76,7 +76,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
             <>
               <div className="status-dot cloud"></div>
               <div className="status-text">
-                <span className="status-label">SUPABASE SYNC</span>
+                <span className="status-label">CLOUD SYNC</span>
                 <span className="status-desc">Awan Aktif</span>
               </div>
             </>

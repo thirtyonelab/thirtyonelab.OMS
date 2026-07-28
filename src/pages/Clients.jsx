@@ -62,7 +62,7 @@ export default function Clients({ onCreateInvoiceForClient }) {
     const hasInvoices = invoices.some(inv => inv.client_id === client.id);
     let confirmMsg = `Adakah anda pasti mahu memadam pelanggan "${client.name}"?`;
     if (hasInvoices) {
-      confirmMsg = `Amaran: Pelanggan "${client.name}" mempunyai sejarah invois. Invois yang berkaitan tidak akan dipadam tetapi pautan ke pelanggan ini akan dikeluarkan. Teruskan?`;
+      confirmMsg = `Amaran: Pelanggan "${client.name}" mempunyai sejarah invoice. Invoice yang berkaitan tidak akan dipadam tetapi pautan ke pelanggan ini akan dikeluarkan. Teruskan?`;
     }
 
     if (window.confirm(confirmMsg)) {
@@ -114,62 +114,103 @@ export default function Clients({ onCreateInvoiceForClient }) {
         ) : filteredClients.length === 0 ? (
           <div className="empty-state">Tiada pelanggan ditemui.</div>
         ) : (
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Nama Pelanggan</th>
-                  <th style={{ textAlign: 'center' }}>No. Telefon</th>
-                  <th style={{ textAlign: 'center' }}>Jumlah Tempahan</th>
-                  <th style={{ textAlign: 'center' }}>Total Belanja</th>
-                  <th style={{ textAlign: 'center' }}>Tindakan</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredClients.map((client) => (
-                  <tr key={client.id}>
-                    <td>
-                      <div className="client-name-cell">
-                        <User size={16} className="text-light" />
-                        <span className="font-bold">{client.name}</span>
-                      </div>
-                    </td>
-                    <td style={{ textAlign: 'center' }}>{client.phone}</td>
-                    <td style={{ textAlign: 'center' }}>{client.orders_count || 0} kali</td>
-                    <td style={{ textAlign: 'center' }} className="font-bold">
-                      RM {parseFloat(client.total_spent || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <div className="actions-cell">
-                        <button
-                          onClick={() => setSelectedClient(client)}
-                          className="btn btn-secondary btn-sm"
-                          title="Lihat Sejarah"
-                        >
-                          <Eye size={12} /> View
-                        </button>
-                        <button
-                          onClick={() => handleEditClick(client)}
-                          className="btn btn-secondary btn-sm"
-                          title="Kemaskini Butiran"
-                        >
-                          <Edit2 size={12} /> Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClick(client)}
-                          className="btn btn-secondary btn-sm"
-                          title="Padam Pelanggan"
-                          style={{ borderColor: '#FEE2E2', color: '#B91C1C' }}
-                        >
-                          <Trash2 size={12} /> Delete
-                        </button>
-                      </div>
-                    </td>
+          <>
+            <div className="table-container desktop-only">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Nama Pelanggan</th>
+                    <th style={{ textAlign: 'center' }}>No. Telefon</th>
+                    <th style={{ textAlign: 'center' }}>Jumlah Tempahan</th>
+                    <th style={{ textAlign: 'center' }}>Total Belanja</th>
+                    <th style={{ textAlign: 'center' }}>Tindakan</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filteredClients.map((client) => (
+                    <tr key={client.id}>
+                      <td>
+                        <div className="client-name-cell">
+                          <User size={16} className="text-light" />
+                          <span className="font-bold">{client.name}</span>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>{client.phone}</td>
+                      <td style={{ textAlign: 'center' }}>{client.orders_count || 0} kali</td>
+                      <td style={{ textAlign: 'center' }} className="font-bold">
+                        RM {parseFloat(client.total_spent || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <div className="actions-cell">
+                          <button
+                            onClick={() => setSelectedClient(client)}
+                            className="btn btn-secondary btn-sm"
+                            title="Lihat Sejarah"
+                          >
+                            <Eye size={12} /> View
+                          </button>
+                          <button
+                            onClick={() => handleEditClick(client)}
+                            className="btn btn-secondary btn-sm"
+                            title="Kemaskini Butiran"
+                          >
+                            <Edit2 size={12} /> Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClick(client)}
+                            className="btn btn-secondary btn-sm"
+                            title="Padam Pelanggan"
+                            style={{ borderColor: '#FEE2E2', color: '#B91C1C' }}
+                          >
+                            <Trash2 size={12} /> Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mobile-cards-list mobile-only">
+              {filteredClients.map((client) => (
+                <div key={client.id} className="mobile-card">
+                  <div className="mobile-card-row">
+                    <span className="mobile-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <User size={14} className="text-red" />
+                      {client.name}
+                    </span>
+                    <span className="mobile-card-detail">{client.phone}</span>
+                  </div>
+                  <div className="mobile-card-row">
+                    <span className="mobile-card-detail">Tempahan: <span className="mobile-card-bold">{client.orders_count || 0} kali</span></span>
+                    <span className="mobile-card-detail">Jumlah Belanja: <span className="mobile-card-bold" style={{ color: 'var(--primary-red)' }}>RM {parseFloat(client.total_spent || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>
+                  </div>
+                  <div className="mobile-card-actions">
+                    <button
+                      onClick={() => setSelectedClient(client)}
+                      className="btn btn-secondary btn-sm"
+                    >
+                      <Eye size={12} /> View CRM
+                    </button>
+                    <button
+                      onClick={() => handleEditClick(client)}
+                      className="btn btn-secondary btn-sm"
+                    >
+                      <Edit2 size={12} /> Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClick(client)}
+                      className="btn btn-secondary btn-sm"
+                      style={{ borderColor: '#FEE2E2', color: '#B91C1C' }}
+                    >
+                      <Trash2 size={12} /> Padam
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
@@ -227,7 +268,7 @@ export default function Clients({ onCreateInvoiceForClient }) {
               {/* Purchase History */}
               <div className="history-section">
                 <div className="history-header">
-                  <h4>Sejarah Invois & Tempahan</h4>
+                  <h4>Sejarah Invoice & Tempahan</h4>
                   <button
                     onClick={() => {
                       setSelectedClient(null);
@@ -235,11 +276,11 @@ export default function Clients({ onCreateInvoiceForClient }) {
                     }}
                     className="btn btn-primary btn-sm"
                   >
-                    <Plus size={12} /> Cipta Invois Baru
+                    <Plus size={12} /> Cipta Invoice Baru
                   </button>
                 </div>
 
-                <div className="table-container" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                <div className="table-container desktop-only" style={{ maxHeight: '300px', overflowY: 'auto' }}>
                   {getClientInvoices(selectedClient.id).length === 0 ? (
                     <div className="empty-history">Tiada rekod tempahan untuk pelanggan ini.</div>
                   ) : (
@@ -247,7 +288,7 @@ export default function Clients({ onCreateInvoiceForClient }) {
                       <thead>
                         <tr>
                           <th></th>
-                          <th>No. Invois</th>
+                          <th>No. Invoice</th>
                           <th>Tarikh</th>
                           <th>Nama Job</th>
                           <th style={{ textAlign: 'center' }}>Jumlah</th>
@@ -337,7 +378,7 @@ export default function Clients({ onCreateInvoiceForClient }) {
                                         </div>
                                       ))
                                     ) : (
-                                      <div className="spec-empty">Tiada data spec pembelian untuk invois ini.</div>
+                                      <div className="spec-empty">Tiada data spec pembelian untuk invoice ini.</div>
                                     )}
                                   </div>
                                 </td>
@@ -347,6 +388,87 @@ export default function Clients({ onCreateInvoiceForClient }) {
                         ))}
                       </tbody>
                     </table>
+                  )}
+                </div>
+
+                <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '350px', overflowY: 'auto', marginBottom: '1rem' }}>
+                  {getClientInvoices(selectedClient.id).length === 0 ? (
+                    <div className="empty-history">Tiada rekod tempahan untuk pelanggan ini.</div>
+                  ) : (
+                    getClientInvoices(selectedClient.id).map((inv) => (
+                      <div key={inv.id} className="mobile-card" style={{ padding: '1rem', border: '1px solid var(--border-color)', gap: '0.5rem' }}>
+                        <div className="mobile-card-row" onClick={() => setExpandedInvoiceId(expandedInvoiceId === inv.id ? null : inv.id)} style={{ cursor: 'pointer' }}>
+                          <span className="mobile-card-bold" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontFamily: 'var(--font-primary)', fontSize: '0.78rem' }}>
+                            {expandedInvoiceId === inv.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                            {inv.invoice_no}
+                          </span>
+                          <span className={`badge badge-${inv.status.toLowerCase()}`}>{inv.status}</span>
+                        </div>
+                        <div className="mobile-card-row" onClick={() => setExpandedInvoiceId(expandedInvoiceId === inv.id ? null : inv.id)} style={{ cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                          <span>{inv.date} | {inv.job_name || '-'}</span>
+                          <span className="mobile-card-bold" style={{ color: 'var(--text-dark)' }}>RM {parseFloat(inv.grand_total).toFixed(2)}</span>
+                        </div>
+                        {expandedInvoiceId === inv.id && (
+                          <div className="spec-container" style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px dashed var(--border-color)' }}>
+                            <div className="spec-header" style={{ paddingBottom: '0.5rem', marginBottom: '0.5rem' }}>
+                              <span>HISTORY SPEC PEMBELIAN</span>
+                            </div>
+                            {inv.items && inv.items.length > 0 ? (
+                              inv.items.map((item, idx) => (
+                                <div className="spec-card" key={item.id || idx}>
+                                  <div className="spec-image">
+                                    {item.design_image ? (
+                                      <img src={item.design_image} alt={item.design_name || 'Design'} />
+                                    ) : (
+                                      <div className="spec-image-placeholder">
+                                        <Image size={28} />
+                                        <span>Tiada Gambar</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="spec-details">
+                                    <div className="spec-row">
+                                      <span className="spec-label">Nama/Code</span>
+                                      <span className="spec-value">: {item.design_name || '-'}</span>
+                                    </div>
+                                    <div className="spec-row">
+                                      <span className="spec-label">Material</span>
+                                      <span className="spec-value">: {item.material || '-'}</span>
+                                    </div>
+                                    <div className="spec-row">
+                                      <span className="spec-label">Cutting</span>
+                                      <span className="spec-value">: {item.cutting || '-'}</span>
+                                    </div>
+                                    <div className="spec-row">
+                                      <span className="spec-label">Jenis Neck</span>
+                                      <span className="spec-value">: {item.neck || '-'}</span>
+                                    </div>
+                                    <div className="spec-row">
+                                      <span className="spec-label">Name Set</span>
+                                      <span className="spec-value">: {item.name_set || '-'}</span>
+                                    </div>
+                                    <div className="spec-row" style={{ marginTop: '0.3rem', paddingTop: '0.4rem', borderTop: '1px dashed var(--border-color)' }}>
+                                      <span className="spec-label" style={{ fontWeight: 700, color: 'var(--text-dark)' }}>Base Price</span>
+                                      <span className="spec-value" style={{ fontWeight: 700, color: 'var(--primary-red)' }}>: RM {(() => {
+                                        const totalQty = inv.items.reduce((sum, i) => sum + (i.qty || 0), 0);
+                                        const base = getBasePrice(totalQty);
+                                        const discount = inv.discount_per_pcs || 0;
+                                        const finalPrice = base - discount;
+                                        return discount > 0
+                                          ? `${finalPrice.toFixed(2)} /pcs (diskaun RM${discount.toFixed(2)})`
+                                          : `${base.toFixed(2)} /pcs`;
+                                      })()}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="spec-empty">Tiada data spec pembelian untuk invoice ini.</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))
                   )}
                 </div>
               </div>

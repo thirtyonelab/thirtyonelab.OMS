@@ -1,29 +1,86 @@
 import React, { useState, useEffect } from 'react';
 import { getClients, saveInvoice, getNextInvoiceNo } from '../services/storage';
-import { X, Plus, Trash2, Upload, AlertTriangle, Save, Check } from 'lucide-react';
+import { X, Plus, Trash2, Upload, AlertTriangle, Save, Check, ChevronDown, ChevronUp } from 'lucide-react';
 
-const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL', '7XL', '8XL', '9XL', '10XL', '11XL'];
+const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL', '7XL', '8XL', '9XL', '10XL', '11XL', '12XL', '13XL'];
 
-const MATERIALS = ['Eyelet', 'Mini-Eyelet', 'Diamond', 'Lycra', 'Interlock', 'RJPK', 'Mesh', 'Popcorn'];
+const getSelectedSizesSummary = (item) => {
+  const summaryParts = [];
+  SIZES.forEach(s => {
+    const sQty = parseInt(item.sizes[s]?.short || 0);
+    const lQty = parseInt(item.sizes[s]?.long || 0);
+    if (sQty > 0 || lQty > 0) {
+      const parts = [];
+      if (sQty > 0) parts.push(`${sQty} Short`);
+      if (lQty > 0) parts.push(`${lQty} Long`);
+      summaryParts.push(`${s} (${parts.join(', ')})`);
+    }
+  });
+  return summaryParts.length > 0 ? summaryParts.join(' | ') : 'Tiada saiz terpilih';
+};
+
+const getSelectedSizesPills = (item) => {
+  const pills = [];
+  SIZES.forEach(s => {
+    const sQty = parseInt(item.sizes[s]?.short || 0);
+    const lQty = parseInt(item.sizes[s]?.long || 0);
+    if (sQty > 0 || lQty > 0) {
+      const details = [];
+      if (sQty > 0) details.push(`${sQty}S`);
+      if (lQty > 0) details.push(`${lQty}L`);
+      pills.push(
+        <span 
+          key={s} 
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '0.2rem 0.5rem',
+            backgroundColor: 'var(--white)',
+            border: '1px solid var(--border-color)',
+            fontSize: '0.72rem',
+            fontWeight: '700',
+            color: 'var(--text-dark)',
+            fontFamily: 'var(--font-primary)',
+            letterSpacing: '0.5px'
+          }}
+        >
+          <span style={{ color: 'var(--primary-red)', marginRight: '0.25rem' }}>{s}</span>: {details.join(', ')}
+        </span>
+      );
+    }
+  });
+  return pills.length > 0 ? pills : <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Tiada saiz terpilih</span>;
+};
+
+export const MATERIALS = [
+  { id: 'Eyelet', label: 'Eyelet (+RM0)', price: 0 },
+  { id: 'Diamond', label: 'Diamond (+RM3)', price: 3 },
+  { id: 'Interlock', label: 'Interlock (+RM0)', price: 0 },
+  { id: 'Lycra', label: 'Lycra (+RM10)', price: 10 },
+  { id: 'Mesh', label: 'Mesh (+RM6)', price: 6 },
+  { id: 'Mini-Eyelet', label: 'Mini-Eyelet (+RM0)', price: 0 },
+  { id: 'Popcorn', label: 'Popcorn (+RM8)', price: 8 },
+  { id: 'RJPK', label: 'RJPK (+RM3)', price: 3 }
+];
 
 export const CUTTINGS = [
   { id: 'Normal', label: 'Normal (+RM0)', price: 0 },
-  { id: 'Raglan', label: 'Raglan (+RM4)', price: 4 },
-  { id: 'Boxy', label: 'Boxy (+RM5)', price: 5 },
   { id: 'Baseball', label: 'Baseball (+RM5)', price: 5 },
+  { id: 'Boxy', label: 'Boxy (+RM5)', price: 5 },
+  { id: 'Raglan', label: 'Raglan (+RM4)', price: 4 },
   { id: 'Singlet', label: 'Singlet (+RM5)', price: 5 },
   { id: 'Sleeveless', label: 'Sleeveless (+RM5)', price: 5 }
 ];
 
 export const NECKS = [
   { id: 'Roundneck', label: 'Roundneck (+RM0)', price: 0 },
-  { id: 'V-Neck', label: 'V-Neck (+RM0)', price: 0 },
-  { id: 'V-Neck End', label: 'V-Neck End (+RM0)', price: 0 },
   { id: 'Collar Button (Polo)', label: 'Collar Button (Polo) (+RM6)', price: 6 },
   { id: 'Mandarin Zip', label: 'Mandarin Zip (+RM6)', price: 6 },
   { id: 'Retro', label: 'Retro (+RM6)', price: 6 },
   { id: 'Retro End', label: 'Retro End (+RM6)', price: 6 },
-  { id: 'V-Neck Outer', label: 'V-Neck Outer (+RM6)', price: 6 }
+  { id: 'V-Neck', label: 'V-Neck (+RM3)', price: 3 },
+  { id: 'V-Neck End', label: 'V-Neck End (+RM3)', price: 3 },
+  { id: 'V-Neck Outer', label: 'V-Neck Outer (+RM7)', price: 7 }
 ];
 
 export const getBasePrice = (totalQty) => {
@@ -39,6 +96,7 @@ export const getSizeCost = (size) => {
   if (['3XL', '4XL', '5XL'].includes(size)) return 3;
   if (['6XL', '7XL', '8XL'].includes(size)) return 6;
   if (['9XL', '10XL', '11XL'].includes(size)) return 9;
+  if (['12XL', '13XL'].includes(size)) return 12;
   return 0;
 };
 
@@ -75,6 +133,14 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   
   // UI States
   const [loading, setLoading] = useState(false);
+  const [collapsedSizes, setCollapsedSizes] = useState({});
+
+  const toggleSizesCollapse = (itemId) => {
+    setCollapsedSizes(prev => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  };
 
   useEffect(() => {
     loadClients();
@@ -195,14 +261,15 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
     let itemAddonTotal = 0;
     let itemQty = 0;
 
+    const materialPrice = MATERIALS.find(m => m.id === item.material)?.price || 0;
     const cuttingPrice = CUTTINGS.find(c => c.id === item.cutting)?.price || 0;
     const neckPrice = NECKS.find(n => n.id === item.neck)?.price || 0;
     const nameSetPrice = item.name_set === 'Yes' ? 3 : 0;
-    const designWideAddons = cuttingPrice + neckPrice + nameSetPrice; // Apply to every piece
+    const designWideAddons = materialPrice + cuttingPrice + neckPrice + nameSetPrice; // Apply to every piece
 
     SIZES.forEach(size => {
-      const shortQty = item.sizes[size]?.short || 0;
-      const longQty = item.sizes[size]?.long || 0;
+      const shortQty = parseInt(item.sizes[size]?.short || 0, 10);
+      const longQty = parseInt(item.sizes[size]?.long || 0, 10);
       const subQty = shortQty + longQty;
 
       if (subQty > 0) {
@@ -288,7 +355,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       onSaveSuccess();
     } catch (err) {
       console.error(err);
-      alert('Ralat semasa menyimpan invois.');
+      alert('Ralat semasa menyimpan invoice.');
     } finally {
       setLoading(false);
     }
@@ -298,7 +365,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '1000px' }}>
         <div className="modal-header">
-          <h3>{invoice ? 'KEMASKINI INVOIS' : 'CIPTA INVOIS BAHARU'}</h3>
+          <h3>{invoice ? 'KEMASKINI INVOICE' : 'CIPTA INVOICE BAHARU'}</h3>
           <button className="modal-close" onClick={onClose}>
             <X size={20} />
           </button>
@@ -356,7 +423,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">No. Invois</label>
+                  <label className="form-label">No. Invoice</label>
                   <input
                     type="text"
                     value={invoiceNo}
@@ -377,7 +444,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Tarikh Invois</label>
+                  <label className="form-label">Tarikh Invoice</label>
                   <input
                     type="date"
                     value={date}
@@ -389,7 +456,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
 
                 <div className="form-group quota-banner">
                   <div className="quota-info">
-                    <span className="quota-label">Kuantiti Invois</span>
+                    <span className="quota-label">Kuantiti Invoice</span>
                     <span className="quota-value">{totalQty} pcs</span>
                   </div>
                   <div className="quota-info">
@@ -433,14 +500,13 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                     {/* Specification Dropdowns */}
                     <div className="grid-4 specs-grid">
                       <div className="form-group">
-                        <label className="form-label">Nama/Code Design</label>
+                        <label className="form-label">Nama/Code Design (Optional)</label>
                         <input
                           type="text"
                           value={item.design_name}
                           onChange={(e) => updateItemField(item.id, 'design_name', e.target.value)}
                           placeholder="Cth: Shield Pro/ 26#0110"
                           className="form-control"
-                          required
                         />
                       </div>
 
@@ -452,7 +518,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                           className="form-control"
                         >
                           {MATERIALS.map(m => (
-                            <option key={m} value={m}>{m} (+RM0)</option>
+                            <option key={m.id} value={m.id}>{m.label}</option>
                           ))}
                         </select>
                       </div>
@@ -505,22 +571,22 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                             onChange={(e) => handleItemImageUpload(e, item.id)}
                             className="file-input-hidden"
                           />
-                          <label htmlFor={`img_${item.id}`} className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>
-                            <Upload size={12} /> Pilih Imej
-                          </label>
-                          {item.design_image ? (
-                            <div className="design-image-preview-wrapper">
-                              <img src={item.design_image} className="design-img-preview" alt="Design Preview" />
+                          {!item.design_image ? (
+                            <label htmlFor={`img_${item.id}`} className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>
+                              <Upload size={12} /> Pilih Imej
+                            </label>
+                          ) : (
+                            <div className="design-image-preview-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                              <img src={item.design_image} className="design-img-preview" alt="Design Preview" style={{ height: '50px', width: '50px', borderRadius: '4px' }} />
                               <button
                                 type="button"
                                 onClick={() => updateItemField(item.id, 'design_image', '')}
-                                className="btn-text btn-delete-img"
+                                className="btn btn-secondary btn-sm"
+                                style={{ borderColor: '#FEE2E2', color: '#B91C1C', padding: '0.4rem 1rem' }}
                               >
-                                Buang
+                                Buang Imej
                               </button>
                             </div>
-                          ) : (
-                            <span className="no-image-text">Tiada imej</span>
                           )}
                         </div>
                       </div>
@@ -528,69 +594,149 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
 
                     {/* Breakdown Matrix */}
                     <div className="size-breakdown-section">
-                      <label className="form-label size-breakdown-title">Pecahan Saiz & Kuantiti Lengan</label>
-                      <div className="breakdown-grid-wrapper">
-                        <table className="breakdown-table">
-                          <thead>
-                            <tr>
-                              <th>Lengan</th>
-                              {SIZES.map(s => (
-                                <th key={s} className={getSizeCost(s) > 0 ? 'extra-cost-header' : ''}>
-                                  {s}
-                                  {getSizeCost(s) > 0 && <span className="extra-cost-badge">+{getSizeCost(s)}</span>}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr>
-                              <td className="row-label">Short</td>
-                              {SIZES.map(s => (
-                                <td key={s}>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={item.sizes[s]?.short || ''}
-                                    onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
-                                    placeholder="0"
-                                    className="qty-input"
-                                  />
-                                </td>
-                              ))}
-                            </tr>
-                            <tr>
-                              <td className="row-label">Long (+RM5)</td>
-                              {SIZES.map(s => (
-                                <td key={s}>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={item.sizes[s]?.long || ''}
-                                    onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
-                                    placeholder="0"
-                                    className="qty-input"
-                                  />
-                                </td>
-                              ))}
-                            </tr>
-                          </tbody>
-                        </table>
+                      <div 
+                        onClick={() => toggleSizesCollapse(item.id)}
+                        className="size-breakdown-toggle-header"
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          cursor: 'pointer',
+                          padding: '0.5rem 0',
+                          borderBottom: '1px solid var(--border-color)',
+                          marginBottom: '0.75rem',
+                          userSelect: 'none'
+                        }}
+                      >
+                        <label className="form-label size-breakdown-title" style={{ marginBottom: 0, cursor: 'pointer', color: 'var(--text-dark)' }}>
+                          Pecahan Saiz & Kuantiti Lengan
+                        </label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
+                          {collapsedSizes[item.id] ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                        </div>
                       </div>
+
+                      {collapsedSizes[item.id] ? (
+                        <div 
+                          className="collapsed-size-summary"
+                          style={{
+                            padding: '0.75rem',
+                            backgroundColor: 'var(--off-white-bg)',
+                            border: '1px solid var(--border-color)',
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: '0.5rem'
+                          }}
+                        >
+                          {getSelectedSizesPills(item)}
+                        </div>
+                      ) : (
+                        <div className="breakdown-grid-wrapper">
+                          {/* Desktop breakdown table view */}
+                          <table className="breakdown-table desktop-only">
+                            <thead>
+                              <tr>
+                                <th>Lengan</th>
+                                {SIZES.map(s => (
+                                  <th key={s} className={getSizeCost(s) > 0 ? 'extra-cost-header' : ''}>
+                                    {s}
+                                    {getSizeCost(s) > 0 && <span className="extra-cost-badge">+{getSizeCost(s)}</span>}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td className="row-label">Short</td>
+                                {SIZES.map(s => (
+                                  <td key={s}>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={item.sizes[s]?.short || ''}
+                                      onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
+                                      placeholder="0"
+                                      className="qty-input"
+                                    />
+                                  </td>
+                                ))}
+                              </tr>
+                              <tr>
+                                <td className="row-label">Long (+RM5)</td>
+                                {SIZES.map(s => (
+                                  <td key={s}>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={item.sizes[s]?.long || ''}
+                                      onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
+                                      placeholder="0"
+                                      className="qty-input"
+                                    />
+                                  </td>
+                                ))}
+                              </tr>
+                            </tbody>
+                          </table>
+
+                          {/* Mobile Size Breakdown Grid (2-Column Grid) */}
+                          <div className="size-grid-mobile mobile-only">
+                            {SIZES.map(s => (
+                              <div key={s} className="size-input-card">
+                                <div className="size-card-title">
+                                  <span>Size {s}</span>
+                                  {getSizeCost(s) > 0 && (
+                                    <span className="size-card-extra-badge">+{getSizeCost(s)}</span>
+                                  )}
+                                </div>
+                                <div className="size-inputs-row">
+                                  <div className="size-qty-group">
+                                    <span className="size-qty-lbl">Short</span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={item.sizes[s]?.short || ''}
+                                      onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
+                                      placeholder="0"
+                                      className={`size-qty-input ${parseInt(item.sizes[s]?.short || 0) > 0 ? 'has-value' : ''}`}
+                                    />
+                                  </div>
+                                  <div className="size-qty-group">
+                                    <span className="size-qty-lbl">Long (+RM5)</span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={item.sizes[s]?.long || ''}
+                                      onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
+                                      placeholder="0"
+                                      className={`size-qty-input ${parseInt(item.sizes[s]?.long || 0) > 0 ? 'has-value' : ''}`}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Item Calculations Footnote */}
                     <div className="item-calculations-footer">
                       <div className="calc-pill">
-                        Qty: <strong>{summary.qty} pcs</strong>
+                        <span className="calc-pill-label">Qty</span>
+                        <strong className="calc-pill-value">{summary.qty} pcs</strong>
                       </div>
                       <div className="calc-pill">
-                        Base ({basePrice}x): <strong>RM {summary.base.toFixed(2)}</strong>
+                        <span className="calc-pill-label">Base ({basePrice}x)</span>
+                        <strong className="calc-pill-value">RM {summary.base.toFixed(2)}</strong>
                       </div>
                       <div className="calc-pill">
-                        Add-ons: <strong>RM {summary.addons.toFixed(2)}</strong>
+                        <span className="calc-pill-label">Add-ons</span>
+                        <strong className="calc-pill-value">RM {summary.addons.toFixed(2)}</strong>
                       </div>
                       <div className="calc-pill subtotal-pill">
-                        Subtotal Item: <strong>RM {summary.subtotal.toFixed(2)}</strong>
+                        <span className="calc-pill-label">Subtotal Item</span>
+                        <strong className="calc-pill-value">RM {summary.subtotal.toFixed(2)}</strong>
                       </div>
                     </div>
 
@@ -604,12 +750,12 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
               <h4 className="meta-section-title">C. Ringkasan & Diskaun</h4>
               <div className="grid-2">
                 <div className="form-group">
-                  <label className="form-label">Catatan Invois (Opsyenal)</label>
+                  <label className="form-label">Catatan Invoice (Optional)</label>
                   <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     rows="3"
-                    placeholder="Catatan tambahan untuk dicetak di atas invois..."
+                    placeholder="Catatan tambahan untuk dicetak di atas invoice..."
                     className="form-control"
                     style={{ resize: 'none' }}
                   ></textarea>
@@ -655,7 +801,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
               Batal
             </button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              <Save size={16} /> {loading ? 'Menyimpan...' : 'Simpan Invois'}
+              <Save size={16} /> {loading ? 'Menyimpan...' : 'Simpan Invoice'}
             </button>
           </div>
         </form>
@@ -808,6 +954,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
         .design-upload-row {
           display: flex;
           align-items: center;
+          justify-content: flex-start !important;
           gap: 1rem;
           margin-top: 0.25rem;
         }
@@ -815,7 +962,9 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
         .design-image-preview-wrapper {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
+          justify-content: flex-start !important;
+          gap: 1rem;
+          width: auto !important;
         }
 
         .design-img-preview {
@@ -934,16 +1083,40 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
         }
 
         .calc-pill {
-          padding: 0.5rem 1rem;
+          padding: 0.6rem 0.75rem;
           background-color: var(--off-white-bg);
           border: 1px solid var(--border-color);
-          font-size: 0.8rem;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.2rem;
+          text-align: center;
+        }
+
+        .calc-pill-label {
+          font-size: 0.65rem;
           color: var(--text-muted);
+          text-transform: uppercase;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+        }
+
+        .calc-pill-value {
+          font-size: 0.85rem;
+          font-weight: 700;
+          color: var(--text-dark);
         }
 
         .subtotal-pill {
           background-color: var(--primary-red-light);
           border-color: var(--primary-red);
+        }
+
+        .subtotal-pill .calc-pill-label {
+          color: var(--primary-red);
+        }
+
+        .subtotal-pill .calc-pill-value {
           color: var(--primary-red-hover);
         }
 
@@ -962,6 +1135,10 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
           justify-content: space-between;
           align-items: center;
           font-size: 0.9rem;
+        }
+
+        .calc-row span:last-child {
+          white-space: nowrap !important;
         }
 
         .discount-row {
@@ -997,7 +1174,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
         }
 
         .discount-input {
-          padding-left: 2rem;
+          padding-left: 2.25rem;
           padding-top: 0.4rem;
           padding-bottom: 0.4rem;
           font-size: 0.85rem;
@@ -1018,6 +1195,17 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
         }
 
         @media (max-width: 768px) {
+          .section-header-row {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+          }
+          .btn-add-design {
+            margin-top: 0 !important;
+            width: 100%;
+            justify-content: center;
+          }
           .specs-grid {
             grid-template-columns: 1fr;
           }
@@ -1026,6 +1214,13 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
           }
           .item-calculations-footer {
             justify-content: flex-start;
+          }
+          .grand-total-row {
+            font-size: 0.82rem !important;
+          }
+          .grand-total-val {
+            font-size: 1.15rem !important;
+            white-space: nowrap !important;
           }
         }
       `}</style>

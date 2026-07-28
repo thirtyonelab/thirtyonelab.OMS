@@ -120,8 +120,8 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
             <h3 className="metric-value">
               RM {metrics.totalThisMonth.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
-            <span className="metric-subtitle">Invois paid penuh bulan semasa</span>
-            <span style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: '#15803D' }}>{metrics.countThisMonth} Invois</span>
+            <span className="metric-subtitle">Invoice paid penuh bulan semasa</span>
+            <span style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: '#15803D' }}>{metrics.countThisMonth} Invoice</span>
           </div>
         </div>
 
@@ -135,8 +135,8 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
             <h3 className="metric-value" style={{ color: 'var(--primary-red)' }}>
               RM {metrics.totalUnpaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
-            <span className="metric-subtitle">Nilai keseluruhan invois unpaid</span>
-            <span style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{metrics.countUnpaid} Invois</span>
+            <span className="metric-subtitle">Nilai keseluruhan invoice unpaid</span>
+            <span style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{metrics.countUnpaid} Invoice</span>
           </div>
         </div>
 
@@ -151,7 +151,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
               RM {metrics.totalDeposit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
             <span className="metric-subtitle">Jumlah kutipan deposit setakat ini</span>
-            <span style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: '#D97706' }}>{metrics.countDeposit} Invois</span>
+            <span style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: '#D97706' }}>{metrics.countDeposit} Invoice</span>
           </div>
         </div>
       </div>
@@ -162,7 +162,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
           <Search size={18} className="search-icon" />
           <input
             type="text"
-            placeholder="Cari nama pelanggan atau nombor invois..."
+            placeholder="Cari nama pelanggan atau nombor invoice..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="form-control search-input"
@@ -194,67 +194,108 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
         </div>
 
         {loading ? (
-          <div className="loading-state">Memuatkan invois terkini...</div>
+          <div className="loading-state">Memuatkan invoice terkini...</div>
         ) : recentInvoices.length === 0 ? (
-          <div className="empty-state">Tiada invois terkini ditemui.</div>
+          <div className="empty-state">Tiada invoice terkini ditemui.</div>
         ) : (
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'center' }}>No. Invois</th>
-                  <th style={{ textAlign: 'center' }}>Tarikh</th>
-                  <th style={{ textAlign: 'center' }}>Nama Pelanggan</th>
-                  <th style={{ textAlign: 'center' }}>Jumlah (RM)</th>
-                  <th style={{ textAlign: 'center' }}>Baki (RM)</th>
-                  <th style={{ textAlign: 'center' }}>Status</th>
-                  <th style={{ textAlign: 'center' }}>Tindakan</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentInvoices.map((inv) => (
-                  <tr key={inv.id}>
-                    <td style={{ textAlign: 'center' }} className="font-bold">{inv.invoice_no}</td>
-                    <td style={{ textAlign: 'center' }}>{inv.date}</td>
-                    <td style={{ textAlign: 'center' }}>
-                      <div className="client-cell" style={{ alignItems: 'center' }}>
-                        <span className="client-name">{inv.client_name}</span>
-                        <span className="client-phone-sub">{inv.client_phone}</span>
-                      </div>
-                    </td>
-                    <td style={{ textAlign: 'center' }} className="font-bold">
-                      {parseFloat(inv.grand_total).toFixed(2)}
-                    </td>
-                    <td style={{ textAlign: 'center' }} className={parseFloat(inv.balance) > 0 ? 'text-red font-bold' : 'font-bold'}>
-                      {parseFloat(inv.balance ?? inv.grand_total).toFixed(2)}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <span className={`badge ${getStatusBadgeClass(inv.status)}`}>
-                        {inv.status}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <div className="actions-cell">
-                        <button
-                          onClick={() => onOpenInvoiceDetail(inv)}
-                          className="btn btn-secondary btn-sm"
-                        >
-                          <Eye size={12} /> View/Print
-                        </button>
-                        <button
-                          onClick={() => onOpenPaymentModal(inv)}
-                          className="btn btn-secondary btn-sm"
-                          style={{ color: '#D97706', borderColor: '#FEF3C7' }}
-                        >
-                          <RefreshCw size={12} /> Update Payment
-                        </button>
-                      </div>
-                    </td>
+          <>
+            <div className="table-container desktop-only">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'center' }}>No. Invoice</th>
+                    <th style={{ textAlign: 'center' }}>Tarikh</th>
+                    <th style={{ textAlign: 'center' }}>Nama Pelanggan</th>
+                    <th style={{ textAlign: 'center' }}>Jumlah (RM)</th>
+                    <th style={{ textAlign: 'center' }}>Baki (RM)</th>
+                    <th style={{ textAlign: 'center' }}>Status</th>
+                    <th style={{ textAlign: 'center' }}>Tindakan</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {recentInvoices.map((inv) => (
+                    <tr key={inv.id}>
+                      <td style={{ textAlign: 'center' }} className="font-bold">{inv.invoice_no}</td>
+                      <td style={{ textAlign: 'center' }}>{inv.date}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <div className="client-cell" style={{ alignItems: 'center' }}>
+                          <span className="client-name">{inv.client_name}</span>
+                          <span className="client-phone-sub">{inv.client_phone}</span>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'center' }} className="font-bold">
+                        {parseFloat(inv.grand_total).toFixed(2)}
+                      </td>
+                      <td style={{ textAlign: 'center' }} className={parseFloat(inv.balance) > 0 ? 'text-red font-bold' : 'font-bold'}>
+                        {parseFloat(inv.balance ?? inv.grand_total).toFixed(2)}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span className={`badge ${getStatusBadgeClass(inv.status)}`}>
+                          {inv.status}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <div className="actions-cell">
+                          <button
+                            onClick={() => onOpenInvoiceDetail(inv)}
+                            className="btn btn-secondary btn-sm"
+                          >
+                            <Eye size={12} /> View/Print
+                          </button>
+                          <button
+                            onClick={() => onOpenPaymentModal(inv)}
+                            className="btn btn-secondary btn-sm"
+                            style={{ color: '#D97706', borderColor: '#FEF3C7' }}
+                          >
+                            <RefreshCw size={12} /> Update Payment
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mobile-cards-list mobile-only">
+              {recentInvoices.map((inv) => (
+                <div key={inv.id} className="mobile-card">
+                  <div className="mobile-card-row">
+                    <span className="mobile-card-title">{inv.invoice_no}</span>
+                    <span className={`badge ${getStatusBadgeClass(inv.status)}`}>
+                      {inv.status}
+                    </span>
+                  </div>
+                  <div className="mobile-card-row">
+                    <div className="mobile-card-detail">
+                      <div className="mobile-card-bold">{inv.client_name}</div>
+                      <div>Tel: {inv.client_phone}</div>
+                      <div>Tarikh: {inv.date}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div className="mobile-card-detail">Jumlah: <span className="mobile-card-bold">RM {parseFloat(inv.grand_total).toFixed(2)}</span></div>
+                      <div className="mobile-card-detail">Baki: <span className={`mobile-card-bold ${parseFloat(inv.balance ?? inv.grand_total) > 0 ? 'text-red' : ''}`}>RM {parseFloat(inv.balance ?? inv.grand_total).toFixed(2)}</span></div>
+                    </div>
+                  </div>
+                  <div className="mobile-card-actions">
+                    <button
+                      onClick={() => onOpenInvoiceDetail(inv)}
+                      className="btn btn-secondary btn-sm"
+                    >
+                      <Eye size={12} /> View/Print
+                    </button>
+                    <button
+                      onClick={() => onOpenPaymentModal(inv)}
+                      className="btn btn-secondary btn-sm"
+                      style={{ color: '#D97706', borderColor: '#FEF3C7' }}
+                    >
+                      <RefreshCw size={12} /> Update Payment
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 

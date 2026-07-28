@@ -79,7 +79,7 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
           <div className="modal-body payment-modal-body">
             
             <div className="invoice-summary-strip">
-              <span className="strip-label">No. Invois: <strong>{invoice.invoice_no}</strong></span>
+              <span className="strip-label">No. Invoice: <strong>{invoice.invoice_no}</strong></span>
               <span className="strip-label">Pelanggan: <strong>{invoice.client_name}</strong></span>
             </div>
 
@@ -138,7 +138,7 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
                 </span>
               </div>
               <div className="outcome-row">
-                <span>Status Invois:</span>
+                <span>Status Invoice:</span>
                 <span className={`badge badge-${status.toLowerCase()}`}>
                   {status}
                 </span>
@@ -258,6 +258,22 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
 
         .unpaid-text {
           color: #B91C1C;
+        }
+
+        @media (max-width: 500px) {
+          .invoice-summary-strip {
+            flex-direction: column;
+            gap: 0.35rem;
+            align-items: flex-start;
+          }
+          .quick-actions-row {
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+          }
+          .quick-btn {
+            font-size: 0.75rem !important;
+            padding: 0.8rem 0.5rem !important;
+          }
         }
       `}</style>
     </div>

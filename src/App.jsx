@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { LayoutDashboard, FileText, Users, Settings as SettingsIcon } from 'lucide-react';
+import { isCloudMode } from './services/storage';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Invoices from './pages/Invoices';
@@ -15,6 +17,21 @@ import './styles/print.css';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('overview');
+  const [cloudActive, setCloudActive] = useState(isCloudMode());
+
+  useEffect(() => {
+    setCloudActive(isCloudMode());
+  }, [activeTab]);
+
+  useEffect(() => {
+    const handleConnectionChange = () => {
+      setCloudActive(isCloudMode());
+    };
+    window.addEventListener('supabase-connection-changed', handleConnectionChange);
+    return () => {
+      window.removeEventListener('supabase-connection-changed', handleConnectionChange);
+    };
+  }, []);
 
   // Modals state
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
@@ -92,11 +109,43 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      {/* Sidebar (Navigation) */}
+      {/* Mobile Top Header (Visible only on mobile) */}
+      <header className="mobile-top-bar mobile-only">
+        <span className="mobile-brand-name">THIRTYONE <span style={{ color: 'var(--primary-red)' }}>LAB</span><sup style={{ color: 'var(--primary-red)', fontSize: '0.5em' }}>&reg;</sup></span>
+        <div className="mobile-status-indicator">
+          <div className={`mobile-status-dot ${cloudActive ? 'cloud' : 'local'}`}></div>
+          <span className="mobile-status-text">{cloudActive ? 'CLOUD' : 'LOCAL'}</span>
+        </div>
+      </header>
+
+      {/* Sidebar (Navigation - Desktop Only) */}
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {/* Main Pages Content */}
       {renderPage()}
+
+      {/* Mobile Bottom Navigation (Visible only on mobile) */}
+      <nav className="mobile-bottom-nav mobile-only">
+        {[
+          { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+          { id: 'invoices', label: 'Invoices', icon: FileText },
+          { id: 'clients', label: 'Clients', icon: Users },
+          { id: 'settings', label: 'Settings', icon: SettingsIcon },
+        ].map(item => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`mobile-nav-item ${isActive ? 'active' : ''}`}
+            >
+              <Icon size={20} />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
 
       {/* Modal 1: Create / Edit Invoice */}
       {invoiceModalOpen && (

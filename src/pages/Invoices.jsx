@@ -31,7 +31,7 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
   };
 
   const handleDelete = async (id, invoiceNo) => {
-    if (window.confirm(`Adakah anda pasti mahu memadam invois "${invoiceNo}"?`)) {
+    if (window.confirm(`Adakah anda pasti mahu memadam invoice "${invoiceNo}"?`)) {
       await deleteInvoice(id);
       loadInvoices();
     }
@@ -108,7 +108,7 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
           <Search size={18} className="search-icon" />
           <input
             type="text"
-            placeholder="Cari nama pelanggan atau nombor invois..."
+            placeholder="Cari nama pelanggan atau nombor invoice..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="form-control search-input"
@@ -149,84 +149,138 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
       {/* Invoices List Table */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         {loading ? (
-          <div className="loading-state">Memuatkan semua invois...</div>
+          <div className="loading-state">Memuatkan semua invoice...</div>
         ) : paginatedInvoices.length === 0 ? (
-          <div className="empty-state">Tiada invois ditemui.</div>
+          <div className="empty-state">Tiada invoice ditemui.</div>
         ) : (
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'center' }}>No. Invois</th>
-                  <th style={{ textAlign: 'center' }}>Tarikh</th>
-                  <th style={{ textAlign: 'center' }}>Nama Pelanggan</th>
-                  <th style={{ textAlign: 'center' }}>Jumlah (RM)</th>
-                  <th style={{ textAlign: 'center' }}>Baki (RM)</th>
-                  <th style={{ textAlign: 'center' }}>Status</th>
-                  <th style={{ textAlign: 'center' }}>Tindakan</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedInvoices.map((inv) => (
-                  <tr key={inv.id}>
-                    <td className="font-bold">{inv.invoice_no}</td>
-                    <td>{inv.date}</td>
-                    <td>
-                      <div className="client-cell">
-                        <span className="client-name">{inv.client_name}</span>
-                        <span className="client-phone-sub">{inv.client_phone}</span>
-                      </div>
-                    </td>
-                    <td style={{ textAlign: 'center' }} className="font-bold">
-                      {parseFloat(inv.grand_total).toFixed(2)}
-                    </td>
-                    <td style={{ textAlign: 'center' }} className={parseFloat(inv.balance) > 0 ? 'text-red font-bold' : 'font-bold'}>
-                      {parseFloat(inv.balance ?? inv.grand_total).toFixed(2)}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <span className={`badge ${getStatusBadgeClass(inv.status)}`}>
-                        {inv.status}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <div className="actions-cell">
-                        <button
-                          onClick={() => onOpenInvoiceDetail(inv)}
-                          className="btn btn-secondary btn-sm"
-                          title="Lihat / Cetak PDF"
-                        >
-                          <Eye size={12} /> View/Print
-                        </button>
-                        <button
-                          onClick={() => onOpenInvoiceModal(inv)}
-                          className="btn btn-secondary btn-sm"
-                          title="Edit Invois"
-                        >
-                          <Edit2 size={12} /> Edit
-                        </button>
-                        <button
-                          onClick={() => onOpenPaymentModal(inv)}
-                          className="btn btn-secondary btn-sm"
-                          style={{ color: '#D97706', borderColor: '#FEF3C7' }}
-                          title="Rekod Bayaran"
-                        >
-                          <RefreshCw size={12} /> Update
-                        </button>
-                        <button
-                          onClick={() => handleDelete(inv.id, inv.invoice_no)}
-                          className="btn btn-secondary btn-sm"
-                          style={{ borderColor: '#FEE2E2', color: '#B91C1C' }}
-                          title="Padam Invois"
-                        >
-                          <Trash2 size={12} /> Delete
-                        </button>
-                      </div>
-                    </td>
+          <>
+            <div className="table-container desktop-only">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'center' }}>No. Invoice</th>
+                    <th style={{ textAlign: 'center' }}>Tarikh</th>
+                    <th style={{ textAlign: 'center' }}>Nama Pelanggan</th>
+                    <th style={{ textAlign: 'center' }}>Jumlah (RM)</th>
+                    <th style={{ textAlign: 'center' }}>Baki (RM)</th>
+                    <th style={{ textAlign: 'center' }}>Status</th>
+                    <th style={{ textAlign: 'center' }}>Tindakan</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {paginatedInvoices.map((inv) => (
+                    <tr key={inv.id}>
+                      <td className="font-bold">{inv.invoice_no}</td>
+                      <td>{inv.date}</td>
+                      <td>
+                        <div className="client-cell">
+                          <span className="client-name">{inv.client_name}</span>
+                          <span className="client-phone-sub">{inv.client_phone}</span>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'center' }} className="font-bold">
+                        {parseFloat(inv.grand_total).toFixed(2)}
+                      </td>
+                      <td style={{ textAlign: 'center' }} className={parseFloat(inv.balance) > 0 ? 'text-red font-bold' : 'font-bold'}>
+                        {parseFloat(inv.balance ?? inv.grand_total).toFixed(2)}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span className={`badge ${getStatusBadgeClass(inv.status)}`}>
+                          {inv.status}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <div className="actions-cell">
+                          <button
+                            onClick={() => onOpenInvoiceDetail(inv)}
+                            className="btn btn-secondary btn-sm"
+                            title="Lihat / Cetak PDF"
+                          >
+                            <Eye size={12} /> View/Print
+                          </button>
+                          <button
+                            onClick={() => onOpenInvoiceModal(inv)}
+                            className="btn btn-secondary btn-sm"
+                            title="Edit Invoice"
+                          >
+                            <Edit2 size={12} /> Edit
+                          </button>
+                          <button
+                            onClick={() => onOpenPaymentModal(inv)}
+                            className="btn btn-secondary btn-sm"
+                            style={{ color: '#D97706', borderColor: '#FEF3C7' }}
+                            title="Rekod Bayaran"
+                          >
+                            <RefreshCw size={12} /> Update
+                          </button>
+                          <button
+                            onClick={() => handleDelete(inv.id, inv.invoice_no)}
+                            className="btn btn-secondary btn-sm"
+                            style={{ borderColor: '#FEE2E2', color: '#B91C1C' }}
+                            title="Padam Invoice"
+                          >
+                            <Trash2 size={12} /> Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mobile-cards-list mobile-only">
+              {paginatedInvoices.map((inv) => (
+                <div key={inv.id} className="mobile-card">
+                  <div className="mobile-card-row">
+                    <span className="mobile-card-title">{inv.invoice_no}</span>
+                    <span className={`badge ${getStatusBadgeClass(inv.status)}`}>
+                      {inv.status}
+                    </span>
+                  </div>
+                  <div className="mobile-card-row">
+                    <div className="mobile-card-detail">
+                      <div className="mobile-card-bold">{inv.client_name}</div>
+                      <div>Tel: {inv.client_phone}</div>
+                      <div>Tarikh: {inv.date}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div className="mobile-card-detail">Jumlah: <span className="mobile-card-bold">RM {parseFloat(inv.grand_total).toFixed(2)}</span></div>
+                      <div className="mobile-card-detail">Baki: <span className={`mobile-card-bold ${parseFloat(inv.balance ?? inv.grand_total) > 0 ? 'text-red' : ''}`}>RM {parseFloat(inv.balance ?? inv.grand_total).toFixed(2)}</span></div>
+                    </div>
+                  </div>
+                  <div className="mobile-card-actions" style={{ flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => onOpenInvoiceDetail(inv)}
+                      className="btn btn-secondary btn-sm"
+                    >
+                      <Eye size={12} /> View
+                    </button>
+                    <button
+                      onClick={() => onOpenInvoiceModal(inv)}
+                      className="btn btn-secondary btn-sm"
+                    >
+                      <Edit2 size={12} /> Edit
+                    </button>
+                    <button
+                      onClick={() => onOpenPaymentModal(inv)}
+                      className="btn btn-secondary btn-sm"
+                      style={{ color: '#D97706', borderColor: '#FEF3C7' }}
+                    >
+                      <RefreshCw size={12} /> Bayar
+                    </button>
+                    <button
+                      onClick={() => handleDelete(inv.id, inv.invoice_no)}
+                      className="btn btn-secondary btn-sm"
+                      style={{ borderColor: '#FEE2E2', color: '#B91C1C' }}
+                    >
+                      <Trash2 size={12} /> Padam
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
@@ -404,6 +458,7 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
             flex-direction: column;
             align-items: stretch;
             gap: 1rem;
+            padding: 1.25rem 1.25rem !important; /* Reduce padding on mobile to give more space */
           }
           .filter-group-row {
             display: grid;
@@ -418,6 +473,7 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
           }
           .filter-select {
             width: 100%;
+            min-width: 0 !important; /* Allow inputs to shrink and balance layout */
           }
         }
       `}</style>

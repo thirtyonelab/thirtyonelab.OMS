@@ -93,6 +93,12 @@
     display: block !important;
     position: relative !important;
     overflow: hidden !important; /* Strictly clip to 1 page */
+    transform: none !important; /* Reset visual scale during print */
+  }
+
+  .A4-scale-container {
+    height: auto !important;
+    overflow: visible !important;
   }
 
   .invoice-container {

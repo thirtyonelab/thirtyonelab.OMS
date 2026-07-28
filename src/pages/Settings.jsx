@@ -303,7 +303,7 @@ export default function Settings() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Prefix Nombor Invois</label>
+              <label className="form-label">Prefix Nombor Invoice</label>
               <input
                 type="text"
                 name="invoice_prefix"
@@ -313,7 +313,7 @@ export default function Settings() {
                 placeholder="Contoh: NO."
                 required
               />
-              <span className="helper-text">Prefix hadapan bagi nombor invois (cth: NO.00001)</span>
+              <span className="helper-text">Prefix hadapan bagi nombor invoice (cth: NO.00001)</span>
             </div>
           </div>
         </section>
@@ -389,7 +389,7 @@ export default function Settings() {
 
         {/* Section 3: Terms & Conditions */}
         <section className="settings-section card">
-          <h3 className="section-title">3. Terma & Syarat Kedai (Nota Invois)</h3>
+          <h3 className="section-title">3. Terma & Syarat Kedai (Nota Invoice)</h3>
           <div className="form-group">
             <label className="form-label">Syarat & Peraturan Perniagaan</label>
             <textarea
@@ -397,11 +397,11 @@ export default function Settings() {
               value={settings.terms}
               onChange={handleChange}
               rows="4"
-              placeholder="Masukkan terma dan syarat perniagaan yang akan dicetak di bahagian bawah invois..."
+              placeholder="Masukkan terma dan syarat perniagaan yang akan dicetak di bahagian bawah invoice..."
               className="form-control"
               style={{ resize: 'none' }}
             ></textarea>
-            <span className="helper-text">Satu ayat per baris. Teks ini akan dicetak di bahagian nota kaki invois.</span>
+            <span className="helper-text">Satu ayat per baris. Teks ini akan dicetak di bahagian nota kaki invoice.</span>
           </div>
         </section>
 
