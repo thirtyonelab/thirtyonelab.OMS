@@ -10,10 +10,10 @@ const STORAGE_KEYS = {
 // Global Supabase client instance (initialized dynamically)
 let supabaseInstance = null;
 
-// Initialize Supabase if credentials exist in localStorage
+// Initialize Supabase if credentials exist in localStorage or environment variables
 export const getSupabaseClient = () => {
-  const url = localStorage.getItem('supabase_url');
-  const key = localStorage.getItem('supabase_anon_key');
+  const url = localStorage.getItem('supabase_url') || import.meta.env.VITE_SUPABASE_URL;
+  const key = localStorage.getItem('supabase_anon_key') || import.meta.env.VITE_SUPABASE_ANON_KEY;
   
   if (url && key) {
     if (supabaseInstance && supabaseInstance.supabaseUrl === url) {

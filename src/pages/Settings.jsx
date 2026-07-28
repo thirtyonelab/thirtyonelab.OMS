@@ -16,8 +16,8 @@ export default function Settings() {
     terms: ''
   });
 
-  const [supabaseUrl, setSupabaseUrl] = useState(localStorage.getItem('supabase_url') || '');
-  const [supabaseAnonKey, setSupabaseAnonKey] = useState(localStorage.getItem('supabase_anon_key') || '');
+  const [supabaseUrl, setSupabaseUrl] = useState(localStorage.getItem('supabase_url') || import.meta.env.VITE_SUPABASE_URL || '');
+  const [supabaseAnonKey, setSupabaseAnonKey] = useState(localStorage.getItem('supabase_anon_key') || import.meta.env.VITE_SUPABASE_ANON_KEY || '');
   const [bankAccountNo, setBankAccountNo] = useState('');
   const [bankAccountName, setBankAccountName] = useState('');
   
@@ -163,6 +163,9 @@ export default function Settings() {
 
       setSaveStatus('success');
       setTimeout(() => setSaveStatus(null), 3000);
+      
+      // Notify components like Sidebar that connection has been updated
+      window.dispatchEvent(new Event('supabase-connection-changed'));
       
       // Reload from storage
       loadSettings();

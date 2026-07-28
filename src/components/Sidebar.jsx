@@ -12,6 +12,18 @@ export default function Sidebar({ activeTab, setActiveTab }) {
     loadLogo();
   }, [activeTab]);
 
+  // Listen to custom connection status change event
+  useEffect(() => {
+    const handleConnectionChange = () => {
+      setCloudActive(isCloudMode());
+      loadLogo();
+    };
+    window.addEventListener('supabase-connection-changed', handleConnectionChange);
+    return () => {
+      window.removeEventListener('supabase-connection-changed', handleConnectionChange);
+    };
+  }, []);
+
   const loadLogo = async () => {
     const data = await getSettings();
     if (data && data.company_logo) {
