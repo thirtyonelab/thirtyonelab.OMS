@@ -185,7 +185,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
       </div>
 
       {/* Recent Invoices Table */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="card" style={{ padding: 0 }}>
         <div className="table-header-row">
           <h3 className="table-title">Recent Invoices</h3>
           <button onClick={() => setActiveTab('invoices')} className="btn-text view-all-btn">

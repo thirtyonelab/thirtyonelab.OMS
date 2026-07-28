@@ -108,7 +108,7 @@ export default function Clients({ onCreateInvoiceForClient }) {
       </div>
 
       {/* Clients List Table */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="card" style={{ padding: 0 }}>
         {loading ? (
           <div className="loading-state">Memuatkan data pelanggan...</div>
         ) : filteredClients.length === 0 ? (

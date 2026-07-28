@@ -147,7 +147,7 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
       </div>
 
       {/* Invoices List Table */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="card" style={{ padding: 0 }}>
         {loading ? (
           <div className="loading-state">Memuatkan semua invoice...</div>
         ) : paginatedInvoices.length === 0 ? (

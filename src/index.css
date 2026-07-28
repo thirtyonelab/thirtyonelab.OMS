@@ -398,6 +398,10 @@ input[type=number] {
     padding: 5.5rem 1.25rem 5.5rem 1.25rem; /* Space for Top Header and Bottom Nav */
     gap: 1.5rem;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* smooth iOS scroll */
+    flex: 1;
+    min-height: 0; /* required for flex child to scroll properly */
+    max-width: 100%;
   }
 
   /* Page Headers Stacking on Mobile */
