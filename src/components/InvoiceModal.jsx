@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { getClients, saveInvoice, getNextInvoiceNo } from '../services/storage';
+import { getClients, saveInvoice, getNextInvoiceNo, getInvoices } from '../services/storage';
 import { X, Plus, Trash2, Upload, AlertTriangle, Save, Check, ChevronDown, ChevronUp } from 'lucide-react';
-
-const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL', '7XL', '8XL', '9XL', '10XL', '11XL', '12XL', '13XL'];
+import { SIZES, ADULT_SIZES, KID_SIZES, getBasePrice, getSizeCost } from '../data/sizePricing';
+export { getBasePrice, getSizeCost };
 
 const getSelectedSizesSummary = (item) => {
   const summaryParts = [];
@@ -52,6 +52,107 @@ const getSelectedSizesPills = (item) => {
   return pills.length > 0 ? pills : <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Tiada saiz terpilih</span>;
 };
 
+const hasSelectedAdultSizes = (item) => {
+  return ADULT_SIZES.some(s => {
+    const sQty = parseInt(item.sizes[s]?.short || 0);
+    const lQty = parseInt(item.sizes[s]?.long || 0);
+    return sQty > 0 || lQty > 0;
+  });
+};
+
+const hasSelectedKidSizes = (item) => {
+  return KID_SIZES.some(s => {
+    const sQty = parseInt(item.sizes[s]?.short || 0);
+    const lQty = parseInt(item.sizes[s]?.long || 0);
+    return sQty > 0 || lQty > 0;
+  });
+};
+
+const getSelectedAdultSizesPills = (item) => {
+  const pills = [];
+  ADULT_SIZES.forEach(s => {
+    const sQty = parseInt(item.sizes[s]?.short || 0);
+    const lQty = parseInt(item.sizes[s]?.long || 0);
+    if (sQty > 0 || lQty > 0) {
+      const details = [];
+      if (sQty > 0) details.push(`${sQty}S`);
+      if (lQty > 0) details.push(`${lQty}L`);
+      pills.push(
+        <span 
+          key={s} 
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '0.2rem 0.5rem',
+            backgroundColor: 'var(--white)',
+            border: '1px solid var(--border-color)',
+            fontSize: '0.72rem',
+            fontWeight: '700',
+            color: 'var(--text-dark)',
+            fontFamily: 'var(--font-primary)',
+            letterSpacing: '0.5px'
+          }}
+        >
+          <span style={{ color: 'var(--primary-red)', marginRight: '0.25rem' }}>{s}</span>: {details.join(', ')}
+        </span>
+      );
+    }
+  });
+  return pills.length > 0 ? (
+    <div className="collapsed-subsize-summary" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', padding: '0.5rem 0.8rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--white)' }}>
+      {pills}
+    </div>
+  ) : null;
+};
+
+const getSelectedKidSizesPills = (item) => {
+  const pills = [];
+  KID_SIZES.forEach(s => {
+    const sQty = parseInt(item.sizes[s]?.short || 0);
+    const lQty = parseInt(item.sizes[s]?.long || 0);
+    if (sQty > 0 || lQty > 0) {
+      const details = [];
+      if (sQty > 0) details.push(`${sQty}S`);
+      if (lQty > 0) details.push(`${lQty}L`);
+      pills.push(
+        <span 
+          key={s} 
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '0.2rem 0.5rem',
+            backgroundColor: 'var(--white)',
+            border: '1px solid var(--border-color)',
+            fontSize: '0.72rem',
+            fontWeight: '700',
+            color: 'var(--text-dark)',
+            fontFamily: 'var(--font-primary)',
+            letterSpacing: '0.5px'
+          }}
+        >
+          <span style={{ color: '#15803D', marginRight: '0.25rem' }}>{s}</span>: {details.join(', ')}
+        </span>
+      );
+    }
+  });
+  return pills.length > 0 ? (
+    <div className="collapsed-subsize-summary" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', padding: '0.5rem 0.8rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--white)' }}>
+      {pills}
+    </div>
+  ) : null;
+};
+
+const getDynamicOptionLabel = (id, originalLabel, isAddonChecked, isRepeatActive) => {
+  if (isRepeatActive && !isAddonChecked) {
+    const match = originalLabel.match(/^(.*?)\s\(\+RM\d+\)$/);
+    if (match) {
+      return `${match[1]} (+RM0)`;
+    }
+    return `${id} (+RM0)`;
+  }
+  return originalLabel;
+};
+
 export const MATERIALS = [
   { id: 'Eyelet', label: 'Eyelet (+RM0)', price: 0 },
   { id: 'Diamond', label: 'Diamond (+RM3)', price: 3 },
@@ -82,24 +183,6 @@ export const NECKS = [
   { id: 'V-Neck End', label: 'V-Neck End (+RM3)', price: 3 },
   { id: 'V-Neck Outer', label: 'V-Neck Outer (+RM7)', price: 7 }
 ];
-
-export const getBasePrice = (totalQty) => {
-  if (totalQty < 5) return 55;
-  if (totalQty <= 9) return 50;
-  if (totalQty <= 39) return 39;
-  if (totalQty <= 69) return 37;
-  if (totalQty <= 99) return 34;
-  return 30; // 100+ pcs
-};
-
-export const getSizeCost = (size) => {
-  if (['3XL', '4XL', '5XL'].includes(size)) return 3;
-  if (['6XL', '7XL', '8XL'].includes(size)) return 6;
-  if (['9XL', '10XL', '11XL'].includes(size)) return 9;
-  if (['12XL', '13XL'].includes(size)) return 12;
-  return 0;
-};
-
 const createEmptyItem = () => ({
   id: crypto.randomUUID(),
   design_name: '',
@@ -108,6 +191,10 @@ const createEmptyItem = () => ({
   cutting: 'Normal',
   neck: 'Roundneck',
   name_set: 'No', // 'Yes' or 'No'
+  material_addon: false,
+  cutting_addon: false,
+  neck_addon: false,
+  name_set_addon: false,
   // Size Breakdown: sizeName -> { shortQty: 0, longQty: 0 }
   sizes: SIZES.reduce((acc, size) => {
     acc[size] = { short: 0, long: 0 };
@@ -130,13 +217,31 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   const [items, setItems] = useState([createEmptyItem()]);
   const [discountPerPcs, setDiscountPerPcs] = useState(0);
   const [notes, setNotes] = useState('');
+  const [isRepeatOrder, setIsRepeatOrder] = useState(false);
+  const [customBasePrice, setCustomBasePrice] = useState('');
   
   // UI States
   const [loading, setLoading] = useState(false);
   const [collapsedSizes, setCollapsedSizes] = useState({});
+  const [collapsedAdults, setCollapsedAdults] = useState({});
+  const [collapsedKids, setCollapsedKids] = useState({});
 
   const toggleSizesCollapse = (itemId) => {
     setCollapsedSizes(prev => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  };
+
+  const toggleAdultSizesCollapse = (itemId) => {
+    setCollapsedAdults(prev => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  };
+
+  const toggleKidSizesCollapse = (itemId) => {
+    setCollapsedKids(prev => ({
       ...prev,
       [itemId]: !prev[itemId]
     }));
@@ -163,7 +268,18 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       setItems(JSON.parse(JSON.stringify(invoice.items))); // Deep clone
       setDiscountPerPcs(invoice.discount_per_pcs || 0);
       setNotes(invoice.notes || '');
+
+      const firstItem = invoice.items[0];
+      if (firstItem && firstItem.is_repeat_order) {
+        setIsRepeatOrder(true);
+        setCustomBasePrice(firstItem.custom_base_price !== undefined ? firstItem.custom_base_price : '');
+      } else {
+        setIsRepeatOrder(false);
+        setCustomBasePrice('');
+      }
     } else {
+      setIsRepeatOrder(false);
+      setCustomBasePrice('');
       const nextNo = await getNextInvoiceNo();
       setInvoiceNo(nextNo);
       
@@ -171,8 +287,47 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
         setClientName(prefilledClient.name);
         setClientPhone(prefilledClient.phone);
         setClientId(prefilledClient.id);
+        checkPreviousOrderBasePrice(prefilledClient.id, prefilledClient.phone);
       }
     }
+  };
+
+  const checkPreviousOrderBasePrice = async (cId, cPhone) => {
+    try {
+      const allInvoices = await getInvoices();
+      const clientInvoices = allInvoices.filter(inv => 
+        (cId && inv.client_id === cId) || 
+        (cPhone && inv.client_phone === cPhone)
+      );
+      if (clientInvoices.length > 0) {
+        const latestInvoice = clientInvoices[0];
+        const firstItem = latestInvoice.items[0];
+        if (firstItem) {
+          let prevBase = 0;
+          if (firstItem.is_repeat_order && firstItem.custom_base_price) {
+            prevBase = firstItem.custom_base_price;
+          } else {
+            const invoiceTotalQty = latestInvoice.items.reduce((total, item) => {
+              return total + SIZES.reduce((itemTotal, size) => {
+                const sQty = parseInt(item.sizes[size]?.short || 0, 10);
+                const lQty = parseInt(item.sizes[size]?.long || 0, 10);
+                return itemTotal + sQty + lQty;
+              }, 0);
+            }, 0);
+            prevBase = getBasePrice(invoiceTotalQty);
+          }
+          if (prevBase > 0) {
+            setIsRepeatOrder(true);
+            setCustomBasePrice(prevBase);
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching client last invoice base price:', e);
+    }
+    setIsRepeatOrder(false);
+    setCustomBasePrice('');
   };
 
   // Autocomplete / Search Client
@@ -188,6 +343,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
     setClientPhone(c.phone);
     setClientId(c.id);
     setShowClientSuggestions(false);
+    checkPreviousOrderBasePrice(c.id, c.phone);
   };
 
   // Items Management
@@ -253,7 +409,9 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   };
 
   const totalQty = calculateTotalQty();
-  const basePrice = getBasePrice(totalQty);
+  const basePrice = isRepeatOrder && customBasePrice !== '' 
+    ? parseFloat(customBasePrice) || 0 
+    : getBasePrice(totalQty);
 
   // 2. Calculations per Design Item
   const calculateItemSummary = (item) => {
@@ -261,10 +419,10 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
     let itemAddonTotal = 0;
     let itemQty = 0;
 
-    const materialPrice = MATERIALS.find(m => m.id === item.material)?.price || 0;
-    const cuttingPrice = CUTTINGS.find(c => c.id === item.cutting)?.price || 0;
-    const neckPrice = NECKS.find(n => n.id === item.neck)?.price || 0;
-    const nameSetPrice = item.name_set === 'Yes' ? 3 : 0;
+    const materialPrice = (isRepeatOrder && !item.material_addon) ? 0 : (MATERIALS.find(m => m.id === item.material)?.price || 0);
+    const cuttingPrice = (isRepeatOrder && !item.cutting_addon) ? 0 : (CUTTINGS.find(c => c.id === item.cutting)?.price || 0);
+    const neckPrice = (isRepeatOrder && !item.neck_addon) ? 0 : (NECKS.find(n => n.id === item.neck)?.price || 0);
+    const nameSetPrice = item.name_set === 'Yes' ? ((isRepeatOrder && !item.name_set_addon) ? 0 : 3) : 0;
     const designWideAddons = materialPrice + cuttingPrice + neckPrice + nameSetPrice; // Apply to every piece
 
     SIZES.forEach(size => {
@@ -326,7 +484,9 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       return {
         ...item,
         subtotal: summary.subtotal,
-        qty: summary.qty
+        qty: summary.qty,
+        is_repeat_order: isRepeatOrder,
+        custom_base_price: isRepeatOrder ? parseFloat(customBasePrice) || 0 : undefined
       };
     });
 
@@ -377,92 +537,159 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
             {/* Row 1: Basic Details */}
             <div className="invoice-meta-section">
               <h4 className="meta-section-title">A. Maklumat Asas Tempahan</h4>
-              <div className="grid-3">
+              
+              <div className="meta-layout-container" style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'stretch' }}>
                 
-                {/* Client Name Input with Autocomplete */}
-                <div className="form-group autocomplete-container">
-                  <label className="form-label">Nama Pelanggan *</label>
-                  <input
-                    type="text"
-                    value={clientName}
-                    onChange={handleClientNameChange}
-                    onFocus={() => setShowClientSuggestions(true)}
-                    onBlur={() => setTimeout(() => setShowClientSuggestions(false), 200)}
-                    placeholder="Taip nama..."
-                    className="form-control"
-                    required
-                  />
-                  {showClientSuggestions && clients.length > 0 && (
-                    <div className="suggestions-box">
-                      {clients
-                        .filter(c => c.name.toLowerCase().includes(clientName.toLowerCase()))
-                        .map(c => (
-                          <div
-                            key={c.id}
-                            className="suggestion-item"
-                            onMouseDown={() => selectClient(c)}
-                          >
-                            <span className="suggestion-name">{c.name}</span>
-                            <span className="suggestion-phone">{c.phone}</span>
-                          </div>
-                        ))}
+                {/* Left side: Client Inputs (2/3 width on desktop) */}
+                <div className="meta-left-inputs" style={{ flex: '2', minWidth: '320px' }}>
+                  <div className="grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.2rem 1rem' }}>
+                    
+                    {/* Client Name Input with Autocomplete */}
+                    <div className="form-group autocomplete-container" style={{ margin: 0 }}>
+                      <label className="form-label">Nama Pelanggan *</label>
+                      <input
+                        type="text"
+                        value={clientName}
+                        onChange={handleClientNameChange}
+                        onFocus={() => setShowClientSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowClientSuggestions(false), 200)}
+                        placeholder="Taip nama..."
+                        className="form-control"
+                        required
+                      />
+                      {showClientSuggestions && clients.length > 0 && (
+                        <div className="suggestions-box">
+                          {clients
+                            .filter(c => c.name.toLowerCase().includes(clientName.toLowerCase()))
+                            .map(c => (
+                              <div
+                                key={c.id}
+                                className="suggestion-item"
+                                onMouseDown={() => selectClient(c)}
+                              >
+                                <span className="suggestion-name">{c.name}</span>
+                                <span className="suggestion-phone">{c.phone}</span>
+                              </div>
+                            ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                <div className="form-group">
-                  <label className="form-label">No. Telefon Pelanggan *</label>
-                  <input
-                    type="text"
-                    value={clientPhone}
-                    onChange={(e) => setClientPhone(e.target.value)}
-                    placeholder="Cth: 0123456789"
-                    className="form-control"
-                    required
-                  />
-                </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">No. Telefon Pelanggan *</label>
+                      <input
+                        type="text"
+                        value={clientPhone}
+                        onChange={(e) => setClientPhone(e.target.value)}
+                        placeholder="Cth: 0123456789"
+                        className="form-control"
+                        required
+                      />
+                    </div>
 
-                <div className="form-group">
-                  <label className="form-label">No. Invoice</label>
-                  <input
-                    type="text"
-                    value={invoiceNo}
-                    className="form-control disabled-input"
-                    disabled
-                  />
-                </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">No. Invoice</label>
+                      <input
+                        type="text"
+                        value={invoiceNo}
+                        className="form-control disabled-input"
+                        disabled
+                      />
+                    </div>
 
-                <div className="form-group">
-                  <label className="form-label">Nama Job (Nama Projek)</label>
-                  <input
-                    type="text"
-                    value={jobName}
-                    onChange={(e) => setJobName(e.target.value)}
-                    placeholder="Cth: KKM"
-                    className="form-control"
-                  />
-                </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Nama Job (Nama Projek)</label>
+                      <input
+                        type="text"
+                        value={jobName}
+                        onChange={(e) => setJobName(e.target.value)}
+                        placeholder="Cth: KKM"
+                        className="form-control"
+                      />
+                    </div>
 
-                <div className="form-group">
-                  <label className="form-label">Tarikh Invoice</label>
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="form-control"
-                    required
-                  />
-                </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Tarikh Invoice</label>
+                      <input
+                        type="date"
+                        value={date}
+                        onChange={(e) => setDate(e.target.value)}
+                        className="form-control"
+                        required
+                      />
+                    </div>
 
-                <div className="form-group quota-banner">
-                  <div className="quota-info">
-                    <span className="quota-label">Kuantiti Invoice</span>
-                    <span className="quota-value">{totalQty} pcs</span>
                   </div>
-                  <div className="quota-info">
-                    <span className="quota-label">Harga Asas /pcs</span>
-                    <span className="quota-value">RM {basePrice}</span>
+                </div>
+
+                {/* Right side: Options and Summary Card (1/3 width on desktop) */}
+                <div className="meta-right-widget" style={{ 
+                  flex: '1', 
+                  minWidth: '280px', 
+                  backgroundColor: 'var(--off-white-bg)', 
+                  border: '1px solid var(--border-color)', 
+                  borderRadius: '6px', 
+                  padding: '1.25rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1rem',
+                  justifyContent: 'flex-start'
+                }}>
+                  
+                  {/* Repeat order checkbox and input */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem', color: 'var(--text-dark)', margin: 0 }}>
+                        <input
+                          type="checkbox"
+                          checked={isRepeatOrder}
+                          onChange={(e) => setIsRepeatOrder(e.target.checked)}
+                          style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary-red)' }}
+                        />
+                        Follow Invoice Lama
+                      </label>
+                    </div>
+
+                    {isRepeatOrder && (
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: '700' }}>Harga 1pcs Invoice Lama (RM) *</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={customBasePrice}
+                          onChange={(e) => setCustomBasePrice(e.target.value)}
+                          placeholder="Cth: 46.00"
+                          className="form-control"
+                          style={{ height: '36px', padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                          required={isRepeatOrder}
+                        />
+                      </div>
+                    )}
                   </div>
+
+                  {/* Summary Widget (Quota Banner) */}
+                  <div className="quota-banner" style={{ 
+                    marginTop: 'auto',
+                    display: 'flex', 
+                    justifyContent: 'space-around', 
+                    backgroundColor: 'var(--primary-red-light)', 
+                    border: '1px solid var(--primary-red)', 
+                    borderRadius: '4px',
+                    padding: '0.6rem',
+                    margin: 0,
+                    width: '100%'
+                  }}>
+                    <div className="quota-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <span className="quota-label" style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>Kuantiti Invoice</span>
+                      <span className="quota-value" style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--primary-red)' }}>{totalQty} pcs</span>
+                    </div>
+                    <div className="quota-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <span className="quota-label" style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>Harga Asas /pcs</span>
+                      <span className="quota-value" style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--primary-red)' }}>RM {basePrice}</span>
+                    </div>
+                  </div>
+
                 </div>
 
               </div>
@@ -510,7 +737,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                         />
                       </div>
 
-                      <div className="form-group">
+                       <div className="form-group">
                         <label className="form-label">Jenis Material</label>
                         <select
                           value={item.material}
@@ -518,9 +745,22 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                           className="form-control"
                         >
                           {MATERIALS.map(m => (
-                            <option key={m.id} value={m.id}>{m.label}</option>
+                            <option key={m.id} value={m.id}>
+                              {getDynamicOptionLabel(m.id, m.label, item.material_addon, isRepeatOrder)}
+                            </option>
                           ))}
                         </select>
+                        {isRepeatOrder && (
+                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '0.4rem', userSelect: 'none' }}>
+                            <input
+                              type="checkbox"
+                              checked={item.material_addon || false}
+                              onChange={(e) => updateItemField(item.id, 'material_addon', e.target.checked)}
+                              style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '14px', height: '14px' }}
+                            />
+                            Add-on (Cas Tambahan)
+                          </label>
+                        )}
                       </div>
 
                       <div className="form-group">
@@ -531,9 +771,22 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                           className="form-control"
                         >
                           {CUTTINGS.map(c => (
-                            <option key={c.id} value={c.id}>{c.label}</option>
+                            <option key={c.id} value={c.id}>
+                              {getDynamicOptionLabel(c.id, c.label, item.cutting_addon, isRepeatOrder)}
+                            </option>
                           ))}
                         </select>
+                        {isRepeatOrder && (
+                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '0.4rem', userSelect: 'none' }}>
+                            <input
+                              type="checkbox"
+                              checked={item.cutting_addon || false}
+                              onChange={(e) => updateItemField(item.id, 'cutting_addon', e.target.checked)}
+                              style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '14px', height: '14px' }}
+                            />
+                            Add-on (Cas Tambahan)
+                          </label>
+                        )}
                       </div>
 
                       <div className="form-group">
@@ -544,9 +797,22 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                           className="form-control"
                         >
                           {NECKS.map(n => (
-                            <option key={n.id} value={n.id}>{n.label}</option>
+                            <option key={n.id} value={n.id}>
+                              {getDynamicOptionLabel(n.id, n.label, item.neck_addon, isRepeatOrder)}
+                            </option>
                           ))}
                         </select>
+                        {isRepeatOrder && (
+                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '0.4rem', userSelect: 'none' }}>
+                            <input
+                              type="checkbox"
+                              checked={item.neck_addon || false}
+                              onChange={(e) => updateItemField(item.id, 'neck_addon', e.target.checked)}
+                              style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '14px', height: '14px' }}
+                            />
+                            Add-on (Cas Tambahan)
+                          </label>
+                        )}
                       </div>
 
                       <div className="form-group">
@@ -557,8 +823,21 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                           className="form-control"
                         >
                           <option value="No">No (+RM0)</option>
-                          <option value="Yes">Yes (+RM3)</option>
+                          <option value="Yes">
+                            {isRepeatOrder && !item.name_set_addon ? 'Yes (+RM0)' : 'Yes (+RM3)'}
+                          </option>
                         </select>
+                        {isRepeatOrder && (
+                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '0.4rem', userSelect: 'none' }}>
+                            <input
+                              type="checkbox"
+                              checked={item.name_set_addon || false}
+                              onChange={(e) => updateItemField(item.id, 'name_set_addon', e.target.checked)}
+                              style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '14px', height: '14px' }}
+                            />
+                            Add-on (Cas Tambahan)
+                          </label>
+                        )}
                       </div>
 
                       <div className="form-group col-span-2">
@@ -631,90 +910,247 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                           {getSelectedSizesPills(item)}
                         </div>
                       ) : (
-                        <div className="breakdown-grid-wrapper">
+                        <div className="breakdown-grid-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', border: 'none', backgroundColor: 'transparent', padding: 0 }}>
                           {/* Desktop breakdown table view */}
-                          <table className="breakdown-table desktop-only">
-                            <thead>
-                              <tr>
-                                <th>Lengan</th>
-                                {SIZES.map(s => (
-                                  <th key={s} className={getSizeCost(s) > 0 ? 'extra-cost-header' : ''}>
-                                    {s}
-                                    {getSizeCost(s) > 0 && <span className="extra-cost-badge">+{getSizeCost(s)}</span>}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr>
-                                <td className="row-label">Short</td>
-                                {SIZES.map(s => (
-                                  <td key={s}>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      value={item.sizes[s]?.short || ''}
-                                      onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
-                                      placeholder="0"
-                                      className="qty-input"
-                                    />
-                                  </td>
-                                ))}
-                              </tr>
-                              <tr>
-                                <td className="row-label">Long (+RM5)</td>
-                                {SIZES.map(s => (
-                                  <td key={s}>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      value={item.sizes[s]?.long || ''}
-                                      onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
-                                      placeholder="0"
-                                      className="qty-input"
-                                    />
-                                  </td>
-                                ))}
-                              </tr>
-                            </tbody>
-                          </table>
-
-                          {/* Mobile Size Breakdown Grid (2-Column Grid) */}
-                          <div className="size-grid-mobile mobile-only">
-                            {SIZES.map(s => (
-                              <div key={s} className="size-input-card">
-                                <div className="size-card-title">
-                                  <span>Size {s}</span>
-                                  {getSizeCost(s) > 0 && (
-                                    <span className="size-card-extra-badge">+{getSizeCost(s)}</span>
-                                  )}
-                                </div>
-                                <div className="size-inputs-row">
-                                  <div className="size-qty-group">
-                                    <span className="size-qty-lbl">Short</span>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      value={item.sizes[s]?.short || ''}
-                                      onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
-                                      placeholder="0"
-                                      className={`size-qty-input ${parseInt(item.sizes[s]?.short || 0) > 0 ? 'has-value' : ''}`}
-                                    />
-                                  </div>
-                                  <div className="size-qty-group">
-                                    <span className="size-qty-lbl">Long (+RM5)</span>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      value={item.sizes[s]?.long || ''}
-                                      onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
-                                      placeholder="0"
-                                      className={`size-qty-input ${parseInt(item.sizes[s]?.long || 0) > 0 ? 'has-value' : ''}`}
-                                    />
-                                  </div>
-                                </div>
+                          <div className="desktop-only" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
+                            {/* Desktop Adult Section */}
+                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                              <div 
+                                onClick={() => toggleAdultSizesCollapse(item.id)}
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdults[item.id] && !hasSelectedAdultSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                              >
+                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Adult Sizes</span>
+                                {collapsedAdults[item.id] ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
                               </div>
-                            ))}
+                              {collapsedAdults[item.id] && getSelectedAdultSizesPills(item)}
+                              {!collapsedAdults[item.id] && (
+                                <div style={{ overflowX: 'auto' }}>
+                                  <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
+                                    <thead>
+                                      <tr>
+                                        <th style={{ borderRight: '1px solid var(--border-color)' }}>Lengan</th>
+                                        {ADULT_SIZES.map(s => (
+                                          <th key={s} className={getSizeCost(s) > 0 ? 'extra-cost-header' : ''} style={{ borderRight: '1px solid var(--border-color)' }}>
+                                            {s}
+                                            {getSizeCost(s) !== 0 && (
+                                              <span className={getSizeCost(s) > 0 ? 'extra-cost-badge' : 'discount-cost-badge'}>
+                                                {getSizeCost(s) > 0 ? `+${getSizeCost(s)}` : getSizeCost(s)}
+                                              </span>
+                                            )}
+                                          </th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr>
+                                        <td className="row-label" style={{ borderRight: '1px solid var(--border-color)' }}>Short</td>
+                                        {ADULT_SIZES.map(s => (
+                                          <td key={s} style={{ borderRight: '1px solid var(--border-color)' }}>
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              value={item.sizes[s]?.short || ''}
+                                              onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
+                                              placeholder="0"
+                                              className="qty-input"
+                                            />
+                                          </td>
+                                        ))}
+                                      </tr>
+                                      <tr>
+                                        <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>Long (+RM5)</td>
+                                        {ADULT_SIZES.map(s => (
+                                          <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              value={item.sizes[s]?.long || ''}
+                                              onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
+                                              placeholder="0"
+                                              className="qty-input"
+                                            />
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Desktop Kid Section */}
+                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                              <div 
+                                onClick={() => toggleKidSizesCollapse(item.id)}
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKids[item.id] && !hasSelectedKidSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                              >
+                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Kid Sizes</span>
+                                {collapsedKids[item.id] ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                              </div>
+                              {collapsedKids[item.id] && getSelectedKidSizesPills(item)}
+                              {!collapsedKids[item.id] && (
+                                <div style={{ overflowX: 'auto' }}>
+                                  <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
+                                    <thead>
+                                      <tr>
+                                        <th style={{ borderRight: '1px solid var(--border-color)' }}>Lengan</th>
+                                        {KID_SIZES.map(s => (
+                                          <th key={s} className="discount-cost-header" style={{ borderRight: '1px solid var(--border-color)' }}>
+                                            {s}
+                                            {getSizeCost(s) !== 0 && (
+                                              <span className="discount-cost-badge">
+                                                {getSizeCost(s) > 0 ? `+${getSizeCost(s)}` : getSizeCost(s)}
+                                              </span>
+                                            )}
+                                          </th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr>
+                                        <td className="row-label" style={{ borderRight: '1px solid var(--border-color)' }}>Short</td>
+                                        {KID_SIZES.map(s => (
+                                          <td key={s} style={{ borderRight: '1px solid var(--border-color)' }}>
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              value={item.sizes[s]?.short || ''}
+                                              onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
+                                              placeholder="0"
+                                              className="qty-input"
+                                            />
+                                          </td>
+                                        ))}
+                                      </tr>
+                                      <tr>
+                                        <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>Long (+RM5)</td>
+                                        {KID_SIZES.map(s => (
+                                          <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              value={item.sizes[s]?.long || ''}
+                                              onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
+                                              placeholder="0"
+                                              className="qty-input"
+                                            />
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Mobile Size Breakdown Grid */}
+                          <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
+                            
+                            {/* Mobile Adult Section */}
+                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                              <div 
+                                onClick={() => toggleAdultSizesCollapse(item.id)}
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdults[item.id] && !hasSelectedAdultSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                              >
+                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Adult Sizes</span>
+                                {collapsedAdults[item.id] ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                              </div>
+                              {collapsedAdults[item.id] && getSelectedAdultSizesPills(item)}
+                              {!collapsedAdults[item.id] && (
+                                <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
+                                  {ADULT_SIZES.map(s => (
+                                    <div key={s} className="size-input-card">
+                                      <div className="size-card-title">
+                                        <span>Size {s}</span>
+                                        {getSizeCost(s) !== 0 && (
+                                          <span className={getSizeCost(s) > 0 ? "size-card-extra-badge" : "size-card-discount-badge"}>
+                                            {getSizeCost(s) > 0 ? `+${getSizeCost(s)}` : getSizeCost(s)}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="size-inputs-row">
+                                        <div className="size-qty-group">
+                                          <span className="size-qty-lbl">Short</span>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            value={item.sizes[s]?.short || ''}
+                                            onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
+                                            placeholder="0"
+                                            className={`size-qty-input ${parseInt(item.sizes[s]?.short || 0) > 0 ? 'has-value' : ''}`}
+                                          />
+                                        </div>
+                                        <div className="size-qty-group">
+                                          <span className="size-qty-lbl">Long (+RM5)</span>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            value={item.sizes[s]?.long || ''}
+                                            onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
+                                            placeholder="0"
+                                            className={`size-qty-input ${parseInt(item.sizes[s]?.long || 0) > 0 ? 'has-value' : ''}`}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Mobile Kid Section */}
+                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                              <div 
+                                onClick={() => toggleKidSizesCollapse(item.id)}
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKids[item.id] && !hasSelectedKidSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                              >
+                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Kid Sizes</span>
+                                {collapsedKids[item.id] ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                              </div>
+                              {collapsedKids[item.id] && getSelectedKidSizesPills(item)}
+                              {!collapsedKids[item.id] && (
+                                <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
+                                  {KID_SIZES.map(s => (
+                                    <div key={s} className="size-input-card">
+                                      <div className="size-card-title">
+                                        <span>Size {s}</span>
+                                        {getSizeCost(s) !== 0 && (
+                                          <span className="size-card-discount-badge">
+                                            {getSizeCost(s) > 0 ? `+${getSizeCost(s)}` : getSizeCost(s)}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="size-inputs-row">
+                                        <div className="size-qty-group">
+                                          <span className="size-qty-lbl">Short</span>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            value={item.sizes[s]?.short || ''}
+                                            onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
+                                            placeholder="0"
+                                            className={`size-qty-input ${parseInt(item.sizes[s]?.short || 0) > 0 ? 'has-value' : ''}`}
+                                          />
+                                        </div>
+                                        <div className="size-qty-group">
+                                          <span className="size-qty-lbl">Long (+RM5)</span>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            value={item.sizes[s]?.long || ''}
+                                            onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
+                                            placeholder="0"
+                                            className={`size-qty-input ${parseInt(item.sizes[s]?.long || 0) > 0 ? 'has-value' : ''}`}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
                           </div>
                         </div>
                       )}
@@ -1016,15 +1452,15 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
         }
 
         .extra-cost-header {
-          background-color: var(--primary-red-light) !important;
-          color: var(--primary-red) !important;
+          background-color: #E8F5E9 !important;
+          color: #15803D !important;
         }
 
         .extra-cost-badge {
           display: block;
           font-size: 0.55rem;
           font-weight: 800;
-          color: var(--primary-red);
+          color: #15803D;
           margin-top: 0.15rem;
         }
 

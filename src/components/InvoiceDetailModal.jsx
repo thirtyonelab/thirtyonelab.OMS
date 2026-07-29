@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getSettings } from '../services/storage';
 import { X, Printer, Receipt, ChevronDown, ChevronUp } from 'lucide-react';
-import { getBasePrice, getSizeCost, CUTTINGS, NECKS, MATERIALS } from './InvoiceModal';
-
-const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL', '7XL', '8XL', '9XL', '10XL', '11XL', '12XL', '13XL'];
+import { CUTTINGS, NECKS, MATERIALS } from './InvoiceModal';
+import { SIZES, getBasePrice, getSizeCost } from '../data/sizePricing';
 
 const getPrintModeLabel = (mode) => {
   if (mode === 'Invoice') return 'Invoice';
@@ -126,7 +125,9 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     }, 0);
   }, 0);
 
-  const basePrice = getBasePrice(totalQty);
+  const basePrice = invoice.items[0]?.is_repeat_order 
+    ? parseFloat(invoice.items[0].custom_base_price) || 0 
+    : getBasePrice(totalQty);
 
   const calculateItemQty = (item) => {
     return SIZES.reduce((itemTotal, size) => {
@@ -140,10 +141,11 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     let itemBaseTotal = 0;
     let itemAddonTotal = 0;
 
-    const materialPrice = MATERIALS.find(m => m.id === item.material)?.price || 0;
-    const cuttingPrice = CUTTINGS.find(c => c.id === item.cutting)?.price || 0;
-    const neckPrice = NECKS.find(n => n.id === item.neck)?.price || 0;
-    const nameSetPrice = item.name_set === 'Yes' ? 3 : 0;
+    const isRepeatOrder = item.is_repeat_order || false;
+    const materialPrice = (isRepeatOrder && !item.material_addon) ? 0 : (MATERIALS.find(m => m.id === item.material)?.price || 0);
+    const cuttingPrice = (isRepeatOrder && !item.cutting_addon) ? 0 : (CUTTINGS.find(c => c.id === item.cutting)?.price || 0);
+    const neckPrice = (isRepeatOrder && !item.neck_addon) ? 0 : (NECKS.find(n => n.id === item.neck)?.price || 0);
+    const nameSetPrice = item.name_set === 'Yes' ? ((isRepeatOrder && !item.name_set_addon) ? 0 : 3) : 0;
     const designWideAddons = materialPrice + cuttingPrice + neckPrice + nameSetPrice;
 
     SIZES.forEach(size => {
