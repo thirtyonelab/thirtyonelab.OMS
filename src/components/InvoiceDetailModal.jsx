@@ -176,7 +176,149 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     return itemBaseTotal + itemAddonTotal;
   };
 
+  const formatSubsetBreakdown = (sizesObj, sleeveType, sizeList) => {
+    const list = [];
+    sizeList.forEach(size => {
+      const qty = sizesObj[size]?.[sleeveType] || 0;
+      if (qty > 0) {
+        list.push(`${size}(${qty})`);
+      }
+    });
+    return list.join(', ');
+  };
 
+  const getItemSubRows = (item, basePrice) => {
+    const rows = [];
+    const isRepeatOrder = item.is_repeat_order || false;
+    const materialPrice = (isRepeatOrder && !item.material_addon) ? 0 : (MATERIALS.find(m => m.id === item.material)?.price || 0);
+    const cuttingPrice = (isRepeatOrder && !item.cutting_addon) ? 0 : (CUTTINGS.find(c => c.id === item.cutting)?.price || 0);
+    const neckPrice = (isRepeatOrder && !item.neck_addon) ? 0 : (NECKS.find(n => n.id === item.neck)?.price || 0);
+    const nameSetPrice = item.name_set === 'Yes' ? ((isRepeatOrder && !item.name_set_addon) ? 0 : 3) : 0;
+    const designWideAddons = materialPrice + cuttingPrice + neckPrice + nameSetPrice;
+    const X = basePrice + designWideAddons;
+
+    const STANDARD_ADULT = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
+    const EXTRA_TIERS = [
+      { name: '3XL-5XL', sizes: ['3XL', '4XL', '5XL'], addon: 3 },
+      { name: '6XL-8XL', sizes: ['6XL', '7XL', '8XL'], addon: 6 },
+      { name: '9XL-11XL', sizes: ['9XL', '10XL', '11XL'], addon: 9 },
+      { name: '12XL-13XL', sizes: ['12XL', '13XL'], addon: 12 }
+    ];
+
+    // --- 1. SHORT SLEEVE ---
+    const ssStandardQty = STANDARD_ADULT.reduce((sum, s) => sum + parseInt(item.sizes[s]?.short || 0, 10), 0);
+    if (ssStandardQty > 0) {
+      rows.push({
+        prefix: '• Short Sleeve:',
+        value: formatSubsetBreakdown(item.sizes, 'short', STANDARD_ADULT),
+        qty: ssStandardQty,
+        price: X,
+        total: ssStandardQty * X
+      });
+    }
+
+    EXTRA_TIERS.forEach(tier => {
+      const qty = tier.sizes.reduce((sum, s) => sum + parseInt(item.sizes[s]?.short || 0, 10), 0);
+      if (qty > 0) {
+        rows.push({
+          prefix: '',
+          value: formatSubsetBreakdown(item.sizes, 'short', tier.sizes),
+          indent: true,
+          qty: qty,
+          price: X + tier.addon,
+          total: qty * (X + tier.addon)
+        });
+      }
+    });
+
+    const ssKidQty = KID_SIZES.reduce((sum, s) => sum + parseInt(item.sizes[s]?.short || 0, 10), 0);
+    if (ssKidQty > 0) {
+      rows.push({
+        prefix: '',
+        value: formatSubsetBreakdown(item.sizes, 'short', KID_SIZES),
+        indent: true,
+        qty: ssKidQty,
+        price: X - 2,
+        total: ssKidQty * (X - 2)
+      });
+    }
+
+    // --- 2. LONG SLEEVE ---
+    const lsStandardQty = STANDARD_ADULT.reduce((sum, s) => sum + parseInt(item.sizes[s]?.long || 0, 10), 0);
+    if (lsStandardQty > 0) {
+      rows.push({
+        prefix: '• Long Sleeve:',
+        value: formatSubsetBreakdown(item.sizes, 'long', STANDARD_ADULT),
+        qty: lsStandardQty,
+        price: X + 5,
+        total: lsStandardQty * (X + 5)
+      });
+    }
+
+    EXTRA_TIERS.forEach(tier => {
+      const qty = tier.sizes.reduce((sum, s) => sum + parseInt(item.sizes[s]?.long || 0, 10), 0);
+      if (qty > 0) {
+        rows.push({
+          prefix: '',
+          value: formatSubsetBreakdown(item.sizes, 'long', tier.sizes),
+          indent: true,
+          qty: qty,
+          price: X + tier.addon + 5,
+          total: qty * (X + tier.addon + 5)
+        });
+      }
+    });
+
+    const lsKidQty = KID_SIZES.reduce((sum, s) => sum + parseInt(item.sizes[s]?.long || 0, 10), 0);
+    if (lsKidQty > 0) {
+      rows.push({
+        prefix: '',
+        value: formatSubsetBreakdown(item.sizes, 'long', KID_SIZES),
+        indent: true,
+        qty: lsKidQty,
+        price: X - 2 + 5,
+        total: lsKidQty * (X - 2 + 5)
+      });
+    }
+
+    // --- 3. PANTS ---
+    const ADULT_PANTS = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
+    const pAdultQty = ADULT_PANTS.reduce((sum, s) => sum + parseInt(item.sizes[s]?.pants || 0, 10), 0);
+    if (pAdultQty > 0) {
+      rows.push({
+        prefix: '• Short Pants:',
+        value: formatSubsetBreakdown(item.sizes, 'pants', ADULT_PANTS),
+        qty: pAdultQty,
+        price: 25,
+        total: pAdultQty * 25
+      });
+    }
+
+    const pKidQty = KID_SIZES.reduce((sum, s) => sum + parseInt(item.sizes[s]?.pants || 0, 10), 0);
+    if (pKidQty > 0) {
+      const value = formatSubsetBreakdown(item.sizes, 'pants', KID_SIZES);
+      rows.push({
+        prefix: pAdultQty > 0 ? '' : '• Short Pants:',
+        value: value,
+        indent: pAdultQty > 0,
+        qty: pKidQty,
+        price: 23,
+        total: pKidQty * 23
+      });
+    }
+
+    if (rows.length === 0) {
+      rows.push({
+        prefix: '',
+        value: 'Empty Item',
+        qty: 0,
+        price: 0,
+        total: 0
+      });
+    }
+
+    return rows;
+  };
 
   const finalScale = scale * zoom;
 
@@ -368,38 +510,19 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                     const firstRow = subRows[0];
                     const remainingRows = subRows.slice(1);
 
-                    const shortBreakdown = formatBreakdown(item.sizes, 'short');
-                    const longBreakdown = formatBreakdown(item.sizes, 'long');
-                    const pantsBreakdown = formatBreakdown(item.sizes, 'pants');
-
                     return (
                       <React.Fragment key={item.id}>
                         <tr className="print-avoid-break">
                           <td rowSpan={subRows.length} style={{ verticalAlign: 'top', textAlign: 'center' }}>{idx + 1}.</td>
-                          <td>
+                          <td style={{ textAlign: 'left', verticalAlign: 'top' }}>
                             <div className="print-item-desc">
                               <span className="print-design-name" style={{ fontWeight: '800' }}>Design: {item.design_name || 'Unnamed'}</span>
-                              <div className="print-specs-row" style={{ fontSize: '0.78rem', margin: '0.15rem 0' }}>
+                              <div className="print-specs-row" style={{ fontSize: '0.78rem', margin: '0.15rem 0 0.4rem 0' }}>
                                 Print Method: {item.print_method || 'Sublimation'} | Material: {item.material && MATERIALS.find(m => m.id === item.material)?.price > 0 ? `${item.material} (+RM${MATERIALS.find(m => m.id === item.material).price})` : item.material} | Cutting: {item.cutting && CUTTINGS.find(c => c.id === item.cutting)?.price > 0 ? `${item.cutting} (+RM${CUTTINGS.find(c => c.id === item.cutting).price})` : item.cutting} | Neck: {item.neck && NECKS.find(n => n.id === item.neck)?.price > 0 ? `${item.neck} (+RM${NECKS.find(n => n.id === item.neck).price})` : item.neck}{item.name_set === 'Yes' ? ' | Name Set: Yes (+RM3)' : ''}
                               </div>
-                              {shortBreakdown && (
-                                <div className="print-breakdown-row" style={{ fontSize: '0.78rem' }}>
-                                  • Short Sleeve: {shortBreakdown}
-                                </div>
-                              )}
-                              {longBreakdown && (
-                                <div className="print-breakdown-row" style={{ fontSize: '0.78rem' }}>
-                                  • Long Sleeve: {longBreakdown}
-                                </div>
-                              )}
-                              {pantsBreakdown && (
-                                <div className="print-breakdown-row" style={{ fontSize: '0.78rem' }}>
-                                  • Short Pants: {pantsBreakdown}
-                                </div>
-                              )}
-
-                              <div style={{ marginTop: '0.4rem', fontWeight: '600', fontSize: '0.78rem', color: '#1E293B', fontStyle: 'italic' }}>
-                                {firstRow.label}
+                              <div style={{ display: 'flex', alignItems: 'flex-start', fontWeight: '600', fontSize: '0.78rem', color: '#1E293B' }}>
+                                <span style={{ minWidth: '7.8rem', display: 'inline-block', flexShrink: 0 }}>{firstRow.prefix}</span>
+                                <span>{firstRow.value}</span>
                               </div>
                             </div>
                           </td>
@@ -410,9 +533,12 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
 
                         {remainingRows.map((row, rIdx) => (
                           <tr key={item.id + '_addon_' + rIdx} className="print-avoid-break">
-                            <td>
-                              <div className="print-item-desc" style={{ paddingLeft: '1rem', fontWeight: '600', fontSize: '0.78rem', color: '#1E293B', fontStyle: 'italic' }}>
-                                • {row.label}
+                            <td style={{ textAlign: 'left', verticalAlign: 'top' }}>
+                              <div className="print-item-desc">
+                                <div style={{ display: 'flex', alignItems: 'flex-start', fontWeight: row.indent ? 'normal' : '600', fontSize: '0.78rem', color: '#1E293B' }}>
+                                  <span style={{ minWidth: '7.8rem', display: 'inline-block', flexShrink: 0 }}>{row.prefix}</span>
+                                  <span>{row.value}</span>
+                                </div>
                               </div>
                             </td>
                             <td style={{ textAlign: 'center', verticalAlign: 'top' }}>{row.qty}</td>
