@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getSettings } from '../services/storage';
 import { X, Printer, Receipt, ChevronDown, ChevronUp } from 'lucide-react';
-import { CUTTINGS, NECKS, MATERIALS } from './InvoiceModal';
-import { SIZES, getBasePrice, getSizeCost } from '../data/sizePricing';
+import { CUTTINGS, NECKS, MATERIALS } from '../data/constants';
+import { SIZES, KID_SIZES, getBasePrice, getSizeCost } from '../data/sizePricing';
 
 const getPrintModeLabel = (mode) => {
   if (mode === 'Invoice') return 'Invoice';
@@ -175,6 +175,8 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
 
     return itemBaseTotal + itemAddonTotal;
   };
+
+
 
   const finalScale = scale * zoom;
 
@@ -362,10 +364,9 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                 </thead>
                 <tbody>
                   {invoice.items.map((item, idx) => {
-                    const itemQty = calculateItemQty(item);
-                    // Fallback to dynamic calculation if subtotal is missing/old invoice
-                    const itemSubtotal = item.subtotal !== undefined ? parseFloat(item.subtotal) : calculateItemSubtotal(item, basePrice);
-                    const avgPrice = itemQty > 0 ? itemSubtotal / itemQty : basePrice;
+                    const subRows = getItemSubRows(item, basePrice);
+                    const firstRow = subRows[0];
+                    const remainingRows = subRows.slice(1);
 
                     const shortBreakdown = formatBreakdown(item.sizes, 'short');
                     const longBreakdown = formatBreakdown(item.sizes, 'long');
@@ -374,38 +375,55 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                     return (
                       <React.Fragment key={item.id}>
                         <tr className="print-avoid-break">
-                          <td style={{ verticalAlign: 'top', textAlign: 'center' }}>{idx + 1}.</td>
+                          <td rowSpan={subRows.length} style={{ verticalAlign: 'top', textAlign: 'center' }}>{idx + 1}.</td>
                           <td>
                             <div className="print-item-desc">
-                              <span className="print-design-name">Design: {item.design_name || 'Unnamed'}</span>
-                              <div className="print-specs-row">
-                                Print Method: {item.print_method || 'Sublimation'} | Material: {item.material} | Cutting: {item.cutting} | Neck: {item.neck}{item.name_set === 'Yes' ? ' | Name Set: Yes' : ''}
+                              <span className="print-design-name" style={{ fontWeight: '800' }}>Design: {item.design_name || 'Unnamed'}</span>
+                              <div className="print-specs-row" style={{ fontSize: '0.78rem', margin: '0.15rem 0' }}>
+                                Print Method: {item.print_method || 'Sublimation'} | Material: {item.material && MATERIALS.find(m => m.id === item.material)?.price > 0 ? `${item.material} (+RM${MATERIALS.find(m => m.id === item.material).price})` : item.material} | Cutting: {item.cutting && CUTTINGS.find(c => c.id === item.cutting)?.price > 0 ? `${item.cutting} (+RM${CUTTINGS.find(c => c.id === item.cutting).price})` : item.cutting} | Neck: {item.neck && NECKS.find(n => n.id === item.neck)?.price > 0 ? `${item.neck} (+RM${NECKS.find(n => n.id === item.neck).price})` : item.neck}{item.name_set === 'Yes' ? ' | Name Set: Yes (+RM3)' : ''}
                               </div>
                               {shortBreakdown && (
-                                <div className="print-breakdown-row">
+                                <div className="print-breakdown-row" style={{ fontSize: '0.78rem' }}>
                                   • Short Sleeve: {shortBreakdown}
                                 </div>
                               )}
                               {longBreakdown && (
-                                <div className="print-breakdown-row">
-                                  • Long Sleeve (+RM5): {longBreakdown}
+                                <div className="print-breakdown-row" style={{ fontSize: '0.78rem' }}>
+                                  • Long Sleeve: {longBreakdown}
                                 </div>
                               )}
                               {pantsBreakdown && (
-                                <div className="print-breakdown-row">
+                                <div className="print-breakdown-row" style={{ fontSize: '0.78rem' }}>
                                   • Short Pants: {pantsBreakdown}
                                 </div>
                               )}
+
+                              <div style={{ marginTop: '0.4rem', fontWeight: '600', fontSize: '0.78rem', color: '#1E293B', fontStyle: 'italic' }}>
+                                {firstRow.label}
+                              </div>
                             </div>
                           </td>
-                          <td style={{ textAlign: 'center', verticalAlign: 'top' }}>{itemQty}</td>
-                          <td style={{ textAlign: 'center', verticalAlign: 'top' }}>
-                            {avgPrice.toFixed(2)}
-                          </td>
-                          <td style={{ textAlign: 'center', verticalAlign: 'top' }} className="font-bold">
-                            {itemSubtotal.toFixed(2)}
-                          </td>
+                          <td style={{ textAlign: 'center', verticalAlign: 'top' }}>{firstRow.qty}</td>
+                          <td style={{ textAlign: 'center', verticalAlign: 'top' }}>{firstRow.price.toFixed(2)}</td>
+                          <td style={{ textAlign: 'center', verticalAlign: 'top' }} className="font-bold">{firstRow.total.toFixed(2)}</td>
                         </tr>
+
+                        {remainingRows.map((row, rIdx) => (
+                          <tr key={item.id + '_addon_' + rIdx} className="print-avoid-break">
+                            <td>
+                              <div className="print-item-desc" style={{ paddingLeft: '1rem', fontWeight: '600', fontSize: '0.78rem', color: '#1E293B', fontStyle: 'italic' }}>
+                                • {row.label}
+                              </div>
+                            </td>
+                            <td style={{ textAlign: 'center', verticalAlign: 'top' }}>{row.qty}</td>
+                            <td style={{ textAlign: 'center', verticalAlign: 'top' }}>
+                              {row.price < 0 ? `- ${Math.abs(row.price).toFixed(2)}` : row.price.toFixed(2)}
+                            </td>
+                            <td style={{ textAlign: 'center', verticalAlign: 'top' }} className="font-bold">
+                              {row.total < 0 ? `- ${Math.abs(row.total).toFixed(2)}` : row.total.toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
                       </React.Fragment>
                     );
                   })}
