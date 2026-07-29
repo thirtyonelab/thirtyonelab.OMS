@@ -210,6 +210,7 @@ export const getInvoices = async () => {
   return invoicesList.map(invoice => {
     let discount_type = invoice.discount_type;
     let discount_value = invoice.discount_value;
+    let client_address = invoice.client_address;
     let cleanNotes = invoice.notes || '';
     if (invoice.notes && invoice.notes.includes('__METADATA__:')) {
       const parts = invoice.notes.split('__METADATA__:');
@@ -218,13 +219,15 @@ export const getInvoices = async () => {
         const meta = JSON.parse(parts[1]);
         discount_type = meta.discount_type;
         discount_value = meta.discount_value;
+        client_address = meta.client_address;
       } catch (e) {}
     }
     return {
       ...invoice,
       notes: cleanNotes,
       discount_type: discount_type !== undefined ? discount_type : (parseFloat(invoice.discount_per_pcs || 0) > 0 ? 'per_pcs' : 'bulk'),
-      discount_value: discount_value !== undefined ? discount_value : (parseFloat(invoice.discount_per_pcs || 0) || 0)
+      discount_value: discount_value !== undefined ? discount_value : (parseFloat(invoice.discount_per_pcs || 0) || 0),
+      client_address: client_address || ''
     };
   });
 };
@@ -331,7 +334,8 @@ export const saveInvoice = async (invoiceData) => {
     try {
       const metadata = {
         discount_type: finalInvoiceData.discount_type,
-        discount_value: finalInvoiceData.discount_value
+        discount_value: finalInvoiceData.discount_value,
+        client_address: finalInvoiceData.client_address
       };
       const dbInvoiceData = {
         ...finalInvoiceData,
@@ -339,6 +343,7 @@ export const saveInvoice = async (invoiceData) => {
       };
       delete dbInvoiceData.discount_type;
       delete dbInvoiceData.discount_value;
+      delete dbInvoiceData.client_address;
 
       const { data, error } = await client
         .from('invoices')

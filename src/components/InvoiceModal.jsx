@@ -269,6 +269,7 @@ const createEmptyItem = () => ({
   id: generateUUID(),
   design_name: '',
   design_image: '',
+  print_method: 'Sublimation',
   material: 'Eyelet',
   cutting: 'Normal',
   neck: 'Roundneck',
@@ -294,6 +295,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [clientId, setClientId] = useState('');
+  const [clientAddress, setClientAddress] = useState('');
   const [jobName, setJobName] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [items, setItems] = useState([createEmptyItem()]);
@@ -377,6 +379,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       setDiscountType(invoice.discount_type || 'per_pcs');
       setDiscountValue(invoice.discount_value !== undefined ? invoice.discount_value : (invoice.discount_per_pcs || 0));
       setNotes(invoice.notes || '');
+      setClientAddress(invoice.client_address || '');
 
       const firstItem = invoice.items[0];
       if (firstItem && firstItem.is_repeat_order) {
@@ -396,6 +399,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
         setClientName(prefilledClient.name);
         setClientPhone(prefilledClient.phone);
         setClientId(prefilledClient.id);
+        setClientAddress('');
         checkPreviousOrderBasePrice(prefilledClient.id, prefilledClient.phone);
       }
     }
@@ -410,6 +414,9 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       );
       if (clientInvoices.length > 0) {
         const latestInvoice = clientInvoices[0];
+        if (latestInvoice.client_address) {
+          setClientAddress(latestInvoice.client_address);
+        }
         const firstItem = latestInvoice.items[0];
         if (firstItem) {
           let prevBase = 0;
@@ -639,6 +646,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       client_id: clientId || null,
       client_name: clientName.trim(),
       client_phone: clientPhone.trim(),
+      client_address: clientAddress.trim(),
       job_name: jobName.trim(),
       date: date,
       items: processedItems,
@@ -760,6 +768,18 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                         onChange={(e) => setDate(e.target.value)}
                         className="form-control"
                         required
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
+                      <label className="form-label">Alamat Pelanggan (Optional)</label>
+                      <textarea
+                        value={clientAddress}
+                        onChange={(e) => setClientAddress(e.target.value)}
+                        placeholder="Taip alamat penuh pelanggan..."
+                        className="form-control"
+                        rows="2"
+                        style={{ resize: 'vertical' }}
                       />
                     </div>
 
@@ -894,6 +914,19 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                           placeholder="Cth: Shield Pro/ 26#0110"
                           className="form-control"
                         />
+                      </div>
+
+                       <div className="form-group">
+                        <label className="form-label">Printing Method</label>
+                        <select
+                          value={item.print_method || 'Sublimation'}
+                          onChange={(e) => updateItemField(item.id, 'print_method', e.target.value)}
+                          className="form-control"
+                        >
+                          <option value="Sublimation">Sublimation</option>
+                          <option value="DTF">DTF</option>
+                          <option value="Silk Screen">Silk Screen</option>
+                        </select>
                       </div>
 
                        <div className="form-group">

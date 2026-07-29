@@ -332,9 +332,14 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
               <span className="section-title-print">BILL TO:</span>
               <div className="billing-client-info">
                 <h4 className="client-print-name">{invoice.client_name}</h4>
-                <p className="client-print-phone">{invoice.client_phone}</p>
+                {invoice.client_address && (
+                  <p className="client-print-address" style={{ margin: '0.15rem 0 0.15rem 0', fontSize: '0.8rem', whiteSpace: 'pre-wrap', color: 'var(--text-muted)' }}>
+                    {invoice.client_address}
+                  </p>
+                )}
+                <p className="client-print-phone" style={{ margin: 0 }}>Tel: {invoice.client_phone}</p>
                 {invoice.job_name && (
-                  <p className="client-print-job">
+                  <p className="client-print-job" style={{ marginTop: '0.25rem' }}>
                     <strong>Job Name:</strong> {invoice.job_name}
                   </p>
                 )}
@@ -374,7 +379,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                             <div className="print-item-desc">
                               <span className="print-design-name">Design: {item.design_name || 'Unnamed'}</span>
                               <div className="print-specs-row">
-                                Material: {item.material} | Cutting: {item.cutting} | Neck: {item.neck} | Name Set: {item.name_set}
+                                Print Method: {item.print_method || 'Sublimation'} | Material: {item.material} | Cutting: {item.cutting} | Neck: {item.neck}{item.name_set === 'Yes' ? ' | Name Set: Yes' : ''}
                               </div>
                               {shortBreakdown && (
                                 <div className="print-breakdown-row">
@@ -419,7 +424,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                 </div>
                 {((invoice.discount_type === 'bulk' && parseFloat(invoice.discount_value) > 0) || (invoice.discount_type !== 'bulk' && (parseFloat(invoice.discount_value) > 0 || parseFloat(invoice.discount_per_pcs) > 0))) && (
                   <div className="summary-print-row">
-                    <span>DISCOUNT {invoice.discount_type === 'bulk' ? '(PUKAL)' : `(RM ${invoice.discount_value !== undefined ? invoice.discount_value : invoice.discount_per_pcs}/pcs)`}:</span>
+                    <span>DISCOUNT:</span>
                     <span>- RM {(invoice.discount_type === 'bulk' ? parseFloat(invoice.discount_value) : (parseFloat(invoice.discount_value !== undefined ? invoice.discount_value : invoice.discount_per_pcs) * totalQty)).toFixed(2)}</span>
                   </div>
                 )}
