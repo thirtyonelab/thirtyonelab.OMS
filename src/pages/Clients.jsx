@@ -367,11 +367,17 @@ export default function Clients({ onCreateInvoiceForClient }) {
                                               <span className="spec-value" style={{ fontWeight: 700, color: 'var(--primary-red)' }}>: RM {(() => {
                                                 const totalQty = inv.items.reduce((sum, i) => sum + (i.qty || 0), 0);
                                                 const base = getBasePrice(totalQty);
-                                                const discount = inv.discount_per_pcs || 0;
-                                                const finalPrice = base - discount;
-                                                return discount > 0
-                                                  ? `${finalPrice.toFixed(2)} /pcs (diskaun RM${discount.toFixed(2)})`
-                                                  : `${base.toFixed(2)} /pcs`;
+                                                const discountType = inv.discount_type || 'per_pcs';
+                                                const discountVal = inv.discount_value !== undefined ? inv.discount_value : (inv.discount_per_pcs || 0);
+                                                
+                                                if (discountType === 'bulk' && discountVal > 0) {
+                                                  return `${base.toFixed(2)} /pcs (Diskaun Pukal RM${parseFloat(discountVal).toFixed(2)})`;
+                                                } else {
+                                                  const finalPrice = base - discountVal;
+                                                  return discountVal > 0
+                                                    ? `${finalPrice.toFixed(2)} /pcs (diskaun RM${parseFloat(discountVal).toFixed(2)})`
+                                                    : `${base.toFixed(2)} /pcs`;
+                                                }
                                               })()}</span>
                                             </div>
                                           </div>
@@ -452,11 +458,17 @@ export default function Clients({ onCreateInvoiceForClient }) {
                                       <span className="spec-value" style={{ fontWeight: 700, color: 'var(--primary-red)' }}>: RM {(() => {
                                         const totalQty = inv.items.reduce((sum, i) => sum + (i.qty || 0), 0);
                                         const base = getBasePrice(totalQty);
-                                        const discount = inv.discount_per_pcs || 0;
-                                        const finalPrice = base - discount;
-                                        return discount > 0
-                                          ? `${finalPrice.toFixed(2)} /pcs (diskaun RM${discount.toFixed(2)})`
-                                          : `${base.toFixed(2)} /pcs`;
+                                        const discountType = inv.discount_type || 'per_pcs';
+                                        const discountVal = inv.discount_value !== undefined ? inv.discount_value : (inv.discount_per_pcs || 0);
+                                        
+                                        if (discountType === 'bulk' && discountVal > 0) {
+                                          return `${base.toFixed(2)} /pcs (Diskaun Pukal RM${parseFloat(discountVal).toFixed(2)})`;
+                                        } else {
+                                          const finalPrice = base - discountVal;
+                                          return discountVal > 0
+                                            ? `${finalPrice.toFixed(2)} /pcs (diskaun RM${parseFloat(discountVal).toFixed(2)})`
+                                            : `${base.toFixed(2)} /pcs`;
+                                        }
                                       })()}</span>
                                     </div>
                                   </div>

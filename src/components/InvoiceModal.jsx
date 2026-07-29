@@ -2,17 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { getClients, saveInvoice, getNextInvoiceNo, getInvoices } from '../services/storage';
 import { X, Plus, Trash2, Upload, AlertTriangle, Save, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { SIZES, ADULT_SIZES, KID_SIZES, getBasePrice, getSizeCost } from '../data/sizePricing';
+import { generateUUID } from '../utils/uuid.js';
 export { getBasePrice, getSizeCost };
+
+const ADULT_PANTS_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
 
 const getSelectedSizesSummary = (item) => {
   const summaryParts = [];
   SIZES.forEach(s => {
     const sQty = parseInt(item.sizes[s]?.short || 0);
     const lQty = parseInt(item.sizes[s]?.long || 0);
-    if (sQty > 0 || lQty > 0) {
+    const pQty = parseInt(item.sizes[s]?.pants || 0);
+    if (sQty > 0 || lQty > 0 || pQty > 0) {
       const parts = [];
       if (sQty > 0) parts.push(`${sQty} Short`);
       if (lQty > 0) parts.push(`${lQty} Long`);
+      if (pQty > 0) parts.push(`${pQty} Pants`);
       summaryParts.push(`${s} (${parts.join(', ')})`);
     }
   });
@@ -24,10 +29,12 @@ const getSelectedSizesPills = (item) => {
   SIZES.forEach(s => {
     const sQty = parseInt(item.sizes[s]?.short || 0);
     const lQty = parseInt(item.sizes[s]?.long || 0);
-    if (sQty > 0 || lQty > 0) {
+    const pQty = parseInt(item.sizes[s]?.pants || 0);
+    if (sQty > 0 || lQty > 0 || pQty > 0) {
       const details = [];
       if (sQty > 0) details.push(`${sQty}S`);
       if (lQty > 0) details.push(`${lQty}L`);
+      if (pQty > 0) details.push(`${pQty}P`);
       pills.push(
         <span 
           key={s} 
@@ -142,6 +149,80 @@ const getSelectedKidSizesPills = (item) => {
   ) : null;
 };
 
+const hasSelectedAdultPants = (item) => {
+  return ADULT_PANTS_SIZES.some(s => parseInt(item.sizes[s]?.pants || 0) > 0);
+};
+
+const hasSelectedKidPants = (item) => {
+  return KID_SIZES.some(s => parseInt(item.sizes[s]?.pants || 0) > 0);
+};
+
+const getSelectedAdultPantsPills = (item) => {
+  const pills = [];
+  ADULT_PANTS_SIZES.forEach(s => {
+    const pQty = parseInt(item.sizes[s]?.pants || 0);
+    if (pQty > 0) {
+      pills.push(
+        <span 
+          key={s} 
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '0.2rem 0.5rem',
+            backgroundColor: 'var(--white)',
+            border: '1px solid var(--border-color)',
+            fontSize: '0.72rem',
+            fontWeight: '700',
+            color: 'var(--text-dark)',
+            fontFamily: 'var(--font-primary)',
+            letterSpacing: '0.5px'
+          }}
+        >
+          <span style={{ color: '#CA8A04', marginRight: '0.25rem' }}>{s}</span>: {pQty}P
+        </span>
+      );
+    }
+  });
+  return pills.length > 0 ? (
+    <div className="collapsed-subsize-summary" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', padding: '0.5rem 0.8rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--white)' }}>
+      {pills}
+    </div>
+  ) : null;
+};
+
+const getSelectedKidPantsPills = (item) => {
+  const pills = [];
+  KID_SIZES.forEach(s => {
+    const pQty = parseInt(item.sizes[s]?.pants || 0);
+    if (pQty > 0) {
+      pills.push(
+        <span 
+          key={s} 
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '0.2rem 0.5rem',
+            backgroundColor: 'var(--white)',
+            border: '1px solid var(--border-color)',
+            fontSize: '0.72rem',
+            fontWeight: '700',
+            color: 'var(--text-dark)',
+            fontFamily: 'var(--font-primary)',
+            letterSpacing: '0.5px'
+          }}
+        >
+          <span style={{ color: '#0369A1', marginRight: '0.25rem' }}>{s}</span>: {pQty}P
+        </span>
+      );
+    }
+  });
+  return pills.length > 0 ? (
+    <div className="collapsed-subsize-summary" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', padding: '0.5rem 0.8rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--white)' }}>
+      {pills}
+    </div>
+  ) : null;
+};
+
 const getDynamicOptionLabel = (id, originalLabel, isAddonChecked, isRepeatActive) => {
   if (isRepeatActive && !isAddonChecked) {
     const match = originalLabel.match(/^(.*?)\s\(\+RM\d+\)$/);
@@ -168,6 +249,7 @@ export const CUTTINGS = [
   { id: 'Normal', label: 'Normal (+RM0)', price: 0 },
   { id: 'Baseball', label: 'Baseball (+RM5)', price: 5 },
   { id: 'Boxy', label: 'Boxy (+RM5)', price: 5 },
+  { id: 'Muslimah', label: 'Muslimah (+RM8)', price: 8 },
   { id: 'Raglan', label: 'Raglan (+RM4)', price: 4 },
   { id: 'Singlet', label: 'Singlet (+RM5)', price: 5 },
   { id: 'Sleeveless', label: 'Sleeveless (+RM5)', price: 5 }
@@ -184,7 +266,7 @@ export const NECKS = [
   { id: 'V-Neck Outer', label: 'V-Neck Outer (+RM7)', price: 7 }
 ];
 const createEmptyItem = () => ({
-  id: crypto.randomUUID(),
+  id: generateUUID(),
   design_name: '',
   design_image: '',
   material: 'Eyelet',
@@ -195,9 +277,9 @@ const createEmptyItem = () => ({
   cutting_addon: false,
   neck_addon: false,
   name_set_addon: false,
-  // Size Breakdown: sizeName -> { shortQty: 0, longQty: 0 }
+  // Size Breakdown: sizeName -> { shortQty: 0, longQty: 0, pants: 0 }
   sizes: SIZES.reduce((acc, size) => {
-    acc[size] = { short: 0, long: 0 };
+    acc[size] = { short: 0, long: 0, pants: 0 };
     return acc;
   }, {})
 });
@@ -215,7 +297,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   const [jobName, setJobName] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [items, setItems] = useState([createEmptyItem()]);
-  const [discountPerPcs, setDiscountPerPcs] = useState(0);
+  const [discountType, setDiscountType] = useState('per_pcs');
+  const [discountValue, setDiscountValue] = useState(0);
   const [notes, setNotes] = useState('');
   const [isRepeatOrder, setIsRepeatOrder] = useState(false);
   const [customBasePrice, setCustomBasePrice] = useState('');
@@ -225,6 +308,17 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   const [collapsedSizes, setCollapsedSizes] = useState({});
   const [collapsedAdults, setCollapsedAdults] = useState({});
   const [collapsedKids, setCollapsedKids] = useState({});
+  const [collapsedAdultPants, setCollapsedAdultPants] = useState({});
+  const [collapsedKidPants, setCollapsedKidPants] = useState({});
+  const [isDiscountCollapsed, setIsDiscountCollapsed] = useState(true);
+  const [collapsedDesigns, setCollapsedDesigns] = useState({});
+
+  const toggleDesignCollapse = (itemId) => {
+    setCollapsedDesigns(prev => ({
+      ...prev,
+      [itemId]: prev[itemId] === false ? true : false
+    }));
+  };
 
   const toggleSizesCollapse = (itemId) => {
     setCollapsedSizes(prev => ({
@@ -236,14 +330,28 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   const toggleAdultSizesCollapse = (itemId) => {
     setCollapsedAdults(prev => ({
       ...prev,
-      [itemId]: !prev[itemId]
+      [itemId]: prev[itemId] === false ? true : false
     }));
   };
 
   const toggleKidSizesCollapse = (itemId) => {
     setCollapsedKids(prev => ({
       ...prev,
-      [itemId]: !prev[itemId]
+      [itemId]: prev[itemId] === false ? true : false
+    }));
+  };
+
+  const toggleAdultPantsCollapse = (itemId) => {
+    setCollapsedAdultPants(prev => ({
+      ...prev,
+      [itemId]: prev[itemId] === false ? true : false
+    }));
+  };
+
+  const toggleKidPantsCollapse = (itemId) => {
+    setCollapsedKidPants(prev => ({
+      ...prev,
+      [itemId]: prev[itemId] === false ? true : false
     }));
   };
 
@@ -266,7 +374,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       setJobName(invoice.job_name || '');
       setDate(invoice.date);
       setItems(JSON.parse(JSON.stringify(invoice.items))); // Deep clone
-      setDiscountPerPcs(invoice.discount_per_pcs || 0);
+      setDiscountType(invoice.discount_type || 'per_pcs');
+      setDiscountValue(invoice.discount_value !== undefined ? invoice.discount_value : (invoice.discount_per_pcs || 0));
       setNotes(invoice.notes || '');
 
       const firstItem = invoice.items[0];
@@ -366,18 +475,24 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   };
 
   const updateItemQty = (itemId, size, type, val) => {
-    const intVal = parseInt(val, 10) || 0;
+    const intVal = val === '' ? 0 : Math.max(0, parseInt(val, 10) || 0);
     setItems(prev => prev.map(item => {
       if (item.id === itemId) {
         const updatedSizes = { ...item.sizes };
         updatedSizes[size] = {
           ...updatedSizes[size],
-          [type]: Math.max(0, intVal)
+          [type]: intVal
         };
         return { ...item, sizes: updatedSizes };
       }
       return item;
     }));
+  };
+
+  // Helper: display 0 as empty string so placeholder "0" shows instead of actual 0
+  const displayQty = (val) => {
+    const n = parseInt(val, 10);
+    return (isNaN(n) || n === 0) ? '' : String(n);
   };
 
   const handleItemImageUpload = (e, itemId) => {
@@ -397,12 +512,12 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   };
 
   // --- CALCULATION ENGINE ---
-  // 1. Total Quantity in the whole invoice
+  // Total shirt qty only (short + long), used for base price tier
   const calculateTotalQty = () => {
     return items.reduce((total, item) => {
       return total + SIZES.reduce((itemTotal, size) => {
-        const sQty = item.sizes[size]?.short || 0;
-        const lQty = item.sizes[size]?.long || 0;
+        const sQty = parseInt(item.sizes[size]?.short || 0, 10);
+        const lQty = parseInt(item.sizes[size]?.long || 0, 10);
         return itemTotal + sQty + lQty;
       }, 0);
     }, 0);
@@ -419,6 +534,11 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
     let itemAddonTotal = 0;
     let itemQty = 0;
 
+    let adultShirtQty = 0;
+    let kidShirtQty = 0;
+    let adultPantsQty = 0;
+    let kidPantsQty = 0;
+
     const materialPrice = (isRepeatOrder && !item.material_addon) ? 0 : (MATERIALS.find(m => m.id === item.material)?.price || 0);
     const cuttingPrice = (isRepeatOrder && !item.cutting_addon) ? 0 : (CUTTINGS.find(c => c.id === item.cutting)?.price || 0);
     const neckPrice = (isRepeatOrder && !item.neck_addon) ? 0 : (NECKS.find(n => n.id === item.neck)?.price || 0);
@@ -428,10 +548,14 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
     SIZES.forEach(size => {
       const shortQty = parseInt(item.sizes[size]?.short || 0, 10);
       const longQty = parseInt(item.sizes[size]?.long || 0, 10);
+      const pantsQty = parseInt(item.sizes[size]?.pants || 0, 10);
       const subQty = shortQty + longQty;
 
       if (subQty > 0) {
         itemQty += subQty;
+        if (ADULT_SIZES.includes(size)) adultShirtQty += subQty;
+        else if (KID_SIZES.includes(size)) kidShirtQty += subQty;
+
         // Base Price part
         itemBaseTotal += subQty * basePrice;
         
@@ -445,12 +569,28 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
         // Sleeve specific addon (+RM5 for Long Sleeve)
         itemAddonTotal += longQty * 5;
       }
+
+      // Pants pricing (Flat rate)
+      if (pantsQty > 0) {
+        itemQty += pantsQty;
+        if (ADULT_SIZES.includes(size)) {
+          adultPantsQty += pantsQty;
+          itemAddonTotal += pantsQty * 25;
+        } else if (KID_SIZES.includes(size)) {
+          kidPantsQty += pantsQty;
+          itemAddonTotal += pantsQty * 23;
+        }
+      }
     });
 
     const subtotal = itemBaseTotal + itemAddonTotal;
 
     return {
       qty: itemQty,
+      adultShirtQty,
+      kidShirtQty,
+      adultPantsQty,
+      kidPantsQty,
       base: itemBaseTotal,
       addons: itemAddonTotal,
       subtotal: subtotal
@@ -459,7 +599,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
 
   // 3. Overall Invoice Summaries
   const grossSubtotal = items.reduce((sum, item) => sum + calculateItemSummary(item).subtotal, 0);
-  const totalDiscount = discountPerPcs * totalQty;
+  const totalDiscount = discountType === 'bulk' ? (parseFloat(discountValue) || 0) : ((parseFloat(discountValue) || 0) * totalQty);
   const grandTotal = Math.max(0, grossSubtotal - totalDiscount);
 
   const handleSubmit = async (e) => {
@@ -472,8 +612,10 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       alert('Sila masukkan nombor telefon pelanggan.');
       return;
     }
-    if (totalQty === 0) {
-      alert('Sila masukkan kuantiti baju (sekurang-kurangnya 1 helai).');
+    // Check if there's at least 1 item (shirt or pants)
+    const totalAllQty = items.reduce((sum, item) => sum + calculateItemSummary(item).qty, 0);
+    if (totalAllQty === 0) {
+      alert('Sila masukkan kuantiti baju / seluar (sekurang-kurangnya 1 helai).');
       return;
     }
 
@@ -501,7 +643,9 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       date: date,
       items: processedItems,
       subtotal: grossSubtotal,
-      discount_per_pcs: parseFloat(discountPerPcs) || 0,
+      discount_type: discountType,
+      discount_value: parseFloat(discountValue) || 0,
+      discount_per_pcs: discountType === 'per_pcs' ? (parseFloat(discountValue) || 0) : 0,
       grand_total: grandTotal,
       // If editing, preserve payments, otherwise set default
       deposit: invoice ? invoice.deposit : 0,
@@ -710,22 +854,37 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                   <div key={item.id} className="design-item-card card">
                     
                     {/* Header: Design Info & Remove Button */}
-                    <div className="design-item-header">
-                      <h5>DESIGN #{index + 1}</h5>
+                    <div 
+                      className="design-item-header"
+                      onClick={() => toggleDesignCollapse(item.id)}
+                      style={{ cursor: 'pointer', userSelect: 'none', borderBottom: collapsedDesigns[item.id] !== false ? 'none' : '1px dashed var(--border-color)', marginBottom: collapsedDesigns[item.id] !== false ? '0' : '1.25rem', paddingBottom: collapsedDesigns[item.id] !== false ? '0' : '0.5rem' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', flex: 1 }}>
+                        <h5 style={{ margin: 0, whiteSpace: 'nowrap' }}>DESIGN #{index + 1} {item.design_name ? `- ${item.design_name}` : ''}</h5>
+                        {collapsedDesigns[item.id] !== false ? <ChevronDown size={16} style={{ flexShrink: 0 }} /> : <ChevronUp size={16} style={{ flexShrink: 0 }} />}
+                        {collapsedDesigns[item.id] !== false && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: '0.25rem' }}>
+                            <span style={{ fontWeight: '600', color: 'var(--text-dark)' }}>{summary.qty} pcs</span> | RM {summary.subtotal.toFixed(2)}
+                          </div>
+                        )}
+                      </div>
+                      
                       {items.length > 1 && (
                         <button
                           type="button"
-                          onClick={() => removeItem(item.id)}
+                          onClick={(e) => { e.stopPropagation(); removeItem(item.id); }}
                           className="btn-text text-red"
-                          style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}
                         >
-                          <Trash2 size={14} /> Padam Rekaan
+                          <Trash2 size={14} /> Delete
                         </button>
                       )}
                     </div>
 
-                    {/* Specification Dropdowns */}
-                    <div className="grid-4 specs-grid">
+                    {collapsedDesigns[item.id] === false && (
+                      <>
+                        {/* Specification Dropdowns */}
+                        <div className="grid-4 specs-grid">
                       <div className="form-group">
                         <label className="form-label">Nama/Code Design (Optional)</label>
                         <input
@@ -917,13 +1076,16 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                             <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
                               <div 
                                 onClick={() => toggleAdultSizesCollapse(item.id)}
-                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdults[item.id] && !hasSelectedAdultSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdults[item.id] !== false && !hasSelectedAdultSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
                               >
                                 <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Adult Sizes</span>
-                                {collapsedAdults[item.id] ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  {collapsedAdults[item.id] !== false && summary.adultShirtQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.adultShirtQty} pcs</span>}
+                                  {collapsedAdults[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                </div>
                               </div>
-                              {collapsedAdults[item.id] && getSelectedAdultSizesPills(item)}
-                              {!collapsedAdults[item.id] && (
+                              {collapsedAdults[item.id] !== false && getSelectedAdultSizesPills(item)}
+                              {collapsedAdults[item.id] === false && (
                                 <div style={{ overflowX: 'auto' }}>
                                   <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
                                     <thead>
@@ -949,7 +1111,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                             <input
                                               type="number"
                                               min="0"
-                                              value={item.sizes[s]?.short || ''}
+                                              value={displayQty(item.sizes[s]?.short)}
                                               onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
                                               placeholder="0"
                                               className="qty-input"
@@ -964,7 +1126,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                             <input
                                               type="number"
                                               min="0"
-                                              value={item.sizes[s]?.long || ''}
+                                              value={displayQty(item.sizes[s]?.long)}
                                               onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
                                               placeholder="0"
                                               className="qty-input"
@@ -982,13 +1144,16 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                             <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
                               <div 
                                 onClick={() => toggleKidSizesCollapse(item.id)}
-                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKids[item.id] && !hasSelectedKidSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKids[item.id] !== false && !hasSelectedKidSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
                               >
                                 <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Kid Sizes</span>
-                                {collapsedKids[item.id] ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  {collapsedKids[item.id] !== false && summary.kidShirtQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.kidShirtQty} pcs</span>}
+                                  {collapsedKids[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                </div>
                               </div>
-                              {collapsedKids[item.id] && getSelectedKidSizesPills(item)}
-                              {!collapsedKids[item.id] && (
+                              {collapsedKids[item.id] !== false && getSelectedKidSizesPills(item)}
+                              {collapsedKids[item.id] === false && (
                                 <div style={{ overflowX: 'auto' }}>
                                   <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
                                     <thead>
@@ -1014,7 +1179,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                             <input
                                               type="number"
                                               min="0"
-                                              value={item.sizes[s]?.short || ''}
+                                              value={displayQty(item.sizes[s]?.short)}
                                               onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
                                               placeholder="0"
                                               className="qty-input"
@@ -1029,8 +1194,100 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                             <input
                                               type="number"
                                               min="0"
-                                              value={item.sizes[s]?.long || ''}
+                                              value={displayQty(item.sizes[s]?.long)}
                                               onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
+                                              placeholder="0"
+                                              className="qty-input"
+                                            />
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Desktop Adult Pants Section */}
+                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                              <div 
+                                onClick={() => toggleAdultPantsCollapse(item.id)}
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdultPants[item.id] !== false && !hasSelectedAdultPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                              >
+                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Adult Pants Sizes (RM25/pcs)</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  {collapsedAdultPants[item.id] !== false && summary.adultPantsQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.adultPantsQty} pcs</span>}
+                                  {collapsedAdultPants[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                </div>
+                              </div>
+                              {collapsedAdultPants[item.id] !== false && getSelectedAdultPantsPills(item)}
+                              {collapsedAdultPants[item.id] === false && (
+                                <div style={{ overflowX: 'auto' }}>
+                                  <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
+                                    <thead>
+                                      <tr>
+                                        <th style={{ borderRight: '1px solid var(--border-color)' }}>Jenis</th>
+                                        {ADULT_PANTS_SIZES.map(s => (
+                                          <th key={s} style={{ borderRight: '1px solid var(--border-color)' }}>{s}</th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr>
+                                        <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>Short Pants</td>
+                                        {ADULT_PANTS_SIZES.map(s => (
+                                          <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              value={displayQty(item.sizes[s]?.pants)}
+                                              onChange={(e) => updateItemQty(item.id, s, 'pants', e.target.value)}
+                                              placeholder="0"
+                                              className="qty-input"
+                                            />
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Desktop Kid Pants Section */}
+                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                              <div 
+                                onClick={() => toggleKidPantsCollapse(item.id)}
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKidPants[item.id] !== false && !hasSelectedKidPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                              >
+                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Kid Pants Sizes (RM23/pcs)</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  {collapsedKidPants[item.id] !== false && summary.kidPantsQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.kidPantsQty} pcs</span>}
+                                  {collapsedKidPants[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                </div>
+                              </div>
+                              {collapsedKidPants[item.id] !== false && getSelectedKidPantsPills(item)}
+                              {collapsedKidPants[item.id] === false && (
+                                <div style={{ overflowX: 'auto' }}>
+                                  <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
+                                    <thead>
+                                      <tr>
+                                        <th style={{ borderRight: '1px solid var(--border-color)' }}>Jenis</th>
+                                        {KID_SIZES.map(s => (
+                                          <th key={s} style={{ borderRight: '1px solid var(--border-color)' }}>{s}</th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr>
+                                        <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>Short Pants</td>
+                                        {KID_SIZES.map(s => (
+                                          <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              value={displayQty(item.sizes[s]?.pants)}
+                                              onChange={(e) => updateItemQty(item.id, s, 'pants', e.target.value)}
                                               placeholder="0"
                                               className="qty-input"
                                             />
@@ -1051,13 +1308,16 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                             <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
                               <div 
                                 onClick={() => toggleAdultSizesCollapse(item.id)}
-                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdults[item.id] && !hasSelectedAdultSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdults[item.id] !== false && !hasSelectedAdultSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
                               >
                                 <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Adult Sizes</span>
-                                {collapsedAdults[item.id] ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  {collapsedAdults[item.id] !== false && summary.adultShirtQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.adultShirtQty} pcs</span>}
+                                  {collapsedAdults[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                </div>
                               </div>
-                              {collapsedAdults[item.id] && getSelectedAdultSizesPills(item)}
-                              {!collapsedAdults[item.id] && (
+                              {collapsedAdults[item.id] !== false && getSelectedAdultSizesPills(item)}
+                              {collapsedAdults[item.id] === false && (
                                 <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
                                   {ADULT_SIZES.map(s => (
                                     <div key={s} className="size-input-card">
@@ -1075,7 +1335,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                           <input
                                             type="number"
                                             min="0"
-                                            value={item.sizes[s]?.short || ''}
+                                            value={displayQty(item.sizes[s]?.short)}
                                             onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
                                             placeholder="0"
                                             className={`size-qty-input ${parseInt(item.sizes[s]?.short || 0) > 0 ? 'has-value' : ''}`}
@@ -1086,7 +1346,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                           <input
                                             type="number"
                                             min="0"
-                                            value={item.sizes[s]?.long || ''}
+                                            value={displayQty(item.sizes[s]?.long)}
                                             onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
                                             placeholder="0"
                                             className={`size-qty-input ${parseInt(item.sizes[s]?.long || 0) > 0 ? 'has-value' : ''}`}
@@ -1103,13 +1363,16 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                             <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
                               <div 
                                 onClick={() => toggleKidSizesCollapse(item.id)}
-                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKids[item.id] && !hasSelectedKidSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKids[item.id] !== false && !hasSelectedKidSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
                               >
                                 <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Kid Sizes</span>
-                                {collapsedKids[item.id] ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  {collapsedKids[item.id] !== false && summary.kidShirtQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.kidShirtQty} pcs</span>}
+                                  {collapsedKids[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                </div>
                               </div>
-                              {collapsedKids[item.id] && getSelectedKidSizesPills(item)}
-                              {!collapsedKids[item.id] && (
+                              {collapsedKids[item.id] !== false && getSelectedKidSizesPills(item)}
+                              {collapsedKids[item.id] === false && (
                                 <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
                                   {KID_SIZES.map(s => (
                                     <div key={s} className="size-input-card">
@@ -1127,7 +1390,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                           <input
                                             type="number"
                                             min="0"
-                                            value={item.sizes[s]?.short || ''}
+                                            value={displayQty(item.sizes[s]?.short)}
                                             onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
                                             placeholder="0"
                                             className={`size-qty-input ${parseInt(item.sizes[s]?.short || 0) > 0 ? 'has-value' : ''}`}
@@ -1138,7 +1401,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                           <input
                                             type="number"
                                             min="0"
-                                            value={item.sizes[s]?.long || ''}
+                                            value={displayQty(item.sizes[s]?.long)}
                                             onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
                                             placeholder="0"
                                             className={`size-qty-input ${parseInt(item.sizes[s]?.long || 0) > 0 ? 'has-value' : ''}`}
@@ -1151,6 +1414,83 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                               )}
                             </div>
 
+                            {/* Mobile Adult Pants Section */}
+                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                              <div 
+                                onClick={() => toggleAdultPantsCollapse(item.id)}
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdultPants[item.id] !== false && !hasSelectedAdultPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                              >
+                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Adult Pants Sizes (RM25/pcs)</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  {collapsedAdultPants[item.id] !== false && summary.adultPantsQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.adultPantsQty} pcs</span>}
+                                  {collapsedAdultPants[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                </div>
+                              </div>
+                              {collapsedAdultPants[item.id] !== false && getSelectedAdultPantsPills(item)}
+                              {collapsedAdultPants[item.id] === false && (
+                                <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
+                                  {ADULT_PANTS_SIZES.map(s => (
+                                    <div key={s} className="size-input-card">
+                                      <div className="size-card-title">
+                                        <span>Size {s}</span>
+                                      </div>
+                                      <div className="size-inputs-row">
+                                        <div className="size-qty-group">
+                                          <span className="size-qty-lbl">Short Pants</span>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            value={displayQty(item.sizes[s]?.pants)}
+                                            onChange={(e) => updateItemQty(item.id, s, 'pants', e.target.value)}
+                                            placeholder="0"
+                                            className={`size-qty-input ${parseInt(item.sizes[s]?.pants || 0) > 0 ? 'has-value' : ''}`}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Mobile Kid Pants Section */}
+                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                              <div 
+                                onClick={() => toggleKidPantsCollapse(item.id)}
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKidPants[item.id] !== false && !hasSelectedKidPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                              >
+                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Kid Pants Sizes (RM23/pcs)</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  {collapsedKidPants[item.id] !== false && summary.kidPantsQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.kidPantsQty} pcs</span>}
+                                  {collapsedKidPants[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                </div>
+                              </div>
+                              {collapsedKidPants[item.id] !== false && getSelectedKidPantsPills(item)}
+                              {collapsedKidPants[item.id] === false && (
+                                <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
+                                  {KID_SIZES.map(s => (
+                                    <div key={s} className="size-input-card">
+                                      <div className="size-card-title">
+                                        <span>Size {s}</span>
+                                      </div>
+                                      <div className="size-inputs-row">
+                                        <div className="size-qty-group">
+                                          <span className="size-qty-lbl">Short Pants</span>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            value={displayQty(item.sizes[s]?.pants)}
+                                            onChange={(e) => updateItemQty(item.id, s, 'pants', e.target.value)}
+                                            placeholder="0"
+                                            className={`size-qty-input ${parseInt(item.sizes[s]?.pants || 0) > 0 ? 'has-value' : ''}`}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       )}
@@ -1175,6 +1515,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                         <strong className="calc-pill-value">RM {summary.subtotal.toFixed(2)}</strong>
                       </div>
                     </div>
+                      </>
+                    )}
 
                   </div>
                 );
@@ -1203,23 +1545,65 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                     <span className="font-bold">RM {grossSubtotal.toFixed(2)}</span>
                   </div>
 
-                  <div className="calc-row discount-row">
-                    <div className="discount-input-row">
-                      <label className="form-label discount-label">Diskaun per helai (/pcs)</label>
-                      <div className="discount-input-wrapper">
-                        <span className="currency-prefix">RM</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={discountPerPcs || ''}
-                          onChange={(e) => setDiscountPerPcs(Math.max(0, parseFloat(e.target.value) || 0))}
-                          className="form-control discount-input"
-                          placeholder="0.00"
-                        />
+                  <div className="calc-row discount-row" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                    <div 
+                      onClick={() => setIsDiscountCollapsed(!isDiscountCollapsed)} 
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '0.5rem 0', width: '100%' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--text-dark)' }}>Diskaun</span>
+                        {isDiscountCollapsed && totalDiscount > 0 && (
+                           <span className="text-red font-bold" style={{ fontSize: '0.85rem' }}>
+                             - RM {totalDiscount.toFixed(2)}
+                           </span>
+                        )}
                       </div>
+                      {isDiscountCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
                     </div>
-                    <span className="text-red font-bold">- RM {totalDiscount.toFixed(2)}</span>
+
+                    {!isDiscountCollapsed && (
+                      <div className="discount-input-row" style={{ padding: '0.5rem 0 0.5rem 0', borderTop: '1px dashed var(--border-color)', marginTop: '0.25rem', width: '100%' }}>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', gap: '1rem' }}>
+                            <label style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                              <input 
+                                type="radio" 
+                                name="discountType" 
+                                value="per_pcs" 
+                                checked={discountType === 'per_pcs'} 
+                                onChange={() => setDiscountType('per_pcs')} 
+                                style={{ margin: 0 }}
+                              /> Per Helai
+                            </label>
+                            <label style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                              <input 
+                                type="radio" 
+                                name="discountType" 
+                                value="bulk" 
+                                checked={discountType === 'bulk'} 
+                                onChange={() => setDiscountType('bulk')} 
+                                style={{ margin: 0 }}
+                              /> Pukal (Bulk)
+                            </label>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', width: '100%' }}>
+                          <div className="discount-input-wrapper" style={{ flex: '1', maxWidth: '150px' }}>
+                            <span className="currency-prefix">RM</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={discountValue || ''}
+                              onChange={(e) => setDiscountValue(Math.max(0, parseFloat(e.target.value) || 0))}
+                              className="form-control discount-input"
+                              placeholder="0.00"
+                            />
+                          </div>
+                          <span className="text-red font-bold" style={{ whiteSpace: 'nowrap' }}>- RM {totalDiscount.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="calc-row grand-total-row">
@@ -1366,6 +1750,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
           display: flex;
           justify-content: space-between;
           align-items: center;
+          flex-wrap: wrap;
+          gap: 0.5rem;
           border-bottom: 1px dashed var(--border-color);
           padding-bottom: 0.5rem;
           margin-bottom: 1.25rem;

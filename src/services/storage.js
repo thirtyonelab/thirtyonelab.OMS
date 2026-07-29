@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { generateUUID } from '../utils/uuid.js';
 
 // Keys for localStorage fallback
 const STORAGE_KEYS = {
@@ -12,8 +13,8 @@ let supabaseInstance = null;
 
 // Initialize Supabase if credentials exist in localStorage or environment variables
 export const getSupabaseClient = () => {
-  const url = localStorage.getItem('supabase_url') || import.meta.env.VITE_SUPABASE_URL;
-  const key = localStorage.getItem('supabase_anon_key') || import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const url = localStorage.getItem('supabase_url') || (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_URL : undefined);
+  const key = localStorage.getItem('supabase_anon_key') || (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_ANON_KEY : undefined);
   
   if (url && key) {
     if (supabaseInstance && supabaseInstance.supabaseUrl === url) {
@@ -151,7 +152,7 @@ export const saveClient = async (clientData) => {
       updatedClient = clients[index];
     }
   } else {
-    updatedClient.id = crypto.randomUUID();
+    updatedClient.id = generateUUID();
     updatedClient.created_at = new Date().toISOString();
     updatedClient.orders_count = updatedClient.orders_count || 0;
     updatedClient.total_spent = updatedClient.total_spent || 0;
@@ -187,6 +188,7 @@ export const deleteClient = async (id) => {
 // --- INVOICES SERVICE ---
 export const getInvoices = async () => {
   const client = getSupabaseClient();
+  let invoicesList = [];
   if (client) {
     try {
       const { data, error } = await client
@@ -194,15 +196,37 @@ export const getInvoices = async () => {
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
+      invoicesList = data || [];
     } catch (e) {
       console.error('Error fetching invoices from Supabase:', e);
+      const stored = localStorage.getItem(STORAGE_KEYS.INVOICES);
+      invoicesList = stored ? JSON.parse(stored) : [];
     }
+  } else {
+    const stored = localStorage.getItem(STORAGE_KEYS.INVOICES);
+    invoicesList = stored ? JSON.parse(stored) : [];
   }
 
-  // LocalStorage Fallback
-  const stored = localStorage.getItem(STORAGE_KEYS.INVOICES);
-  return stored ? JSON.parse(stored) : [];
+  return invoicesList.map(invoice => {
+    let discount_type = invoice.discount_type;
+    let discount_value = invoice.discount_value;
+    let cleanNotes = invoice.notes || '';
+    if (invoice.notes && invoice.notes.includes('__METADATA__:')) {
+      const parts = invoice.notes.split('__METADATA__:');
+      cleanNotes = parts[0].trim();
+      try {
+        const meta = JSON.parse(parts[1]);
+        discount_type = meta.discount_type;
+        discount_value = meta.discount_value;
+      } catch (e) {}
+    }
+    return {
+      ...invoice,
+      notes: cleanNotes,
+      discount_type: discount_type !== undefined ? discount_type : (parseFloat(invoice.discount_per_pcs || 0) > 0 ? 'per_pcs' : 'bulk'),
+      discount_value: discount_value !== undefined ? discount_value : (parseFloat(invoice.discount_per_pcs || 0) || 0)
+    };
+  });
 };
 
 // Generates next sequential invoice number based on prefix
@@ -271,7 +295,7 @@ export const saveInvoice = async (invoiceData) => {
   // 1. CRM Integration: Find or create client first, and update metrics
   let customerId = invoiceData.client_id;
   let clientsList = await getClients();
-  let existingClient = clientsList.find(c => c.id === customerId || (c.name.toLowerCase() === invoiceData.client_name.toLowerCase() && c.phone === invoiceData.client_phone));
+  let existingClient = clientsList.find(c => c.id === customerId || (c.name && invoiceData.client_name && c.name.toLowerCase() === invoiceData.client_name.toLowerCase() && c.phone === invoiceData.client_phone));
   
   let savedClientObj = null;
   if (existingClient) {
@@ -297,7 +321,7 @@ export const saveInvoice = async (invoiceData) => {
   };
 
   if (!finalInvoiceData.id) {
-    finalInvoiceData.id = client ? undefined : crypto.randomUUID(); // Supabase will auto-gen UUID if undefined
+    finalInvoiceData.id = client ? undefined : generateUUID(); // Supabase will auto-gen UUID if undefined
     finalInvoiceData.created_at = new Date().toISOString();
   }
 
@@ -305,9 +329,20 @@ export const saveInvoice = async (invoiceData) => {
 
   if (client) {
     try {
+      const metadata = {
+        discount_type: finalInvoiceData.discount_type,
+        discount_value: finalInvoiceData.discount_value
+      };
+      const dbInvoiceData = {
+        ...finalInvoiceData,
+        notes: (finalInvoiceData.notes || '') + `\n\n__METADATA__:${JSON.stringify(metadata)}`
+      };
+      delete dbInvoiceData.discount_type;
+      delete dbInvoiceData.discount_value;
+
       const { data, error } = await client
         .from('invoices')
-        .upsert(finalInvoiceData)
+        .upsert(dbInvoiceData)
         .select()
         .single();
       if (error) throw error;
@@ -328,7 +363,7 @@ export const saveInvoice = async (invoiceData) => {
         invoices.push(finalInvoiceData);
       }
     } else {
-      finalInvoiceData.id = crypto.randomUUID();
+      finalInvoiceData.id = generateUUID();
       invoices.push(finalInvoiceData);
     }
     localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices));

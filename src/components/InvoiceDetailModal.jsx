@@ -133,7 +133,8 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     return SIZES.reduce((itemTotal, size) => {
       const sQty = parseInt(item.sizes[size]?.short || 0, 10);
       const lQty = parseInt(item.sizes[size]?.long || 0, 10);
-      return itemTotal + sQty + lQty;
+      const pQty = parseInt(item.sizes[size]?.pants || 0, 10);
+      return itemTotal + sQty + lQty + pQty;
     }, 0);
   };
 
@@ -151,6 +152,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     SIZES.forEach(size => {
       const shortQty = parseInt(item.sizes[size]?.short || 0, 10);
       const longQty = parseInt(item.sizes[size]?.long || 0, 10);
+      const pantsQty = parseInt(item.sizes[size]?.pants || 0, 10);
       const subQty = shortQty + longQty;
 
       if (subQty > 0) {
@@ -159,6 +161,15 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
         const sizeAddon = getSizeCost(size);
         itemAddonTotal += subQty * sizeAddon;
         itemAddonTotal += longQty * 5;
+      }
+
+      if (pantsQty > 0) {
+        const ADULT_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
+        if (ADULT_SIZES.includes(size)) {
+          itemAddonTotal += pantsQty * 25;
+        } else {
+          itemAddonTotal += pantsQty * 23;
+        }
       }
     });
 
@@ -353,6 +364,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
 
                     const shortBreakdown = formatBreakdown(item.sizes, 'short');
                     const longBreakdown = formatBreakdown(item.sizes, 'long');
+                    const pantsBreakdown = formatBreakdown(item.sizes, 'pants');
 
                     return (
                       <React.Fragment key={item.id}>
@@ -372,6 +384,11 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                               {longBreakdown && (
                                 <div className="print-breakdown-row">
                                   • Long Sleeve (+RM5): {longBreakdown}
+                                </div>
+                              )}
+                              {pantsBreakdown && (
+                                <div className="print-breakdown-row">
+                                  • Short Pants: {pantsBreakdown}
                                 </div>
                               )}
                             </div>
@@ -400,10 +417,10 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                   <span>SUBTOTAL:</span>
                   <span>RM {parseFloat(invoice.subtotal).toFixed(2)}</span>
                 </div>
-                {parseFloat(invoice.discount_per_pcs) > 0 && (
+                {((invoice.discount_type === 'bulk' && parseFloat(invoice.discount_value) > 0) || (invoice.discount_type !== 'bulk' && (parseFloat(invoice.discount_value) > 0 || parseFloat(invoice.discount_per_pcs) > 0))) && (
                   <div className="summary-print-row">
-                    <span>DISCOUNT (RM {invoice.discount_per_pcs}/pcs):</span>
-                    <span>- RM {(parseFloat(invoice.discount_per_pcs) * totalQty).toFixed(2)}</span>
+                    <span>DISCOUNT {invoice.discount_type === 'bulk' ? '(PUKAL)' : `(RM ${invoice.discount_value !== undefined ? invoice.discount_value : invoice.discount_per_pcs}/pcs)`}:</span>
+                    <span>- RM {(invoice.discount_type === 'bulk' ? parseFloat(invoice.discount_value) : (parseFloat(invoice.discount_value !== undefined ? invoice.discount_value : invoice.discount_per_pcs) * totalQty)).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="summary-print-row grand-total-row-print">
