@@ -322,6 +322,15 @@ input[type=number] {
   z-index: 10;
 }
 
+/* Form inside modal must fill space so body can scroll */
+.modal-content > form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .modal-close {
   background: none;
   border: none;
@@ -441,6 +450,11 @@ input[type=number] {
     z-index: 1010;
     padding: 1rem 1.25rem;
     padding-bottom: 2rem; /* clear phone home button */
+  }
+
+  .modal-content > form {
+    height: 100%;
+    overflow: visible;
   }
 
   /* Main Layout overrides */
