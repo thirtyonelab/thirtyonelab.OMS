@@ -303,6 +303,7 @@ input[type=number] {
 
 .modal-footer {
   padding: 1.5rem 2rem;
+  padding-top: 2rem;
   border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: flex-end;
@@ -390,10 +391,11 @@ input[type=number] {
   /* Modals on Mobile */
   .modal-overlay {
     padding: 1rem;
+    padding-bottom: 85px; /* Leave space for bottom nav bar */
   }
   
   .modal-content {
-    max-height: 85dvh;
+    max-height: 82dvh;
     width: 96%;
   }
 
