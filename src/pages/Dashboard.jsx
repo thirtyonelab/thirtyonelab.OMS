@@ -184,7 +184,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
             <h3 className="metric-value">
               RM {metrics.totalPengeluaranThisMonth.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
-            <span className="metric-count">{metrics.countPengeluaranThisMonth} Invoices</span>
+            <span style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: '#4B5563' }}>{metrics.countPengeluaranThisMonth} Invoice</span>
           </div>
         </div>
 
@@ -195,7 +195,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
             <h3 className="metric-value" style={{ color: '#15803D', fontSize: '1.5rem' }}>
               RM {metrics.untungBersih.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
-            <span className="metric-count" style={{ color: '#166534', backgroundColor: '#DCFCE7' }}>{metrics.countUntungThisMonth} Invoices</span>
+            <span style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: '#166534' }}>{metrics.countUntungThisMonth} Invoice</span>
           </div>
         </div>
       </div>
