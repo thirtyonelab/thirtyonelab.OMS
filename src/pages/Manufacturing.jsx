@@ -256,43 +256,34 @@ export default function Manufacturing() {
 
       {/* --- PAYMENT VOUCHER A4 MODAL --- */}
       {showVoucherModal && settings && (
-        <div className="modal-overlay print-modal-overlay">
-          <div className="A4-modal-container">
+        <div className="modal-overlay print-modal-overlay" onClick={() => setShowVoucherModal(false)}>
+          <div className="modal-content A4-modal-container" onClick={(e) => e.stopPropagation()}>
             {/* Top Toolbar */}
-            <div className="print-controls no-print" style={{ borderRadius: '8px 8px 0 0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <button
-                  onClick={() => setShowVoucherModal(false)}
-                  className="btn btn-secondary btn-sm"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                >
-                  <X size={16} /> Close
-                </button>
+            <div className="modal-header print-controls no-print">
+              <div className="print-compact-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{ fontFamily: 'var(--font-primary)', fontSize: '0.75rem', fontWeight: 800, letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-light)' }}>
+                    Statement Preview
+                  </span>
 
-                <div className="mobile-only">
                   <button
-                    type="button"
-                    onClick={() => setControlsExpanded(!controlsExpanded)}
-                    className="btn btn-secondary btn-sm"
-                    style={{ padding: '0.35rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
+                    onClick={() => window.print()}
+                    className="btn btn-primary btn-sm"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                   >
-                    Options {controlsExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    <Printer size={14} /> Print
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <button className="modal-close" onClick={() => setShowVoucherModal(false)} style={{ display: 'flex', alignItems: 'center' }}>
+                    <X size={20} />
                   </button>
                 </div>
               </div>
-
-              <div className={`print-controls-right ${controlsExpanded ? 'mobile-controls-open' : ''}`}>
-                <button
-                  onClick={() => window.print()}
-                  className="btn btn-primary btn-sm"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                >
-                  <Printer size={16} /> Print / Download PDF
-                </button>
-              </div>
             </div>
 
-            {/* Printable A4 Container */}
+            {/* Printable A4 Area */}
             <div className="A4-scroll-wrapper" style={{ overflow: 'auto', flex: 1, padding: '1rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div
                 className="A4-scale-container"
