@@ -308,7 +308,6 @@ input[type=number] {
 .modal-footer {
   padding: 1.5rem 2rem;
   padding-top: 2rem;
-  padding-bottom: max(1.5rem, env(safe-area-inset-bottom) + 1rem);
   border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: flex-end;
@@ -400,16 +399,16 @@ input[type=number] {
   /* Modals on Mobile */
   .modal-overlay {
     padding: 1rem;
-    padding-top: 2rem; /* Give comfortable spacing from top browser bar */
-    padding-bottom: 120px; /* Safe zone from phone bottom bar & home button */
-    align-items: flex-start; /* Align modals to top instead of centering them */
+    padding-bottom: 85px; /* Leave space for bottom nav bar */
   }
   
   .modal-content {
-    max-height: 72vh; /* Strict limit to prevent stretching to the bottom */
-    max-height: 72dvh;
+    max-height: 80vh;
     width: 96%;
-    margin-bottom: 0;
+  }
+
+  .modal-footer {
+    padding-bottom: 2.5rem; /* Extra space to clear phone home button */
   }
 
   /* Main Layout overrides */
