@@ -1291,6 +1291,222 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         .font-bold {
           font-weight: 600;
         }
+
+        /* --- Invoice & Statement Print Styles --- */
+        .print-modal-overlay {
+          background-color: rgba(0, 0, 0, 0.6);
+          overflow-y: auto;
+          padding: 1.5rem 0;
+          align-items: flex-start;
+        }
+
+        .A4-modal-container {
+          width: 210mm;
+          min-height: auto;
+          margin: 0 auto;
+          background-color: transparent;
+          box-shadow: none;
+        }
+
+        .print-controls {
+          background: #fff;
+          border-bottom: 1px solid var(--border-color);
+          padding: 0.75rem 1.5rem;
+          margin-bottom: 0.5rem;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          width: 100%;
+        }
+
+        .A4-sheet {
+          width: 210mm;
+          height: 297mm;
+          box-sizing: border-box;
+          background: #ffffff;
+          padding: 12mm;
+          box-shadow: none;
+          border: 1px solid var(--border-color);
+          margin: 0 auto;
+          overflow: hidden;
+        }
+
+        .invoice-container {
+          font-family: var(--font-secondary);
+          color: #111111;
+          display: flex;
+          flex-direction: column;
+          gap: 0.6rem;
+          height: 100%;
+          justify-content: space-between;
+        }
+
+        .invoice-header {
+          display: flex;
+          justify-content: flex-start;
+          align-items: flex-start;
+        }
+
+        .company-info-block {
+          display: flex;
+          gap: 1rem;
+          align-items: center;
+          flex: 1;
+        }
+
+        .invoice-print-logo {
+          height: 52px;
+          max-width: 120px;
+          object-fit: contain;
+        }
+
+        .logo-placeholder {
+          height: 44px;
+          width: 44px;
+          border-radius: 4px;
+          background-color: var(--primary-red);
+          color: #fff;
+          font-family: var(--font-primary);
+          font-weight: 800;
+          font-size: 1.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .company-print-name {
+          font-family: var(--font-primary);
+          font-size: 1.05rem;
+          font-weight: 800;
+          letter-spacing: 0.5px;
+          margin-bottom: 0.1rem;
+          color: #111111;
+        }
+
+        .company-print-details {
+          font-size: 0.68rem;
+          color: #555555;
+          line-height: 1.25;
+        }
+
+        .company-print-details.address {
+          max-width: 320px;
+        }
+
+        .document-meta-block {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          margin-top: 0.25rem;
+        }
+
+        .document-type-title {
+          font-family: var(--font-primary);
+          font-size: 1.2rem;
+          font-weight: 900;
+          letter-spacing: 1px;
+          color: var(--primary-red);
+          margin-bottom: 0.15rem;
+        }
+
+        .meta-details-box {
+          font-size: 0.72rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.1rem;
+        }
+
+        .meta-row {
+          display: flex;
+          justify-content: flex-start;
+          gap: 0.5rem;
+        }
+
+        .meta-lbl {
+          color: #555555;
+          min-width: 75px;
+        }
+
+        .meta-val {
+          color: #111111;
+        }
+
+        .divider-line {
+          border: none;
+          border-top: 1px solid #111111;
+          margin: 0.15rem 0;
+        }
+
+        .invoice-billing-block {
+          display: flex;
+          flex-direction: column;
+          gap: 0.15rem;
+          padding: 0.1rem 0;
+        }
+
+        .section-title-print {
+          font-family: var(--font-primary);
+          font-size: 0.65rem;
+          font-weight: 800;
+          letter-spacing: 1px;
+          color: #111111;
+          text-transform: uppercase;
+          margin-bottom: 0.1rem;
+        }
+
+        .invoice-print-table {
+          width: 100%;
+          margin: 0.15rem 0;
+        }
+
+        .invoice-print-table th {
+          border-bottom: 2px solid #111111 !important;
+          color: #111111 !important;
+          padding: 0.35rem 0.25rem !important;
+          font-size: 0.65rem !important;
+          text-transform: uppercase;
+        }
+
+        .invoice-print-table td {
+          border-bottom: 1px solid #e6e2dc !important;
+          padding: 0.5rem 0.25rem !important;
+          font-size: 0.72rem !important;
+          color: #111111 !important;
+        }
+
+        .invoice-calculations-section {
+          display: flex;
+          justify-content: flex-end;
+          width: 100%;
+          padding: 0.1rem 0;
+        }
+
+        .summary-print-row {
+          display: flex;
+          justify-content: space-between;
+          color: #555555;
+        }
+
+        .grand-total-row-print {
+          font-family: var(--font-primary);
+          font-weight: 800;
+          color: #111111;
+          font-size: 0.78rem;
+          border-top: 1px solid #111111;
+          padding-top: 0.3rem;
+          margin-top: 0.1rem;
+        }
+
+        .thank-you-footer {
+          text-align: center;
+          font-family: var(--font-primary);
+          font-size: 0.68rem;
+          font-weight: 700;
+          letter-spacing: 1px;
+          text-transform: uppercase;
+          color: #555555;
+          margin-top: 0.5rem;
+        }
       `})]})}function es(){let[e,t]=(0,_.useState)({company_name:``,company_address:``,company_phone:``,company_logo:``,invoice_prefix:``,bank_name:``,bank_account:``,qr_code:``,terms:``}),[n,r]=(0,_.useState)(localStorage.getItem(`supabase_url`)||`https://jcwvhpreptjfucrhbzcy.supabase.co`),[i,a]=(0,_.useState)(localStorage.getItem(`supabase_anon_key`)||`sb_publishable_tR03lALW-SHxK625ZoYpWA_n6cVQZqA`),[o,s]=(0,_.useState)(``),[c,l]=(0,_.useState)(``),[u,d]=(0,_.useState)(!1),[f,p]=(0,_.useState)(null),[m,h]=(0,_.useState)(``),[g,v]=(0,_.useState)(null);(0,_.useEffect)(()=>{b()},[]);let y=e=>{if(!e)return{number:``,name:``};let t=e.match(/^(.*?)\s*\((.*?)\)\s*$/);return t?{number:t[1].trim(),name:t[2].trim()}:{number:e.trim(),name:``}},b=async()=>{d(!0);try{let e=await vo();t(e);let n=y(e.bank_account);s(n.number),l(n.name)}catch(e){console.error(`Error loading settings:`,e)}finally{d(!1)}},x=e=>{let{name:n,value:r}=e.target;t(e=>({...e,[n]:r}))},S=e=>{let n=e.target.value;s(n),t(e=>({...e,bank_account:c?`${n} (${c})`:n}))},C=e=>{let n=e.target.value;l(n),t(e=>({...e,bank_account:n?`${o} (${n})`:o}))},w=(e,n)=>{let r=e.target.files[0];if(!r)return;if(r.size>500*1024){alert(`Had saiz fail adalah 500KB. Sila kecilkan saiz imej anda.`);return}let i=new FileReader;i.onloadend=()=>{t(e=>({...e,[n]:i.result}))},i.readAsDataURL(r)};return(0,H.jsxs)(`div`,{className:`main-content`,children:[(0,H.jsxs)(`div`,{children:[(0,H.jsx)(`span`,{className:`section-tag`,children:`Konfigurasi Sistem`}),(0,H.jsx)(`h1`,{children:`Settings & Tetapan`})]}),(0,H.jsxs)(`form`,{onSubmit:async t=>{t.preventDefault(),d(!0),v(null);try{await yo(e),n.trim()&&i.trim()?(localStorage.setItem(`supabase_url`,n.trim()),localStorage.setItem(`supabase_anon_key`,i.trim())):(localStorage.removeItem(`supabase_url`),localStorage.removeItem(`supabase_anon_key`)),v(`success`),setTimeout(()=>v(null),3e3),window.dispatchEvent(new Event(`supabase-connection-changed`)),b()}catch(e){console.error(`Failed to save settings:`,e),v(`error`)}finally{d(!1)}},className:`settings-form`,children:[(0,H.jsxs)(`section`,{className:`settings-section card`,children:[(0,H.jsx)(`h3`,{className:`section-title`,children:`1. Maklumat Syarikat & Kedai`}),(0,H.jsxs)(`div`,{className:`grid-2`,children:[(0,H.jsxs)(`div`,{className:`form-group`,children:[(0,H.jsx)(`label`,{className:`form-label`,children:`Nama Syarikat`}),(0,H.jsx)(`input`,{type:`text`,name:`company_name`,value:e.company_name,onChange:x,className:`form-control`,required:!0})]}),(0,H.jsxs)(`div`,{className:`form-group`,children:[(0,H.jsx)(`label`,{className:`form-label`,children:`No. Telefon`}),(0,H.jsx)(`input`,{type:`text`,name:`company_phone`,value:e.company_phone,onChange:x,className:`form-control`,required:!0})]})]}),(0,H.jsxs)(`div`,{className:`form-group`,children:[(0,H.jsx)(`label`,{className:`form-label`,children:`Alamat Kedai`}),(0,H.jsx)(`textarea`,{name:`company_address`,value:e.company_address,onChange:x,rows:`3`,className:`form-control`,style:{resize:`none`},required:!0})]}),(0,H.jsxs)(`div`,{className:`grid-2`,children:[(0,H.jsxs)(`div`,{className:`form-group`,children:[(0,H.jsx)(`label`,{className:`form-label`,children:`Logo Syarikat (Maksimum 500KB)`}),(0,H.jsxs)(`div`,{className:`file-upload-wrapper`,children:[(0,H.jsx)(`input`,{type:`file`,id:`company_logo_input`,accept:`image/*`,onChange:e=>w(e,`company_logo`),className:`file-input-hidden`}),(0,H.jsxs)(`label`,{htmlFor:`company_logo_input`,className:`btn btn-secondary btn-sm`,children:[(0,H.jsx)(xe,{size:14}),` Muat Naik Logo`]}),e.company_logo&&(0,H.jsxs)(`div`,{className:`preview-container`,children:[(0,H.jsx)(`img`,{src:e.company_logo,alt:`Company Logo Preview`,className:`logo-preview`}),(0,H.jsx)(`button`,{type:`button`,onClick:()=>t(e=>({...e,company_logo:``})),className:`btn-text btn-delete-img`,children:`Padam`})]})]})]}),(0,H.jsxs)(`div`,{className:`form-group`,children:[(0,H.jsx)(`label`,{className:`form-label`,children:`Prefix Nombor Invoice`}),(0,H.jsx)(`input`,{type:`text`,name:`invoice_prefix`,value:e.invoice_prefix,onChange:x,className:`form-control`,placeholder:`Contoh: NO.`,required:!0}),(0,H.jsx)(`span`,{className:`helper-text`,children:`Prefix hadapan bagi nombor invoice (cth: NO.00001)`})]})]})]}),(0,H.jsxs)(`section`,{className:`settings-section card`,children:[(0,H.jsx)(`h3`,{className:`section-title`,children:`2. Maklumat Pembayaran`}),(0,H.jsxs)(`div`,{className:`grid-3`,children:[(0,H.jsxs)(`div`,{className:`form-group`,children:[(0,H.jsx)(`label`,{className:`form-label`,children:`Nama Bank`}),(0,H.jsx)(`input`,{type:`text`,name:`bank_name`,value:e.bank_name,onChange:x,placeholder:`Contoh: Maybank`,className:`form-control`})]}),(0,H.jsxs)(`div`,{className:`form-group`,children:[(0,H.jsx)(`label`,{className:`form-label`,children:`No. Akaun Bank`}),(0,H.jsx)(`input`,{type:`text`,name:`bank_account_no`,value:o,onChange:S,placeholder:`Contoh: 112233445566`,className:`form-control`})]}),(0,H.jsxs)(`div`,{className:`form-group`,children:[(0,H.jsx)(`label`,{className:`form-label`,children:`Nama Akaun`}),(0,H.jsx)(`input`,{type:`text`,name:`bank_account_name`,value:c,onChange:C,placeholder:`Contoh: THIRTYONE LAB`,className:`form-control`})]})]}),(0,H.jsxs)(`div`,{className:`form-group`,children:[(0,H.jsx)(`label`,{className:`form-label`,children:`Kod QR DuitNow (Maksimum 500KB)`}),(0,H.jsxs)(`div`,{className:`file-upload-wrapper`,children:[(0,H.jsx)(`input`,{type:`file`,id:`qr_code_input`,accept:`image/*`,onChange:e=>w(e,`qr_code`),className:`file-input-hidden`}),(0,H.jsxs)(`label`,{htmlFor:`qr_code_input`,className:`btn btn-secondary btn-sm`,children:[(0,H.jsx)(xe,{size:14}),` Muat Naik Kod QR`]}),e.qr_code&&(0,H.jsxs)(`div`,{className:`preview-container`,children:[(0,H.jsx)(`img`,{src:e.qr_code,alt:`DuitNow QR Preview`,className:`qr-preview`}),(0,H.jsx)(`button`,{type:`button`,onClick:()=>t(e=>({...e,qr_code:``})),className:`btn-text btn-delete-img`,children:`Padam`})]})]})]})]}),(0,H.jsxs)(`section`,{className:`settings-section card`,children:[(0,H.jsx)(`h3`,{className:`section-title`,children:`3. Terma & Syarat Kedai (Nota Invoice)`}),(0,H.jsxs)(`div`,{className:`form-group`,children:[(0,H.jsx)(`label`,{className:`form-label`,children:`Syarat & Peraturan Perniagaan`}),(0,H.jsx)(`textarea`,{name:`terms`,value:e.terms,onChange:x,rows:`4`,placeholder:`Masukkan terma dan syarat perniagaan yang akan dicetak di bahagian bawah invoice...`,className:`form-control`,style:{resize:`none`}}),(0,H.jsx)(`span`,{className:`helper-text`,children:`Satu ayat per baris. Teks ini akan dicetak di bahagian nota kaki invoice.`})]})]}),(0,H.jsxs)(`section`,{className:`settings-section card`,children:[(0,H.jsx)(`h3`,{className:`section-title`,children:`4. Integrasi Pangkalan Data Supabase (Awan)`}),(0,H.jsx)(`p`,{className:`section-desc`,children:`Masukkan maklumat pangkalan data Supabase anda untuk mengaktifkan penyegerakan data di antara peranti (komputer kedai dan telefon bimbit). Jika dikosongkan, sistem akan kembali kepada **Mod LocalStorage**.`}),(0,H.jsxs)(`div`,{className:`form-group`,children:[(0,H.jsx)(`label`,{className:`form-label`,children:`Supabase Project URL`}),(0,H.jsx)(`input`,{type:`url`,value:n,onChange:e=>{r(e.target.value),p(null)},placeholder:`https://your-project-id.supabase.co`,className:`form-control`})]}),(0,H.jsxs)(`div`,{className:`form-group`,children:[(0,H.jsx)(`label`,{className:`form-label`,children:`Supabase Anon Key`}),(0,H.jsx)(`input`,{type:`password`,value:i,onChange:e=>{a(e.target.value),p(null)},placeholder:`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`,className:`form-control`})]}),(0,H.jsxs)(`div`,{className:`supabase-actions-container`,children:[(0,H.jsx)(`button`,{type:`button`,onClick:async()=>{if(!n||!i){p(`error`),h(`Sila masukkan URL dan Anon Key Supabase.`);return}p(`testing`),h(``);try{let{data:e,error:t}=await po(n,i).from(`settings`).select(`*`).limit(1);if(t)if(t.code===`PGRST116`||t.message.includes(`relation "settings" does not exist`))p(`error`),h(`Berjaya bersambung ke Supabase, tetapi jadual "settings" tidak ditemui. Sila jalankan SQL DDL terlebih dahulu.`);else throw t;else p(`success`)}catch(e){console.error(`Supabase test failed:`,e),p(`error`),h(e.message||`Gagal bersambung ke Supabase. Sila semak URL & Key.`)}},className:`btn btn-secondary`,children:`Uji Sambungan`}),f===`testing`&&(0,H.jsxs)(`span`,{className:`status-msg testing`,children:[(0,H.jsx)(he,{className:`spinner`,size:16}),` Sedang menguji sambungan database...`]}),f===`success`&&(0,H.jsxs)(`span`,{className:`status-msg success`,children:[(0,H.jsx)(oe,{size:16}),` Sambungan Berjaya! Database sedia untuk digunakan.`]}),f===`error`&&(0,H.jsxs)(`span`,{className:`status-msg error`,children:[(0,H.jsx)(ae,{size:16}),` `,m]})]})]}),(0,H.jsxs)(`section`,{className:`settings-section card`,children:[(0,H.jsx)(`h3`,{className:`section-title`,children:`5. Sandaran Data (Backup & Restore)`}),(0,H.jsx)(`p`,{className:`section-desc`,children:`Gunakan fungsi ini untuk memuat turun semua rekod data anda ke fail komputer anda bagi keselamatan, atau memulihkan data lama sekiranya anda menukar peranti atau melaraskan pelayar web.`}),(0,H.jsxs)(`div`,{className:`backup-actions`,children:[(0,H.jsxs)(`button`,{type:`button`,onClick:()=>{try{let e={invoices:JSON.parse(localStorage.getItem(`31lab_invoices`)||`[]`),clients:JSON.parse(localStorage.getItem(`31lab_clients`)||`[]`),settings:JSON.parse(localStorage.getItem(`31lab_settings`)||`{}`)},t=`data:text/json;charset=utf-8,`+encodeURIComponent(JSON.stringify(e,null,2)),n=document.createElement(`a`);n.setAttribute(`href`,t),n.setAttribute(`download`,`31lab_invoice_backup_${new Date().toISOString().split(`T`)[0]}.json`),document.body.appendChild(n),n.click(),n.remove()}catch{alert(`Gagal membuat sandaran data.`)}},className:`btn btn-secondary`,children:[(0,H.jsx)(ce,{size:14}),` Muat Turun Data (Export JSON)`]}),(0,H.jsxs)(`div`,{className:`restore-wrapper`,children:[(0,H.jsx)(`input`,{type:`file`,id:`restore_input`,accept:`.json`,onChange:e=>{let t=e.target.files[0];if(!t)return;let n=new FileReader;n.onload=e=>{try{let t=JSON.parse(e.target.result);t.invoices||t.clients||t.settings?confirm(`Amaran: Ini akan menggantikan data tempatan semasa anda. Teruskan?`)&&(t.invoices&&localStorage.setItem(`31lab_invoices`,JSON.stringify(t.invoices)),t.clients&&localStorage.setItem(`31lab_clients`,JSON.stringify(t.clients)),t.settings&&localStorage.setItem(`31lab_settings`,JSON.stringify(t.settings)),alert(`Pemulihan data berjaya! Sila segar semula aplikasi.`),window.location.reload()):alert(`Format fail sandaran tidak sah.`)}catch{alert(`Gagal membaca fail JSON.`)}},n.readAsText(t)},className:`file-input-hidden`}),(0,H.jsxs)(`label`,{htmlFor:`restore_input`,className:`btn btn-secondary`,children:[(0,H.jsx)(le,{size:14}),` Muat Naik Data (Import JSON)`]})]})]})]}),(0,H.jsxs)(`div`,{className:`form-actions`,children:[(0,H.jsxs)(`button`,{type:`submit`,className:`btn btn-primary`,disabled:u,children:[(0,H.jsx)(ge,{size:16}),` `,u?`Menyimpan...`:`Simpan Tetapan`]}),g===`success`&&(0,H.jsxs)(`span`,{className:`save-status-msg success`,children:[(0,H.jsx)(oe,{size:16}),` Tetapan berjaya disimpan!`]})]})]}),(0,H.jsx)(`style`,{children:`
         .settings-form {
           display: flex;
