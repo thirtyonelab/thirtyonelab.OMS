@@ -1,7 +1,6 @@
 @media print {
   /* Hide interactive, layout and navigation elements */
   .sidebar,
-  .main-content,
   .no-print,
   button,
   .btn,
@@ -10,9 +9,29 @@
   .modal-footer,
   .mobile-top-bar,
   .mobile-bottom-nav,
-  .mobile-only {
+  .mobile-only,
+  .dashboard-header,
+  .invoices-header,
+  .clients-header,
+  .settings-header,
+  .search-filters-bar,
+  .card,
+  .table-container,
+  .mobile-cards-list {
     display: none !important;
   }
+
+  /* Keep main-content container reset but hide its children during print */
+  .main-content {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+
 
   /* Reset main layout wrappers so the invoice can take full width */
   body, 

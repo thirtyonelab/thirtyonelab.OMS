@@ -361,12 +361,12 @@ export default function Manufacturing() {
                     <hr className="divider-line print-avoid-break" />
 
                     {/* Section Label */}
-                    <div className="invoice-billing-block print-avoid-break">
+                    <div className="invoice-billing-block print-avoid-break" style={{ marginBottom: '0.2rem' }}>
                       <span className="section-title-print">PRODUCTION & REVENUE DETAILS:</span>
                     </div>
 
                     {/* Table Details */}
-                    <div className="invoice-table-section" style={{ flex: 1 }}>
+                    <div className="invoice-table-section">
                       <table className="table invoice-print-table">
                         <thead>
                           <tr>
@@ -382,7 +382,7 @@ export default function Manufacturing() {
                         <tbody>
                           {filteredInvoices.length === 0 ? (
                             <tr>
-                              <td colSpan="7" style={{ textAlign: 'center', padding: '1rem' }}>Tiada rekod pengeluaran untuk bulan ini.</td>
+                              <td colSpan="7" style={{ textAlign: 'center', padding: '0.75rem' }}>Tiada rekod pengeluaran untuk bulan ini.</td>
                             </tr>
                           ) : (
                             filteredInvoices.map((inv, idx) => {
@@ -393,17 +393,17 @@ export default function Manufacturing() {
 
                               return (
                                 <tr key={inv.id} className="print-avoid-break">
-                                  <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>{idx + 1}.</td>
-                                  <td style={{ textAlign: 'left', verticalAlign: 'middle' }} className="font-bold">{inv.invoice_no}</td>
-                                  <td style={{ textAlign: 'left', verticalAlign: 'middle' }}>{inv.client_name}</td>
-                                  <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
-                                    <span className={`badge ${getStatusBadgeClass(inv.status)}`} style={{ padding: '0.15rem 0.5rem', fontSize: '0.7rem' }}>
+                                  <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '0.35rem 0.25rem' }}>{idx + 1}.</td>
+                                  <td style={{ textAlign: 'left', verticalAlign: 'middle', padding: '0.35rem 0.25rem' }} className="font-bold">{inv.invoice_no}</td>
+                                  <td style={{ textAlign: 'left', verticalAlign: 'middle', padding: '0.35rem 0.25rem' }}>{inv.client_name}</td>
+                                  <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '0.35rem 0.25rem' }}>
+                                    <span className={`badge ${getStatusBadgeClass(inv.status)}`} style={{ padding: '0.1rem 0.4rem', fontSize: '0.68rem' }}>
                                       {getStatusText(inv.status)}
                                     </span>
                                   </td>
-                                  <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>{total.toFixed(2)}</td>
-                                  <td style={{ textAlign: 'center', verticalAlign: 'middle', color: 'var(--primary-red)' }}>{pengeluaran.toFixed(2)}</td>
-                                  <td style={{ textAlign: 'center', verticalAlign: 'middle', color: '#15803D' }} className="font-bold">{untung.toFixed(2)}</td>
+                                  <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '0.35rem 0.25rem' }}>{total.toFixed(2)}</td>
+                                  <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '0.35rem 0.25rem', color: 'var(--primary-red)' }}>{pengeluaran.toFixed(2)}</td>
+                                  <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '0.35rem 0.25rem', color: '#15803D' }} className="font-bold">{untung.toFixed(2)}</td>
                                 </tr>
                               );
                             })
@@ -412,43 +412,43 @@ export default function Manufacturing() {
                       </table>
                     </div>
 
-                    <hr className="divider-line print-avoid-break" />
+                    <hr className="divider-line print-avoid-break" style={{ margin: '0.4rem 0' }} />
 
                     {/* Summary Section (Sales vs Real Cashflow & Profit) */}
-                    <div className="invoice-calculations-section print-avoid-break" style={{ justifyContent: 'space-between', display: 'flex' }}>
-                      <div style={{ flex: 1, paddingRight: '1.5rem' }}>
-                        <span className="section-title-print" style={{ marginBottom: '0.3rem', display: 'block' }}>[ JUALAN / NILAI INVOIS ]</span>
-                        <div className="summary-print-row" style={{ justifyContent: 'flex-start', gap: '1rem', fontSize: '0.85rem' }}>
+                    <div className="invoice-calculations-section print-avoid-break" style={{ justifyContent: 'space-between', display: 'flex', alignItems: 'flex-start', margin: '0.2rem 0' }}>
+                      <div style={{ flex: 1, paddingRight: '2rem' }}>
+                        <span className="section-title-print" style={{ marginBottom: '0.3rem', display: 'block' }}>TOTAL SALES VALUE</span>
+                        <div className="summary-print-row" style={{ justifyContent: 'space-between', fontSize: '0.72rem', color: '#111' }}>
                           <span>Total Nilai Invois:</span>
                           <span className="font-bold">RM {totalNilaiInvois.toFixed(2)}</span>
                         </div>
                       </div>
 
-                      <div className="calculation-invoice-summary" style={{ width: '320px' }}>
-                        <span className="section-title-print" style={{ marginBottom: '0.3rem', display: 'block', textAlign: 'left' }}>[ ALIRAN TUNAI SEBENAR ]</span>
-                        <div className="summary-print-row">
-                          <span>(+) Duit Diterima (Paid + Deposit):</span>
-                          <span>RM {totalDuitDiterima.toFixed(2)}</span>
+                      <div className="calculation-invoice-summary" style={{ width: '340px' }}>
+                        <span className="section-title-print" style={{ marginBottom: '0.3rem', display: 'block', textAlign: 'left' }}>CASHFLOW & PROFIT</span>
+                        <div className="summary-print-row" style={{ fontSize: '0.72rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>Duit Diterima (Paid + Deposit):</span>
+                          <span className="font-bold" style={{ color: '#111' }}>RM {totalDuitDiterima.toFixed(2)}</span>
                         </div>
-                        <div className="summary-print-row" style={{ color: 'var(--primary-red)' }}>
-                          <span>(-) Pengeluaran (Kos Modal):</span>
-                          <span>- RM {totalPengeluaran.toFixed(2)}</span>
+                        <div className="summary-print-row" style={{ fontSize: '0.72rem', color: 'var(--primary-red)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.2rem' }}>
+                          <span>Pengeluaran (Kos Modal):</span>
+                          <span className="font-bold">- RM {totalPengeluaran.toFixed(2)}</span>
                         </div>
-                        <div className="summary-print-row grand-total-row-print" style={{ borderTop: '2px solid #111', marginTop: '0.25rem', paddingTop: '0.25rem' }}>
-                          <span>(=) UNTUNG SEBENAR:</span>
-                          <span style={{ color: '#15803D' }}>RM {untungSebenar.toFixed(2)}</span>
+                        <div className="summary-print-row grand-total-row-print" style={{ borderTop: '1px solid #111', marginTop: '0.35rem', paddingTop: '0.35rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 800 }}>UNTUNG SEBENAR:</span>
+                          <span style={{ color: '#15803D', fontSize: '0.82rem', fontWeight: 800 }}>RM {untungSebenar.toFixed(2)}</span>
                         </div>
                       </div>
                     </div>
 
-                    <hr className="divider-line print-avoid-break" />
+                    <hr className="divider-line print-avoid-break" style={{ margin: '0.4rem 0' }} />
 
                     {/* Notes Footer */}
                     <div className="invoice-bottom-grid print-avoid-break" style={{ marginBottom: 0 }}>
                       <div className="bottom-grid-left" style={{ width: '100%' }}>
                         <div className="terms-container">
                           <span className="section-title-print">NOTES:</span>
-                          <p style={{ fontSize: '0.75rem', color: '#555', marginTop: '0.15rem' }}>
+                          <p style={{ fontSize: '0.72rem', color: '#555', marginTop: '0.1rem' }}>
                             This payment voucher is automatically generated for internal production and financial records.
                           </p>
                         </div>
@@ -456,9 +456,9 @@ export default function Manufacturing() {
                     </div>
 
                     {/* Centered Footer */}
-                    <div className="thank-you-footer print-avoid-break" style={{ marginTop: 'auto' }}>
+                    <div className="thank-you-footer print-avoid-break" style={{ marginTop: 'auto', paddingTop: '0.3rem' }}>
                       <p>THIRTYONE LAB DESIGN - INTERNAL FINANCIAL STATEMENT</p>
-                      <p style={{ textTransform: 'none', fontWeight: '500', fontStyle: 'italic', letterSpacing: '0.5px', marginTop: '0.15rem', color: '#777', fontSize: '0.6rem' }}>Wear With Pride.</p>
+                      <p style={{ textTransform: 'none', fontWeight: '500', fontStyle: 'italic', letterSpacing: '0.5px', marginTop: '0.1rem', color: '#777', fontSize: '0.6rem' }}>Wear With Pride.</p>
                     </div>
                   </div>
                 </div>
@@ -471,8 +471,9 @@ export default function Manufacturing() {
       <style>{`
         .search-filters-bar {
           display: flex;
-          gap: 1.5rem;
+          gap: 1.25rem;
           align-items: flex-end;
+          flex-wrap: nowrap;
         }
 
         .search-box {
@@ -480,6 +481,7 @@ export default function Manufacturing() {
           display: flex;
           align-items: center;
           flex: 1;
+          height: 42px;
         }
 
         .search-icon {
@@ -491,6 +493,7 @@ export default function Manufacturing() {
         .search-input {
           padding-left: 2.75rem;
           width: 100%;
+          height: 42px;
         }
 
         .filter-group-row {
@@ -520,6 +523,222 @@ export default function Manufacturing() {
           
         .font-bold {
           font-weight: 600;
+        }
+
+        /* --- Invoice & Statement Print Styles --- */
+        .print-modal-overlay {
+          background-color: rgba(0, 0, 0, 0.6);
+          overflow-y: auto;
+          padding: 1.5rem 0;
+          align-items: flex-start;
+        }
+
+        .A4-modal-container {
+          width: 210mm;
+          min-height: auto;
+          margin: 0 auto;
+          background-color: transparent;
+          box-shadow: none;
+        }
+
+        .print-controls {
+          background: #fff;
+          border-bottom: 1px solid var(--border-color);
+          padding: 0.75rem 1.5rem;
+          margin-bottom: 0.5rem;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          width: 100%;
+        }
+
+        .A4-sheet {
+          width: 210mm;
+          height: 297mm;
+          box-sizing: border-box;
+          background: #ffffff;
+          padding: 12mm;
+          box-shadow: none;
+          border: 1px solid var(--border-color);
+          margin: 0 auto;
+          overflow: hidden;
+        }
+
+        .invoice-container {
+          font-family: var(--font-secondary);
+          color: #111111;
+          display: flex;
+          flex-direction: column;
+          gap: 0.6rem;
+          height: 100%;
+          justify-content: space-between;
+        }
+
+        .invoice-header {
+          display: flex;
+          justify-content: flex-start;
+          align-items: flex-start;
+        }
+
+        .company-info-block {
+          display: flex;
+          gap: 1rem;
+          align-items: center;
+          flex: 1;
+        }
+
+        .invoice-print-logo {
+          height: 52px;
+          max-width: 120px;
+          object-fit: contain;
+        }
+
+        .logo-placeholder {
+          height: 44px;
+          width: 44px;
+          border-radius: 4px;
+          background-color: var(--primary-red);
+          color: #fff;
+          font-family: var(--font-primary);
+          font-weight: 800;
+          font-size: 1.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .company-print-name {
+          font-family: var(--font-primary);
+          font-size: 1.05rem;
+          font-weight: 800;
+          letter-spacing: 0.5px;
+          margin-bottom: 0.1rem;
+          color: #111111;
+        }
+
+        .company-print-details {
+          font-size: 0.68rem;
+          color: #555555;
+          line-height: 1.25;
+        }
+
+        .company-print-details.address {
+          max-width: 320px;
+        }
+
+        .document-meta-block {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          margin-top: 0.25rem;
+        }
+
+        .document-type-title {
+          font-family: var(--font-primary);
+          font-size: 1.2rem;
+          font-weight: 900;
+          letter-spacing: 1px;
+          color: var(--primary-red);
+          margin-bottom: 0.15rem;
+        }
+
+        .meta-details-box {
+          font-size: 0.72rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.1rem;
+        }
+
+        .meta-row {
+          display: flex;
+          justify-content: flex-start;
+          gap: 0.5rem;
+        }
+
+        .meta-lbl {
+          color: #555555;
+          min-width: 75px;
+        }
+
+        .meta-val {
+          color: #111111;
+        }
+
+        .divider-line {
+          border: none;
+          border-top: 1px solid #111111;
+          margin: 0.15rem 0;
+        }
+
+        .invoice-billing-block {
+          display: flex;
+          flex-direction: column;
+          gap: 0.15rem;
+          padding: 0.1rem 0;
+        }
+
+        .section-title-print {
+          font-family: var(--font-primary);
+          font-size: 0.65rem;
+          font-weight: 800;
+          letter-spacing: 1px;
+          color: #111111;
+          text-transform: uppercase;
+          margin-bottom: 0.1rem;
+        }
+
+        .invoice-print-table {
+          width: 100%;
+          margin: 0.15rem 0;
+        }
+
+        .invoice-print-table th {
+          border-bottom: 2px solid #111111 !important;
+          color: #111111 !important;
+          padding: 0.35rem 0.25rem !important;
+          font-size: 0.65rem !important;
+          text-transform: uppercase;
+        }
+
+        .invoice-print-table td {
+          border-bottom: 1px solid #e6e2dc !important;
+          padding: 0.5rem 0.25rem !important;
+          font-size: 0.72rem !important;
+          color: #111111 !important;
+        }
+
+        .invoice-calculations-section {
+          display: flex;
+          justify-content: flex-end;
+          width: 100%;
+          padding: 0.1rem 0;
+        }
+
+        .summary-print-row {
+          display: flex;
+          justify-content: space-between;
+          color: #555555;
+        }
+
+        .grand-total-row-print {
+          font-family: var(--font-primary);
+          font-weight: 800;
+          color: #111111;
+          font-size: 0.78rem;
+          border-top: 1px solid #111111;
+          padding-top: 0.3rem;
+          margin-top: 0.1rem;
+        }
+
+        .thank-you-footer {
+          text-align: center;
+          font-family: var(--font-primary);
+          font-size: 0.68rem;
+          font-weight: 700;
+          letter-spacing: 1px;
+          text-transform: uppercase;
+          color: #555555;
+          margin-top: 0.5rem;
         }
       `}</style>
     </div>
