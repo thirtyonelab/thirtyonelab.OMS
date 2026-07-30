@@ -387,6 +387,16 @@ input[type=number] {
     grid-template-columns: 1fr;
   }
 
+  /* Modals on Mobile */
+  .modal-overlay {
+    padding: 1rem;
+  }
+  
+  .modal-content {
+    max-height: 85dvh;
+    width: 96%;
+  }
+
   /* Main Layout overrides */
   .app-layout {
     flex-direction: column;
