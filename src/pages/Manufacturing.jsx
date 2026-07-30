@@ -161,9 +161,8 @@ export default function Manufacturing() {
 
           <button
             onClick={() => setShowVoucherModal(true)}
-            className="btn btn-primary"
+            className="btn btn-primary print-stmt-btn"
             title="Cetak Payment Voucher"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', height: '42px', alignSelf: 'flex-end', whiteSpace: 'nowrap' }}
           >
             <Printer size={16} /> Print Statement
           </button>
@@ -473,7 +472,6 @@ export default function Manufacturing() {
           display: flex;
           gap: 1.25rem;
           align-items: flex-end;
-          flex-wrap: nowrap;
         }
 
         .search-box {
@@ -500,6 +498,7 @@ export default function Manufacturing() {
           display: flex;
           gap: 1rem;
           align-items: flex-end;
+          flex-shrink: 0;
         }
 
         .filter-box {
@@ -519,6 +518,52 @@ export default function Manufacturing() {
         .filter-select {
           min-width: 140px;
           height: 42px;
+        }
+
+        .print-stmt-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          height: 42px;
+          align-self: flex-end;
+          white-space: nowrap;
+        }
+
+        @media (max-width: 768px) {
+          .search-filters-bar {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 1rem;
+            padding: 1.25rem !important;
+          }
+
+          .search-box {
+            width: 100%;
+          }
+
+          .filter-group-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            width: 100%;
+            gap: 0.75rem;
+            align-items: flex-end;
+          }
+
+          .filter-box {
+            width: 100%;
+          }
+
+          .filter-select {
+            width: 100%;
+            min-width: 0;
+          }
+
+          .print-stmt-btn {
+            width: 100%;
+            justify-content: center;
+            font-size: 0.75rem;
+            padding: 0 0.5rem;
+          }
         }
           
         .font-bold {

@@ -419,10 +419,11 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
 
         /* Search & Filter Layout */
         .search-filters-bar {
-          display: flex;
-          gap: 2rem;
-          align-items: center;
-          padding: 1.25rem 2rem;
+          display: flex !important;
+          flex-direction: row !important;
+          align-items: flex-end !important;
+          gap: 1.5rem !important;
+          padding: 1.25rem 2rem !important;
         }
 
         .search-box {
@@ -430,6 +431,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
           display: flex;
           align-items: center;
           flex: 1;
+          height: 42px;
         }
 
         .search-icon {
@@ -441,6 +443,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
         .search-input {
           padding-left: 2.75rem;
           width: 100%;
+          height: 42px;
         }
 
         .filter-box {
@@ -461,7 +464,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
 
         .filter-select {
           min-width: 150px;
-          padding: 0.5rem 0.75rem;
+          height: 42px;
           font-size: 0.85rem;
         }
 
@@ -539,9 +542,10 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
 
         @media (max-width: 900px) {
           .search-filters-bar {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 1rem;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 1rem !important;
+            padding: 1.25rem !important;
           }
           
           .filter-box {

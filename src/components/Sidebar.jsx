@@ -33,11 +33,14 @@ export default function Sidebar({ activeTab, setActiveTab }) {
     }
   };
 
-  const navItems = [
+  const topNavItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'invoices', label: 'Invoices', icon: FileText },
     { id: 'manufacturing', label: 'Manufacturing', icon: Factory },
     { id: 'clients', label: 'Clients', icon: Users },
+  ];
+
+  const bottomNavItems = [
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -55,20 +58,39 @@ export default function Sidebar({ activeTab, setActiveTab }) {
       </div>
 
       <nav className="sidebar-nav">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`nav-item ${isActive ? 'active' : ''}`}
-            >
-              <Icon size={18} strokeWidth={isActive ? 2.5 : 1.8} />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {topNavItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`nav-item ${isActive ? 'active' : ''}`}
+              >
+                <Icon size={18} strokeWidth={isActive ? 2.5 : 1.8} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {bottomNavItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`nav-item ${isActive ? 'active' : ''}`}
+              >
+                <Icon size={18} strokeWidth={isActive ? 2.5 : 1.8} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </nav>
 
       <div className="sidebar-footer">

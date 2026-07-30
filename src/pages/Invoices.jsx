@@ -328,10 +328,11 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
         }
 
         .search-filters-bar {
-          display: flex;
-          gap: 2rem;
-          align-items: center;
-          padding: 1.25rem 2rem;
+          display: flex !important;
+          flex-direction: row !important;
+          align-items: flex-end !important;
+          gap: 1.5rem !important;
+          padding: 1.25rem 2rem !important;
         }
 
         .search-box {
@@ -339,6 +340,7 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
           display: flex;
           align-items: center;
           flex: 1;
+          height: 42px;
         }
 
         .search-icon {
@@ -350,13 +352,15 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
         .search-input {
           padding-left: 2.75rem;
           width: 100%;
+          height: 42px;
         }
 
         .filter-group-row {
-          display: flex;
-          gap: 1rem;
-          flex-shrink: 0;
-          align-items: flex-end;
+          display: flex !important;
+          flex-direction: row !important;
+          gap: 1rem !important;
+          flex-shrink: 0 !important;
+          align-items: flex-end !important;
         }
 
         .filter-box {
@@ -376,7 +380,7 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
 
         .filter-select {
           min-width: 150px;
-          padding: 0.5rem 0.75rem;
+          height: 42px;
           font-size: 0.85rem;
         }
 
@@ -455,16 +459,16 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
 
         @media (max-width: 992px) {
           .search-filters-bar {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 1rem;
-            padding: 1.25rem 1.25rem !important; /* Reduce padding on mobile to give more space */
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 1rem !important;
+            padding: 1.25rem !important;
           }
           .filter-group-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            width: 100%;
-            gap: 1rem;
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            width: 100% !important;
+            gap: 1rem !important;
           }
           .filter-box {
             display: flex;
@@ -473,7 +477,7 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
           }
           .filter-select {
             width: 100%;
-            min-width: 0 !important; /* Allow inputs to shrink and balance layout */
+            min-width: 0 !important;
           }
         }
       `}</style>
