@@ -445,7 +445,7 @@ input[type=number] {
     flex-shrink: 0;
     border-radius: 0;
     padding: 1rem 1.25rem;
-    padding-bottom: 1.5rem;
+    padding-bottom: 4rem; /* clear Android 3-button nav bar */
   }
 
   .modal-content > form {
