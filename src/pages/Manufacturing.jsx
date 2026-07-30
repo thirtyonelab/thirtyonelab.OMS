@@ -93,7 +93,8 @@ export default function Manufacturing() {
                   {filteredInvoices.map((inv) => {
                     const total = parseFloat(inv.grand_total || 0);
                     const pengeluaran = parseFloat(inv.pengeluaran || 0);
-                    const untung = total - pengeluaran;
+                    const paid = inv.status === 'Paid' ? total : parseFloat(inv.deposit || 0);
+                    const untung = paid - pengeluaran;
                     return (
                       <tr key={inv.id}>
                         <td className="font-bold">{inv.invoice_no}</td>
@@ -117,7 +118,8 @@ export default function Manufacturing() {
               {filteredInvoices.map((inv) => {
                 const total = parseFloat(inv.grand_total || 0);
                 const pengeluaran = parseFloat(inv.pengeluaran || 0);
-                const untung = total - pengeluaran;
+                const paid = inv.status === 'Paid' ? total : parseFloat(inv.deposit || 0);
+                const untung = paid - pengeluaran;
                 
                 return (
                   <div key={inv.id} className="mobile-card">
