@@ -409,7 +409,7 @@ input[type=number] {
     grid-template-columns: 1fr;
   }
 
-  /* Modals on Mobile — identical fixed positioning to mobile-bottom-nav */
+  /* Modals on Mobile — Floating Dialog Card clear of Bottom Nav Bar */
   .modal-overlay {
     position: fixed;
     top: 0;
@@ -417,73 +417,86 @@ input[type=number] {
     right: 0;
     bottom: 0;
     z-index: 1000;
-    padding: 0;
+    padding: 1rem 1rem 80px 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(17, 17, 17, 0.4);
+    backdrop-filter: blur(8px);
   }
 
   .modal-content {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    bottom: auto;
     width: 100% !important;
-    max-width: 100% !important;
-    height: 100% !important;
-    max-height: 100% !important;
-    border-radius: 0;
+    max-width: 500px !important;
+    max-height: 75vh !important;
+    height: auto !important;
+    border-radius: 12px !important;
     background-color: var(--white);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
   }
 
   .modal-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 60px;
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    height: auto;
+    flex-shrink: 0;
+    padding: 1.25rem;
     background-color: var(--white);
     border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 1.25rem;
-    z-index: 1002;
-    border-radius: 0;
+    z-index: 10;
+    border-radius: 12px 12px 0 0;
   }
 
   .modal-body {
-    position: absolute;
-    top: 60px;
-    bottom: 75px;
-    left: 0;
-    right: 0;
+    position: relative;
+    top: auto;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     padding: 1.25rem;
   }
 
   .modal-footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 75px;
+    position: relative;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    height: auto;
+    flex-shrink: 0;
+    padding: 1rem 1.25rem;
     background-color: var(--white);
     border-top: 1px solid var(--border-color);
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    gap: 1rem;
-    padding: 0 1.25rem;
-    padding-bottom: env(safe-area-inset-bottom);
-    z-index: 1002;
-    border-radius: 0;
+    gap: 0.75rem;
+    z-index: 10;
+    border-radius: 0 0 12px 12px;
   }
 
   .modal-content > form {
-    display: block;
-    height: 100%;
-    width: 100%;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
   }
 
   /* Main Layout overrides */
