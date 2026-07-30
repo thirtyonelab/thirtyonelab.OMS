@@ -435,7 +435,7 @@ export const deleteInvoice = async (id) => {
   return true;
 };
 
-export const updateInvoicePayment = async (id, depositAmount, status) => {
+export const updateInvoicePayment = async (id, depositAmount, status, pengeluaranVal) => {
   const invoices = await getInvoices();
   const invoice = invoices.find(inv => inv.id === id);
   if (!invoice) return false;
@@ -449,6 +449,7 @@ export const updateInvoicePayment = async (id, depositAmount, status) => {
     deposit,
     balance,
     status,
+    pengeluaran: pengeluaranVal !== undefined ? (parseFloat(pengeluaranVal) || 0) : invoice.pengeluaran,
     updated_at: new Date().toISOString()
   };
 

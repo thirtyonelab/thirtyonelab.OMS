@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getInvoices } from '../services/storage';
-import { Search, DollarSign, AlertCircle, Wallet, Plus, ArrowRight, Eye, RefreshCw } from 'lucide-react';
+import { Search, DollarSign, AlertCircle, Wallet, Plus, ArrowRight, Eye, RefreshCw, Factory } from 'lucide-react';
 
 export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaymentModal, onOpenInvoiceDetail }) {
   const [invoices, setInvoices] = useState([]);
@@ -36,10 +36,15 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
     let countThisMonth = 0;
     let countUnpaid = 0;
     let countDeposit = 0;
+    let totalPengeluaranThisMonth = 0;
 
     invoices.forEach(inv => {
       const invDate = new Date(inv.date);
       const isCurrentMonth = invDate.getMonth() === currentMonth && invDate.getFullYear() === currentYear;
+
+      if (isCurrentMonth) {
+        totalPengeluaranThisMonth += parseFloat(inv.pengeluaran || 0);
+      }
 
       if (inv.status === 'Paid' && isCurrentMonth) {
         totalThisMonth += parseFloat(inv.grand_total || 0);
@@ -65,7 +70,9 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
       totalDeposit,
       countThisMonth,
       countUnpaid,
-      countDeposit
+      countDeposit,
+      totalPengeluaranThisMonth,
+      untungBersih: totalThisMonth - totalPengeluaranThisMonth
     };
   };
 
@@ -108,7 +115,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
       </div>
 
       {/* Summary Metrics Cards */}
-      <div className="grid-3 metrics-grid">
+      <div className="metrics-grid">
         
         {/* Metric Card 1: Total Paid This Month */}
         <div className="card metric-card">
@@ -152,6 +159,30 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
             </h3>
             <span className="metric-subtitle">Jumlah kutipan deposit setakat ini</span>
             <span style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: '#D97706' }}>{metrics.countDeposit} Invoice</span>
+          </div>
+        </div>
+        
+        {/* Metric Card 4: Total Pengeluaran */}
+        <div className="card metric-card">
+          <div className="metric-icon-wrapper" style={{ backgroundColor: '#F3F4F6', color: '#4B5563' }}>
+            <Factory size={24} />
+          </div>
+          <div className="metric-content">
+            <span className="metric-title-lbl">Pengeluaran</span>
+            <h3 className="metric-value">
+              RM {metrics.totalPengeluaranThisMonth.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </h3>
+            <span className="metric-subtitle">Kos manufacturing bulan ini</span>
+          </div>
+        </div>
+
+        {/* Metric Card 5: Untung Bersih */}
+        <div className="card metric-card untung-card" style={{ backgroundColor: '#E2F5EA', borderColor: '#15803D' }}>
+          <div className="metric-content" style={{ width: '100%' }}>
+            <span className="metric-title-lbl" style={{ color: '#15803D' }}>Untung Bersih</span>
+            <h3 className="metric-value" style={{ color: '#15803D', fontSize: '1.5rem' }}>
+              RM {metrics.untungBersih.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </h3>
           </div>
         </div>
       </div>
@@ -307,7 +338,10 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
         }
 
         .metrics-grid {
-          margin-bottom: 0.5rem;
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 1.5rem;
+          margin-bottom: 2rem;
         }
 
         .metric-card {
@@ -481,6 +515,15 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
           font-weight: 600;
         }
 
+        @media (max-width: 1200px) {
+          .metrics-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+          .untung-card {
+            grid-column: span 2;
+          }
+        }
+
         @media (max-width: 900px) {
           .search-filters-bar {
             flex-direction: column;
@@ -497,6 +540,25 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
           .filter-select {
             flex: 1;
             width: 100%;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .metrics-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+          }
+          .untung-card {
+            grid-column: 1 / -1;
+          }
+          .metric-card {
+            flex-direction: column !important;
+            align-items: flex-start;
+            padding: 1.25rem 1rem;
+            gap: 0.75rem;
+          }
+          .metric-value {
+            font-size: 1.15rem;
           }
         }
       `}</style>

@@ -256,6 +256,15 @@ const createEmptyItem = () => ({
   }, {})
 });
 
+const createEmptyBannerItem = () => ({
+  id: generateUUID(),
+  item_type: 'banner',
+  design_name: '',
+  design_image: '',
+  price: '',
+  qty: ''
+});
+
 export default function InvoiceModal({ invoice, prefilledClient, onClose, onSaveSuccess }) {
   const [clients, setClients] = useState([]);
   const [clientSearch, setClientSearch] = useState('');
@@ -270,6 +279,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   const [jobName, setJobName] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [items, setItems] = useState([createEmptyItem()]);
+  const [bannerItems, setBannerItems] = useState([]);
+  const [activeTab, setActiveTab] = useState('baju');
   const [discountType, setDiscountType] = useState('per_pcs');
   const [discountValue, setDiscountValue] = useState(0);
   const [notes, setNotes] = useState('');
@@ -285,6 +296,39 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   const [collapsedKidPants, setCollapsedKidPants] = useState({});
   const [isDiscountCollapsed, setIsDiscountCollapsed] = useState(true);
   const [collapsedDesigns, setCollapsedDesigns] = useState({});
+
+  const addBannerItem = () => {
+    setBannerItems(prev => [...prev, createEmptyBannerItem()]);
+  };
+
+  const removeBannerItem = (id) => {
+    setBannerItems(prev => prev.filter(item => item.id !== id));
+  };
+
+  const updateBannerItemField = (itemId, field, value) => {
+    setBannerItems(prev => prev.map(item => {
+      if (item.id === itemId) {
+        return { ...item, [field]: value };
+      }
+      return item;
+    }));
+  };
+
+  const handleBannerImageUpload = (e, itemId) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 300 * 1024) {
+      alert('Had saiz fail imej design adalah 300KB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      updateBannerItemField(itemId, 'design_image', reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const toggleDesignCollapse = (itemId) => {
     setCollapsedDesigns(prev => ({
@@ -346,7 +390,14 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       setClientId(invoice.client_id || '');
       setJobName(invoice.job_name || '');
       setDate(invoice.date);
-      setItems(JSON.parse(JSON.stringify(invoice.items))); // Deep clone
+      
+      const allItems = JSON.parse(JSON.stringify(invoice.items || []));
+      const bajuList = allItems.filter(item => item.item_type !== 'banner');
+      const bannerList = allItems.filter(item => item.item_type === 'banner');
+      setItems(bajuList.length > 0 ? bajuList : [createEmptyItem()]);
+      setBannerItems(bannerList);
+      setActiveTab(bajuList.length === 0 && bannerList.length > 0 ? 'banner' : 'baju');
+
       setDiscountType(invoice.discount_type || 'per_pcs');
       setDiscountValue(invoice.discount_value !== undefined ? invoice.discount_value : (invoice.discount_per_pcs || 0));
       setNotes(invoice.notes || '');
@@ -365,6 +416,9 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       setCustomBasePrice('');
       const nextNo = await getNextInvoiceNo();
       setInvoiceNo(nextNo);
+      setItems([]);
+      setBannerItems([]);
+      setActiveTab('baju');
       
       if (prefilledClient) {
         setClientName(prefilledClient.name);
@@ -388,16 +442,17 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
         if (latestInvoice.client_address) {
           setClientAddress(latestInvoice.client_address);
         }
-        const firstItem = latestInvoice.items[0];
-        if (firstItem) {
+        const firstBajuItem = latestInvoice.items.find(i => i.item_type !== 'banner');
+        if (firstBajuItem) {
           let prevBase = 0;
-          if (firstItem.is_repeat_order && firstItem.custom_base_price) {
-            prevBase = firstItem.custom_base_price;
+          if (firstBajuItem.is_repeat_order && firstBajuItem.custom_base_price) {
+            prevBase = firstBajuItem.custom_base_price;
           } else {
             const invoiceTotalQty = latestInvoice.items.reduce((total, item) => {
+              if (item.item_type === 'banner') return total;
               return total + SIZES.reduce((itemTotal, size) => {
-                const sQty = parseInt(item.sizes[size]?.short || 0, 10);
-                const lQty = parseInt(item.sizes[size]?.long || 0, 10);
+                const sQty = parseInt(item.sizes?.[size]?.short || 0, 10);
+                const lQty = parseInt(item.sizes?.[size]?.long || 0, 10);
                 return itemTotal + sQty + lQty;
               }, 0);
             }, 0);
@@ -439,7 +494,6 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   };
 
   const removeItem = (id) => {
-    if (items.length === 1) return;
     setItems(prev => prev.filter(item => item.id !== id));
   };
 
@@ -508,6 +562,22 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
 
   // 2. Calculations per Design Item
   const calculateItemSummary = (item) => {
+    if (item.item_type === 'banner') {
+      const qty = parseInt(item.qty || 0, 10);
+      const price = parseFloat(item.price || 0);
+      const subtotal = qty * price;
+      return {
+        qty,
+        adultShirtQty: 0,
+        kidShirtQty: 0,
+        adultPantsQty: 0,
+        kidPantsQty: 0,
+        base: subtotal,
+        addons: 0,
+        subtotal: subtotal
+      };
+    }
+
     let itemBaseTotal = 0;
     let itemAddonTotal = 0;
     let itemQty = 0;
@@ -576,7 +646,11 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   };
 
   // 3. Overall Invoice Summaries
-  const grossSubtotal = items.reduce((sum, item) => sum + calculateItemSummary(item).subtotal, 0);
+  const grossSubtotal = [
+    ...items,
+    ...bannerItems
+  ].reduce((sum, item) => sum + calculateItemSummary(item).subtotal, 0);
+
   const totalDiscount = discountType === 'bulk' ? (parseFloat(discountValue) || 0) : ((parseFloat(discountValue) || 0) * totalQty);
   const grandTotal = Math.max(0, grossSubtotal - totalDiscount);
 
@@ -590,16 +664,19 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       alert('Sila masukkan nombor telefon pelanggan.');
       return;
     }
-    // Check if there's at least 1 item (shirt or pants)
-    const totalAllQty = items.reduce((sum, item) => sum + calculateItemSummary(item).qty, 0);
+    // Check if there's at least 1 item (shirt, pants or banner)
+    const totalAllQty = [
+      ...items,
+      ...bannerItems
+    ].reduce((sum, item) => sum + calculateItemSummary(item).qty, 0);
     if (totalAllQty === 0) {
-      alert('Sila masukkan kuantiti baju / seluar (sekurang-kurangnya 1 helai).');
+      alert('Sila masukkan kuantiti baju / seluar / banner (sekurang-kurangnya 1 helai/pcs).');
       return;
     }
 
     setLoading(true);
     
-    const processedItems = items.map(item => {
+    const processedBajuItems = items.map(item => {
       const summary = calculateItemSummary(item);
       return {
         ...item,
@@ -607,6 +684,15 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
         qty: summary.qty,
         is_repeat_order: isRepeatOrder,
         custom_base_price: isRepeatOrder ? parseFloat(customBasePrice) || 0 : undefined
+      };
+    });
+
+    const processedBannerItems = bannerItems.map(item => {
+      const summary = calculateItemSummary(item);
+      return {
+        ...item,
+        subtotal: summary.subtotal,
+        qty: summary.qty
       };
     });
 
@@ -620,7 +706,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       client_address: clientAddress.trim(),
       job_name: jobName.trim(),
       date: date,
-      items: processedItems,
+      items: [...processedBajuItems, ...processedBannerItems],
       subtotal: grossSubtotal,
       discount_type: discountType,
       discount_value: parseFloat(discountValue) || 0,
@@ -630,7 +716,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       deposit: invoice ? invoice.deposit : 0,
       balance: invoice ? grandTotal - invoice.deposit : grandTotal,
       status: invoice ? invoice.status : 'Unpaid',
-      notes: notes.trim()
+      notes: notes.trim(),
+      pengeluaran: invoice ? (parseFloat(invoice.pengeluaran) || 0) : 0
     };
 
     try {
@@ -831,700 +918,890 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
             </div>
 
             {/* Row 2: Design Items List */}
+            {/* Row 2: Design Items List */}
             <div className="design-items-section">
-              <div className="section-header-row">
-                <h4 className="meta-section-title">B. Butiran Rekaan Baju (Items)</h4>
-                <button type="button" onClick={addItem} className="btn btn-secondary btn-sm btn-add-design">
-                  <Plus size={14} /> Tambah Design Baru
+              
+              {/* Tab Selector */}
+              <div className="section-tabs-container" style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('baju')}
+                  style={{
+                    padding: '0.5rem 1.25rem',
+                    background: activeTab === 'baju' ? 'var(--primary-red)' : 'transparent',
+                    color: activeTab === 'baju' ? '#fff' : 'var(--text-dark)',
+                    border: '1px solid ' + (activeTab === 'baju' ? 'var(--primary-red)' : 'var(--border-color)'),
+                    borderRadius: '0',
+                    fontSize: '0.8rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.2s',
+                    outline: 'none'
+                  }}
+                >
+                  Baju
+                  {items.some(item => SIZES.some(size => parseInt(item.sizes[size]?.short || 0) > 0 || parseInt(item.sizes[size]?.long || 0) > 0 || parseInt(item.sizes[size]?.pants || 0) > 0)) && (
+                    <span style={{ display: 'inline-block', width: '7px', height: '7px', backgroundColor: activeTab === 'baju' ? '#fff' : '#10B981', borderRadius: '50%' }} />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('banner')}
+                  style={{
+                    padding: '0.5rem 1.25rem',
+                    background: activeTab === 'banner' ? 'var(--primary-red)' : 'transparent',
+                    color: activeTab === 'banner' ? '#fff' : 'var(--text-dark)',
+                    border: '1px solid ' + (activeTab === 'banner' ? 'var(--primary-red)' : 'var(--border-color)'),
+                    borderRadius: '0',
+                    fontSize: '0.8rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.2s',
+                    outline: 'none'
+                  }}
+                >
+                  Banner
+                  {bannerItems.some(item => parseInt(item.qty || 0) > 0) && (
+                    <span style={{ display: 'inline-block', width: '7px', height: '7px', backgroundColor: activeTab === 'banner' ? '#fff' : '#10B981', borderRadius: '50%' }} />
+                  )}
                 </button>
               </div>
 
-              {items.map((item, index) => {
-                const summary = calculateItemSummary(item);
-                return (
-                  <div key={item.id} className="design-item-card card">
-                    
-                    {/* Header: Design Info & Remove Button */}
-                    <div 
-                      className="design-item-header"
-                      onClick={() => toggleDesignCollapse(item.id)}
-                      style={{ cursor: 'pointer', userSelect: 'none', borderBottom: collapsedDesigns[item.id] !== false ? 'none' : '1px dashed var(--border-color)', marginBottom: collapsedDesigns[item.id] !== false ? '0' : '1.25rem', paddingBottom: collapsedDesigns[item.id] !== false ? '0' : '0.5rem' }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', flex: 1 }}>
-                        <h5 style={{ margin: 0, whiteSpace: 'nowrap' }}>DESIGN #{index + 1} {item.design_name ? `- ${item.design_name}` : ''}</h5>
-                        {collapsedDesigns[item.id] !== false ? <ChevronDown size={16} style={{ flexShrink: 0 }} /> : <ChevronUp size={16} style={{ flexShrink: 0 }} />}
-                        {collapsedDesigns[item.id] !== false && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: '0.25rem' }}>
-                            <span style={{ fontWeight: '600', color: 'var(--text-dark)' }}>{summary.qty} pcs</span> | RM {summary.subtotal.toFixed(2)}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {items.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); removeItem(item.id); }}
-                          className="btn-text text-red"
-                          style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}
-                        >
-                          <Trash2 size={14} /> Delete
-                        </button>
-                      )}
+              {activeTab === 'baju' ? (
+                <>
+                  <div className="section-header-row">
+                    <h4 className="meta-section-title" style={{ borderBottom: 'none', marginBottom: 0, paddingBottom: 0 }}>B.1. Butiran Rekaan Baju (Items)</h4>
+                    <button type="button" onClick={addItem} className="btn btn-secondary btn-sm btn-add-design">
+                      <Plus size={14} /> Tambah Design Baru
+                    </button>
+                  </div>
+
+                  {items.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '2rem 1rem', border: '1px dashed var(--border-color)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                      Tiada baju untuk ditempah. Klik "Tambah Design Baru" untuk mula.
                     </div>
-
-                    {collapsedDesigns[item.id] === false && (
-                      <>
-                        {/* Specification Dropdowns */}
-                        <div className="grid-4 specs-grid">
-                      <div className="form-group">
-                        <label className="form-label">Nama/Code Design (Optional)</label>
-                        <input
-                          type="text"
-                          value={item.design_name}
-                          onChange={(e) => updateItemField(item.id, 'design_name', e.target.value)}
-                          placeholder="Cth: Shield Pro/ 26#0110"
-                          className="form-control"
-                        />
-                      </div>
-
-                       <div className="form-group">
-                        <label className="form-label">Printing Method</label>
-                        <select
-                          value={item.print_method || 'Sublimation'}
-                          onChange={(e) => updateItemField(item.id, 'print_method', e.target.value)}
-                          className="form-control"
+                  ) : (
+                    items.map((item, index) => {
+                    const summary = calculateItemSummary(item);
+                    return (
+                      <div key={item.id} className="design-item-card card">
+                        
+                        {/* Header: Design Info & Remove Button */}
+                        <div 
+                          className="design-item-header"
+                          onClick={() => toggleDesignCollapse(item.id)}
+                          style={{ cursor: 'pointer', userSelect: 'none', borderBottom: collapsedDesigns[item.id] !== false ? 'none' : '1px dashed var(--border-color)', marginBottom: collapsedDesigns[item.id] !== false ? '0' : '1.25rem', paddingBottom: collapsedDesigns[item.id] !== false ? '0' : '0.5rem' }}
                         >
-                          <option value="Sublimation">Sublimation</option>
-                          <option value="DTF">DTF</option>
-                          <option value="Silk Screen">Silk Screen</option>
-                        </select>
-                      </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', flex: 1 }}>
+                            <h5 style={{ margin: 0, whiteSpace: 'nowrap' }}>DESIGN #{index + 1} {item.design_name ? `- ${item.design_name}` : ''}</h5>
+                            {collapsedDesigns[item.id] !== false ? <ChevronDown size={16} style={{ flexShrink: 0 }} /> : <ChevronUp size={16} style={{ flexShrink: 0 }} />}
+                            {collapsedDesigns[item.id] !== false && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: '0.25rem' }}>
+                                <span style={{ fontWeight: '600', color: 'var(--text-dark)' }}>{summary.qty} pcs</span> | RM {summary.subtotal.toFixed(2)}
+                              </div>
+                            )}
+                          </div>
+                          
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); removeItem(item.id); }}
+                            className="btn-text text-red"
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}
+                          >
+                            <Trash2 size={14} /> Delete
+                          </button>
+                        </div>
 
-                       <div className="form-group">
-                        <label className="form-label">Jenis Material</label>
-                        <select
-                          value={item.material}
-                          onChange={(e) => updateItemField(item.id, 'material', e.target.value)}
-                          className="form-control"
-                        >
-                          {MATERIALS.map(m => (
-                            <option key={m.id} value={m.id}>
-                              {getDynamicOptionLabel(m.id, m.label, item.material_addon, isRepeatOrder)}
-                            </option>
-                          ))}
-                        </select>
-                        {isRepeatOrder && (
-                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '0.4rem', userSelect: 'none' }}>
+                        {collapsedDesigns[item.id] === false && (
+                          <>
+                            {/* Specification Dropdowns */}
+                            <div className="grid-4 specs-grid">
+                          <div className="form-group">
+                            <label className="form-label">Nama/Code Design (Optional)</label>
                             <input
-                              type="checkbox"
-                              checked={item.material_addon || false}
-                              onChange={(e) => updateItemField(item.id, 'material_addon', e.target.checked)}
-                              style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '14px', height: '14px' }}
+                              type="text"
+                              value={item.design_name}
+                              onChange={(e) => updateItemField(item.id, 'design_name', e.target.value)}
+                              placeholder="Cth: Shield Pro/ 26#0110"
+                              className="form-control"
                             />
-                            Add-on (Cas Tambahan)
-                          </label>
-                        )}
-                      </div>
+                          </div>
 
-                      <div className="form-group">
-                        <label className="form-label">Jenis Potongan (Cutting)</label>
-                        <select
-                          value={item.cutting}
-                          onChange={(e) => updateItemField(item.id, 'cutting', e.target.value)}
-                          className="form-control"
-                        >
-                          {CUTTINGS.map(c => (
-                            <option key={c.id} value={c.id}>
-                              {getDynamicOptionLabel(c.id, c.label, item.cutting_addon, isRepeatOrder)}
-                            </option>
-                          ))}
-                        </select>
-                        {isRepeatOrder && (
-                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '0.4rem', userSelect: 'none' }}>
-                            <input
-                              type="checkbox"
-                              checked={item.cutting_addon || false}
-                              onChange={(e) => updateItemField(item.id, 'cutting_addon', e.target.checked)}
-                              style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '14px', height: '14px' }}
-                            />
-                            Add-on (Cas Tambahan)
-                          </label>
-                        )}
-                      </div>
+                           <div className="form-group">
+                            <label className="form-label">Printing Method</label>
+                            <select
+                              value={item.print_method || 'Sublimation'}
+                              onChange={(e) => updateItemField(item.id, 'print_method', e.target.value)}
+                              className="form-control"
+                            >
+                              <option value="Sublimation">Sublimation</option>
+                              <option value="DTF">DTF</option>
+                              <option value="Silk Screen">Silk Screen</option>
+                            </select>
+                          </div>
 
-                      <div className="form-group">
-                        <label className="form-label">Jenis Kolar (Neck)</label>
-                        <select
-                          value={item.neck}
-                          onChange={(e) => updateItemField(item.id, 'neck', e.target.value)}
-                          className="form-control"
-                        >
-                          {NECKS.map(n => (
-                            <option key={n.id} value={n.id}>
-                              {getDynamicOptionLabel(n.id, n.label, item.neck_addon, isRepeatOrder)}
-                            </option>
-                          ))}
-                        </select>
-                        {isRepeatOrder && (
-                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '0.4rem', userSelect: 'none' }}>
-                            <input
-                              type="checkbox"
-                              checked={item.neck_addon || false}
-                              onChange={(e) => updateItemField(item.id, 'neck_addon', e.target.checked)}
-                              style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '14px', height: '14px' }}
-                            />
-                            Add-on (Cas Tambahan)
-                          </label>
-                        )}
-                      </div>
+                           <div className="form-group">
+                            <label className="form-label">Jenis Material</label>
+                            <select
+                              value={item.material}
+                              onChange={(e) => updateItemField(item.id, 'material', e.target.value)}
+                              className="form-control"
+                            >
+                              {MATERIALS.map(m => (
+                                <option key={m.id} value={m.id}>
+                                  {getDynamicOptionLabel(m.id, m.label, item.material_addon, isRepeatOrder)}
+                                </option>
+                              ))}
+                            </select>
+                            {isRepeatOrder && (
+                              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '0.4rem', userSelect: 'none' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={item.material_addon || false}
+                                  onChange={(e) => updateItemField(item.id, 'material_addon', e.target.checked)}
+                                  style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '14px', height: '14px' }}
+                                />
+                                Add-on (Cas Tambahan)
+                              </label>
+                            )}
+                          </div>
 
-                      <div className="form-group">
-                        <label className="form-label">Name Set (+RM3/pcs)</label>
-                        <select
-                          value={item.name_set}
-                          onChange={(e) => updateItemField(item.id, 'name_set', e.target.value)}
-                          className="form-control"
-                        >
-                          <option value="No">No (+RM0)</option>
-                          <option value="Yes">
-                            {isRepeatOrder && !item.name_set_addon ? 'Yes (+RM0)' : 'Yes (+RM3)'}
-                          </option>
-                        </select>
-                        {isRepeatOrder && (
-                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '0.4rem', userSelect: 'none' }}>
-                            <input
-                              type="checkbox"
-                              checked={item.name_set_addon || false}
-                              onChange={(e) => updateItemField(item.id, 'name_set_addon', e.target.checked)}
-                              style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '14px', height: '14px' }}
-                            />
-                            Add-on (Cas Tambahan)
-                          </label>
-                        )}
-                      </div>
+                          <div className="form-group">
+                            <label className="form-label">Jenis Potongan (Cutting)</label>
+                            <select
+                              value={item.cutting}
+                              onChange={(e) => updateItemField(item.id, 'cutting', e.target.value)}
+                              className="form-control"
+                            >
+                              {CUTTINGS.map(c => (
+                                <option key={c.id} value={c.id}>
+                                  {getDynamicOptionLabel(c.id, c.label, item.cutting_addon, isRepeatOrder)}
+                                </option>
+                              ))}
+                            </select>
+                            {isRepeatOrder && (
+                              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '0.4rem', userSelect: 'none' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={item.cutting_addon || false}
+                                  onChange={(e) => updateItemField(item.id, 'cutting_addon', e.target.checked)}
+                                  style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '14px', height: '14px' }}
+                                />
+                                Add-on (Cas Tambahan)
+                              </label>
+                            )}
+                          </div>
 
-                      <div className="form-group col-span-2">
-                        <label className="form-label">Imej Design (Maks 300KB)</label>
-                        <div className="design-upload-row">
-                          <input
-                            type="file"
-                            id={`img_${item.id}`}
-                            accept="image/*"
-                            onChange={(e) => handleItemImageUpload(e, item.id)}
-                            className="file-input-hidden"
-                          />
-                          {!item.design_image ? (
-                            <label htmlFor={`img_${item.id}`} className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>
-                              <Upload size={12} /> Pilih Imej
+                          <div className="form-group">
+                            <label className="form-label">Jenis Kolar (Neck)</label>
+                            <select
+                              value={item.neck}
+                              onChange={(e) => updateItemField(item.id, 'neck', e.target.value)}
+                              className="form-control"
+                            >
+                              {NECKS.map(n => (
+                                <option key={n.id} value={n.id}>
+                                  {getDynamicOptionLabel(n.id, n.label, item.neck_addon, isRepeatOrder)}
+                                </option>
+                              ))}
+                            </select>
+                            {isRepeatOrder && (
+                              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '0.4rem', userSelect: 'none' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={item.neck_addon || false}
+                                  onChange={(e) => updateItemField(item.id, 'neck_addon', e.target.checked)}
+                                  style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '14px', height: '14px' }}
+                                />
+                                Add-on (Cas Tambahan)
+                              </label>
+                            )}
+                          </div>
+
+                          <div className="form-group">
+                            <label className="form-label">Name Set (+RM3/pcs)</label>
+                            <select
+                              value={item.name_set}
+                              onChange={(e) => updateItemField(item.id, 'name_set', e.target.value)}
+                              className="form-control"
+                            >
+                              <option value="No">No (+RM0)</option>
+                              <option value="Yes">
+                                {isRepeatOrder && !item.name_set_addon ? 'Yes (+RM0)' : 'Yes (+RM3)'}
+                              </option>
+                            </select>
+                            {isRepeatOrder && (
+                              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '0.4rem', userSelect: 'none' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={item.name_set_addon || false}
+                                  onChange={(e) => updateItemField(item.id, 'name_set_addon', e.target.checked)}
+                                  style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '14px', height: '14px' }}
+                                />
+                                Add-on (Cas Tambahan)
+                              </label>
+                            )}
+                          </div>
+
+                          <div className="form-group col-span-2">
+                            <label className="form-label">Imej Design (Maks 300KB)</label>
+                            <div className="design-upload-row">
+                              <input
+                                type="file"
+                                id={`img_${item.id}`}
+                                accept="image/*"
+                                onChange={(e) => handleItemImageUpload(e, item.id)}
+                                className="file-input-hidden"
+                              />
+                              {!item.design_image ? (
+                                <label htmlFor={`img_${item.id}`} className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>
+                                  <Upload size={12} /> Pilih Imej
+                                </label>
+                              ) : (
+                                <div className="design-image-preview-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                  <img src={item.design_image} className="design-img-preview" alt="Design Preview" style={{ height: '50px', width: '50px', borderRadius: '4px' }} />
+                                  <button
+                                    type="button"
+                                    onClick={() => updateItemField(item.id, 'design_image', '')}
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ borderColor: '#FEE2E2', color: '#B91C1C', padding: '0.4rem 1rem' }}
+                                  >
+                                    Buang Imej
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Breakdown Matrix */}
+                        <div className="size-breakdown-section">
+                          <div 
+                            onClick={() => toggleSizesCollapse(item.id)}
+                            className="size-breakdown-toggle-header"
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              cursor: 'pointer',
+                              padding: '0.5rem 0',
+                              borderBottom: '1px solid var(--border-color)',
+                              marginBottom: '0.75rem',
+                              userSelect: 'none'
+                            }}
+                          >
+                            <label className="form-label size-breakdown-title" style={{ marginBottom: 0, cursor: 'pointer', color: 'var(--text-dark)' }}>
+                              Pecahan Saiz & Kuantiti Lengan
                             </label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
+                              {collapsedSizes[item.id] ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                            </div>
+                          </div>
+
+                          {collapsedSizes[item.id] ? (
+                            <div 
+                              className="collapsed-size-summary"
+                              style={{
+                                padding: '0.75rem',
+                                backgroundColor: 'var(--off-white-bg)',
+                                border: '1px solid var(--border-color)',
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: '0.5rem'
+                              }}
+                            >
+                              {getSelectedSizesPills(item)}
+                            </div>
                           ) : (
-                            <div className="design-image-preview-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                              <img src={item.design_image} className="design-img-preview" alt="Design Preview" style={{ height: '50px', width: '50px', borderRadius: '4px' }} />
-                              <button
-                                type="button"
-                                onClick={() => updateItemField(item.id, 'design_image', '')}
-                                className="btn btn-secondary btn-sm"
-                                style={{ borderColor: '#FEE2E2', color: '#B91C1C', padding: '0.4rem 1rem' }}
-                              >
-                                Buang Imej
-                              </button>
+                            <div className="breakdown-grid-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', border: 'none', backgroundColor: 'transparent', padding: 0 }}>
+                              {/* Desktop breakdown table view */}
+                              <div className="desktop-only" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
+                                {/* Desktop Adult Section */}
+                                <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                                  <div 
+                                    onClick={() => toggleAdultSizesCollapse(item.id)}
+                                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdults[item.id] !== false && !hasSelectedAdultSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                                  >
+                                    <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Adult Sizes</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                      {collapsedAdults[item.id] !== false && summary.adultShirtQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.adultShirtQty} pcs</span>}
+                                      {collapsedAdults[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                    </div>
+                                  </div>
+                                  {collapsedAdults[item.id] !== false && getSelectedAdultSizesPills(item)}
+                                  {collapsedAdults[item.id] === false && (
+                                    <div style={{ overflowX: 'auto' }}>
+                                      <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
+                                        <thead>
+                                          <tr>
+                                            <th style={{ borderRight: '1px solid var(--border-color)' }}>Lengan</th>
+                                            {ADULT_SIZES.map(s => (
+                                              <th key={s} className={getSizeCost(s) > 0 ? 'extra-cost-header' : ''} style={{ borderRight: '1px solid var(--border-color)' }}>
+                                                {s}
+                                                {getSizeCost(s) !== 0 && (
+                                                  <span className={getSizeCost(s) > 0 ? 'extra-cost-badge' : 'discount-cost-badge'}>
+                                                    {getSizeCost(s) > 0 ? `+${getSizeCost(s)}` : getSizeCost(s)}
+                                                  </span>
+                                                )}
+                                              </th>
+                                            ))}
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          <tr>
+                                            <td className="row-label" style={{ borderRight: '1px solid var(--border-color)' }}>Short</td>
+                                            {ADULT_SIZES.map(s => (
+                                              <td key={s} style={{ borderRight: '1px solid var(--border-color)' }}>
+                                                <input
+                                                  type="number"
+                                                  min="0"
+                                                  value={displayQty(item.sizes[s]?.short)}
+                                                  onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
+                                                  placeholder="0"
+                                                  className="qty-input"
+                                                />
+                                              </td>
+                                            ))}
+                                          </tr>
+                                          <tr>
+                                            <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>Long (+RM5)</td>
+                                            {ADULT_SIZES.map(s => (
+                                              <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
+                                                <input
+                                                  type="number"
+                                                  min="0"
+                                                  value={displayQty(item.sizes[s]?.long)}
+                                                  onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
+                                                  placeholder="0"
+                                                  className="qty-input"
+                                                />
+                                              </td>
+                                            ))}
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Desktop Kid Section */}
+                                <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                                  <div 
+                                    onClick={() => toggleKidSizesCollapse(item.id)}
+                                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKids[item.id] !== false && !hasSelectedKidSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                                  >
+                                    <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Kid Sizes</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                      {collapsedKids[item.id] !== false && summary.kidShirtQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.kidShirtQty} pcs</span>}
+                                      {collapsedKids[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                    </div>
+                                  </div>
+                                  {collapsedKids[item.id] !== false && getSelectedKidSizesPills(item)}
+                                  {collapsedKids[item.id] === false && (
+                                    <div style={{ overflowX: 'auto' }}>
+                                      <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
+                                        <thead>
+                                          <tr>
+                                            <th style={{ borderRight: '1px solid var(--border-color)' }}>Lengan</th>
+                                            {KID_SIZES.map(s => (
+                                              <th key={s} className="discount-cost-header" style={{ borderRight: '1px solid var(--border-color)' }}>
+                                                {s}
+                                                {getSizeCost(s) !== 0 && (
+                                                  <span className="discount-cost-badge">
+                                                    {getSizeCost(s) > 0 ? `+${getSizeCost(s)}` : getSizeCost(s)}
+                                                  </span>
+                                                )}
+                                              </th>
+                                            ))}
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          <tr>
+                                            <td className="row-label" style={{ borderRight: '1px solid var(--border-color)' }}>Short</td>
+                                            {KID_SIZES.map(s => (
+                                              <td key={s} style={{ borderRight: '1px solid var(--border-color)' }}>
+                                                <input
+                                                  type="number"
+                                                  min="0"
+                                                  value={displayQty(item.sizes[s]?.short)}
+                                                  onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
+                                                  placeholder="0"
+                                                  className="qty-input"
+                                                />
+                                              </td>
+                                            ))}
+                                          </tr>
+                                          <tr>
+                                            <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>Long (+RM5)</td>
+                                            {KID_SIZES.map(s => (
+                                              <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
+                                                <input
+                                                  type="number"
+                                                  min="0"
+                                                  value={displayQty(item.sizes[s]?.long)}
+                                                  onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
+                                                  placeholder="0"
+                                                  className="qty-input"
+                                                />
+                                              </td>
+                                            ))}
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Desktop Adult Pants Section */}
+                                <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                                  <div 
+                                    onClick={() => toggleAdultPantsCollapse(item.id)}
+                                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdultPants[item.id] !== false && !hasSelectedAdultPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                                  >
+                                    <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Adult Pants Sizes (RM25/pcs)</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                      {collapsedAdultPants[item.id] !== false && summary.adultPantsQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.adultPantsQty} pcs</span>}
+                                      {collapsedAdultPants[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                    </div>
+                                  </div>
+                                  {collapsedAdultPants[item.id] !== false && getSelectedAdultPantsPills(item)}
+                                  {collapsedAdultPants[item.id] === false && (
+                                    <div style={{ overflowX: 'auto' }}>
+                                      <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
+                                        <thead>
+                                          <tr>
+                                            <th style={{ borderRight: '1px solid var(--border-color)' }}>Jenis</th>
+                                            {ADULT_PANTS_SIZES.map(s => (
+                                              <th key={s} style={{ borderRight: '1px solid var(--border-color)' }}>{s}</th>
+                                            ))}
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          <tr>
+                                            <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>Short Pants</td>
+                                            {ADULT_PANTS_SIZES.map(s => (
+                                              <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
+                                                <input
+                                                  type="number"
+                                                  min="0"
+                                                  value={displayQty(item.sizes[s]?.pants)}
+                                                  onChange={(e) => updateItemQty(item.id, s, 'pants', e.target.value)}
+                                                  placeholder="0"
+                                                  className="qty-input"
+                                                />
+                                              </td>
+                                            ))}
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Desktop Kid Pants Section */}
+                                <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                                  <div 
+                                    onClick={() => toggleKidPantsCollapse(item.id)}
+                                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKidPants[item.id] !== false && !hasSelectedKidPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                                  >
+                                    <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Kid Pants Sizes (RM23/pcs)</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                      {collapsedKidPants[item.id] !== false && summary.kidPantsQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.kidPantsQty} pcs</span>}
+                                      {collapsedKidPants[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                    </div>
+                                  </div>
+                                  {collapsedKidPants[item.id] !== false && getSelectedKidPantsPills(item)}
+                                  {collapsedKidPants[item.id] === false && (
+                                    <div style={{ overflowX: 'auto' }}>
+                                      <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
+                                        <thead>
+                                          <tr>
+                                            <th style={{ borderRight: '1px solid var(--border-color)' }}>Jenis</th>
+                                            {KID_SIZES.map(s => (
+                                              <th key={s} style={{ borderRight: '1px solid var(--border-color)' }}>{s}</th>
+                                            ))}
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          <tr>
+                                            <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>Short Pants</td>
+                                            {KID_SIZES.map(s => (
+                                              <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
+                                                <input
+                                                  type="number"
+                                                  min="0"
+                                                  value={displayQty(item.sizes[s]?.pants)}
+                                                  onChange={(e) => updateItemQty(item.id, s, 'pants', e.target.value)}
+                                                  placeholder="0"
+                                                  className="qty-input"
+                                                />
+                                              </td>
+                                            ))}
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Mobile Size Breakdown Grid */}
+                              <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
+                                
+                                {/* Mobile Adult Section */}
+                                <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                                  <div 
+                                    onClick={() => toggleAdultSizesCollapse(item.id)}
+                                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdults[item.id] !== false && !hasSelectedAdultSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                                  >
+                                    <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Adult Sizes</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                      {collapsedAdults[item.id] !== false && summary.adultShirtQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.adultShirtQty} pcs</span>}
+                                      {collapsedAdults[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                    </div>
+                                  </div>
+                                  {collapsedAdults[item.id] !== false && getSelectedAdultSizesPills(item)}
+                                  {collapsedAdults[item.id] === false && (
+                                    <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
+                                      {ADULT_SIZES.map(s => (
+                                        <div key={s} className="size-input-card">
+                                          <div className="size-card-title">
+                                            <span>Size {s}</span>
+                                            {getSizeCost(s) !== 0 && (
+                                              <span className={getSizeCost(s) > 0 ? "size-card-extra-badge" : "size-card-discount-badge"}>
+                                                {getSizeCost(s) > 0 ? `+${getSizeCost(s)}` : getSizeCost(s)}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="size-inputs-row">
+                                            <div className="size-qty-group">
+                                              <span className="size-qty-lbl">Short</span>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                value={displayQty(item.sizes[s]?.short)}
+                                                onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
+                                                placeholder="0"
+                                                className={`size-qty-input ${parseInt(item.sizes[s]?.short || 0) > 0 ? 'has-value' : ''}`}
+                                              />
+                                            </div>
+                                            <div className="size-qty-group">
+                                              <span className="size-qty-lbl">Long (+RM5)</span>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                value={displayQty(item.sizes[s]?.long)}
+                                                onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
+                                                placeholder="0"
+                                                className={`size-qty-input ${parseInt(item.sizes[s]?.long || 0) > 0 ? 'has-value' : ''}`}
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Mobile Kid Section */}
+                                <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                                  <div 
+                                    onClick={() => toggleKidSizesCollapse(item.id)}
+                                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKids[item.id] !== false && !hasSelectedKidSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                                  >
+                                    <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Kid Sizes</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                      {collapsedKids[item.id] !== false && summary.kidShirtQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.kidShirtQty} pcs</span>}
+                                      {collapsedKids[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                    </div>
+                                  </div>
+                                  {collapsedKids[item.id] !== false && getSelectedKidSizesPills(item)}
+                                  {collapsedKids[item.id] === false && (
+                                    <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
+                                      {KID_SIZES.map(s => (
+                                        <div key={s} className="size-input-card">
+                                          <div className="size-card-title">
+                                            <span>Size {s}</span>
+                                            {getSizeCost(s) !== 0 && (
+                                              <span className="size-card-discount-badge">
+                                                {getSizeCost(s) > 0 ? `+${getSizeCost(s)}` : getSizeCost(s)}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="size-inputs-row">
+                                            <div className="size-qty-group">
+                                              <span className="size-qty-lbl">Short</span>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                value={displayQty(item.sizes[s]?.short)}
+                                                onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
+                                                placeholder="0"
+                                                className={`size-qty-input ${parseInt(item.sizes[s]?.short || 0) > 0 ? 'has-value' : ''}`}
+                                              />
+                                            </div>
+                                            <div className="size-qty-group">
+                                              <span className="size-qty-lbl">Long (+RM5)</span>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                value={displayQty(item.sizes[s]?.long)}
+                                                onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
+                                                placeholder="0"
+                                                className={`size-qty-input ${parseInt(item.sizes[s]?.long || 0) > 0 ? 'has-value' : ''}`}
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Mobile Adult Pants Section */}
+                                <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                                  <div 
+                                    onClick={() => toggleAdultPantsCollapse(item.id)}
+                                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdultPants[item.id] !== false && !hasSelectedAdultPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                                  >
+                                    <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Adult Pants Sizes (RM25/pcs)</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                      {collapsedAdultPants[item.id] !== false && summary.adultPantsQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.adultPantsQty} pcs</span>}
+                                      {collapsedAdultPants[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                    </div>
+                                  </div>
+                                  {collapsedAdultPants[item.id] !== false && getSelectedAdultPantsPills(item)}
+                                  {collapsedAdultPants[item.id] === false && (
+                                    <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
+                                      {ADULT_PANTS_SIZES.map(s => (
+                                        <div key={s} className="size-input-card">
+                                          <div className="size-card-title">
+                                            <span>Size {s}</span>
+                                          </div>
+                                          <div className="size-inputs-row">
+                                            <div className="size-qty-group">
+                                              <span className="size-qty-lbl">Short Pants</span>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                value={displayQty(item.sizes[s]?.pants)}
+                                                onChange={(e) => updateItemQty(item.id, s, 'pants', e.target.value)}
+                                                placeholder="0"
+                                                className={`size-qty-input ${parseInt(item.sizes[s]?.pants || 0) > 0 ? 'has-value' : ''}`}
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Mobile Kid Pants Section */}
+                                <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                                  <div 
+                                    onClick={() => toggleKidPantsCollapse(item.id)}
+                                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKidPants[item.id] !== false && !hasSelectedKidPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                                  >
+                                    <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Kid Pants Sizes (RM23/pcs)</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                      {collapsedKidPants[item.id] !== false && summary.kidPantsQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.kidPantsQty} pcs</span>}
+                                      {collapsedKidPants[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                    </div>
+                                  </div>
+                                  {collapsedKidPants[item.id] !== false && getSelectedKidPantsPills(item)}
+                                  {collapsedKidPants[item.id] === false && (
+                                    <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
+                                      {KID_SIZES.map(s => (
+                                        <div key={s} className="size-input-card">
+                                          <div className="size-card-title">
+                                            <span>Size {s}</span>
+                                          </div>
+                                          <div className="size-inputs-row">
+                                            <div className="size-qty-group">
+                                              <span className="size-qty-lbl">Short Pants</span>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                value={displayQty(item.sizes[s]?.pants)}
+                                                onChange={(e) => updateItemQty(item.id, s, 'pants', e.target.value)}
+                                                placeholder="0"
+                                                className={`size-qty-input ${parseInt(item.sizes[s]?.pants || 0) > 0 ? 'has-value' : ''}`}
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           )}
                         </div>
-                      </div>
-                    </div>
 
-                    {/* Breakdown Matrix */}
-                    <div className="size-breakdown-section">
-                      <div 
-                        onClick={() => toggleSizesCollapse(item.id)}
-                        className="size-breakdown-toggle-header"
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          cursor: 'pointer',
-                          padding: '0.5rem 0',
-                          borderBottom: '1px solid var(--border-color)',
-                          marginBottom: '0.75rem',
-                          userSelect: 'none'
-                        }}
-                      >
-                        <label className="form-label size-breakdown-title" style={{ marginBottom: 0, cursor: 'pointer', color: 'var(--text-dark)' }}>
-                          Pecahan Saiz & Kuantiti Lengan
-                        </label>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
-                          {collapsedSizes[item.id] ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                        </div>
-                      </div>
-
-                      {collapsedSizes[item.id] ? (
-                        <div 
-                          className="collapsed-size-summary"
-                          style={{
-                            padding: '0.75rem',
-                            backgroundColor: 'var(--off-white-bg)',
-                            border: '1px solid var(--border-color)',
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: '0.5rem'
-                          }}
-                        >
-                          {getSelectedSizesPills(item)}
-                        </div>
-                      ) : (
-                        <div className="breakdown-grid-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', border: 'none', backgroundColor: 'transparent', padding: 0 }}>
-                          {/* Desktop breakdown table view */}
-                          <div className="desktop-only" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
-                            {/* Desktop Adult Section */}
-                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
-                              <div 
-                                onClick={() => toggleAdultSizesCollapse(item.id)}
-                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdults[item.id] !== false && !hasSelectedAdultSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
-                              >
-                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Adult Sizes</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  {collapsedAdults[item.id] !== false && summary.adultShirtQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.adultShirtQty} pcs</span>}
-                                  {collapsedAdults[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                                </div>
-                              </div>
-                              {collapsedAdults[item.id] !== false && getSelectedAdultSizesPills(item)}
-                              {collapsedAdults[item.id] === false && (
-                                <div style={{ overflowX: 'auto' }}>
-                                  <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
-                                    <thead>
-                                      <tr>
-                                        <th style={{ borderRight: '1px solid var(--border-color)' }}>Lengan</th>
-                                        {ADULT_SIZES.map(s => (
-                                          <th key={s} className={getSizeCost(s) > 0 ? 'extra-cost-header' : ''} style={{ borderRight: '1px solid var(--border-color)' }}>
-                                            {s}
-                                            {getSizeCost(s) !== 0 && (
-                                              <span className={getSizeCost(s) > 0 ? 'extra-cost-badge' : 'discount-cost-badge'}>
-                                                {getSizeCost(s) > 0 ? `+${getSizeCost(s)}` : getSizeCost(s)}
-                                              </span>
-                                            )}
-                                          </th>
-                                        ))}
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      <tr>
-                                        <td className="row-label" style={{ borderRight: '1px solid var(--border-color)' }}>Short</td>
-                                        {ADULT_SIZES.map(s => (
-                                          <td key={s} style={{ borderRight: '1px solid var(--border-color)' }}>
-                                            <input
-                                              type="number"
-                                              min="0"
-                                              value={displayQty(item.sizes[s]?.short)}
-                                              onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
-                                              placeholder="0"
-                                              className="qty-input"
-                                            />
-                                          </td>
-                                        ))}
-                                      </tr>
-                                      <tr>
-                                        <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>Long (+RM5)</td>
-                                        {ADULT_SIZES.map(s => (
-                                          <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
-                                            <input
-                                              type="number"
-                                              min="0"
-                                              value={displayQty(item.sizes[s]?.long)}
-                                              onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
-                                              placeholder="0"
-                                              className="qty-input"
-                                            />
-                                          </td>
-                                        ))}
-                                      </tr>
-                                    </tbody>
-                                  </table>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Desktop Kid Section */}
-                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
-                              <div 
-                                onClick={() => toggleKidSizesCollapse(item.id)}
-                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKids[item.id] !== false && !hasSelectedKidSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
-                              >
-                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Kid Sizes</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  {collapsedKids[item.id] !== false && summary.kidShirtQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.kidShirtQty} pcs</span>}
-                                  {collapsedKids[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                                </div>
-                              </div>
-                              {collapsedKids[item.id] !== false && getSelectedKidSizesPills(item)}
-                              {collapsedKids[item.id] === false && (
-                                <div style={{ overflowX: 'auto' }}>
-                                  <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
-                                    <thead>
-                                      <tr>
-                                        <th style={{ borderRight: '1px solid var(--border-color)' }}>Lengan</th>
-                                        {KID_SIZES.map(s => (
-                                          <th key={s} className="discount-cost-header" style={{ borderRight: '1px solid var(--border-color)' }}>
-                                            {s}
-                                            {getSizeCost(s) !== 0 && (
-                                              <span className="discount-cost-badge">
-                                                {getSizeCost(s) > 0 ? `+${getSizeCost(s)}` : getSizeCost(s)}
-                                              </span>
-                                            )}
-                                          </th>
-                                        ))}
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      <tr>
-                                        <td className="row-label" style={{ borderRight: '1px solid var(--border-color)' }}>Short</td>
-                                        {KID_SIZES.map(s => (
-                                          <td key={s} style={{ borderRight: '1px solid var(--border-color)' }}>
-                                            <input
-                                              type="number"
-                                              min="0"
-                                              value={displayQty(item.sizes[s]?.short)}
-                                              onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
-                                              placeholder="0"
-                                              className="qty-input"
-                                            />
-                                          </td>
-                                        ))}
-                                      </tr>
-                                      <tr>
-                                        <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>Long (+RM5)</td>
-                                        {KID_SIZES.map(s => (
-                                          <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
-                                            <input
-                                              type="number"
-                                              min="0"
-                                              value={displayQty(item.sizes[s]?.long)}
-                                              onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
-                                              placeholder="0"
-                                              className="qty-input"
-                                            />
-                                          </td>
-                                        ))}
-                                      </tr>
-                                    </tbody>
-                                  </table>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Desktop Adult Pants Section */}
-                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
-                              <div 
-                                onClick={() => toggleAdultPantsCollapse(item.id)}
-                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdultPants[item.id] !== false && !hasSelectedAdultPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
-                              >
-                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Adult Pants Sizes (RM25/pcs)</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  {collapsedAdultPants[item.id] !== false && summary.adultPantsQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.adultPantsQty} pcs</span>}
-                                  {collapsedAdultPants[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                                </div>
-                              </div>
-                              {collapsedAdultPants[item.id] !== false && getSelectedAdultPantsPills(item)}
-                              {collapsedAdultPants[item.id] === false && (
-                                <div style={{ overflowX: 'auto' }}>
-                                  <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
-                                    <thead>
-                                      <tr>
-                                        <th style={{ borderRight: '1px solid var(--border-color)' }}>Jenis</th>
-                                        {ADULT_PANTS_SIZES.map(s => (
-                                          <th key={s} style={{ borderRight: '1px solid var(--border-color)' }}>{s}</th>
-                                        ))}
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      <tr>
-                                        <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>Short Pants</td>
-                                        {ADULT_PANTS_SIZES.map(s => (
-                                          <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
-                                            <input
-                                              type="number"
-                                              min="0"
-                                              value={displayQty(item.sizes[s]?.pants)}
-                                              onChange={(e) => updateItemQty(item.id, s, 'pants', e.target.value)}
-                                              placeholder="0"
-                                              className="qty-input"
-                                            />
-                                          </td>
-                                        ))}
-                                      </tr>
-                                    </tbody>
-                                  </table>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Desktop Kid Pants Section */}
-                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
-                              <div 
-                                onClick={() => toggleKidPantsCollapse(item.id)}
-                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKidPants[item.id] !== false && !hasSelectedKidPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
-                              >
-                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Kid Pants Sizes (RM23/pcs)</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  {collapsedKidPants[item.id] !== false && summary.kidPantsQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.kidPantsQty} pcs</span>}
-                                  {collapsedKidPants[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                                </div>
-                              </div>
-                              {collapsedKidPants[item.id] !== false && getSelectedKidPantsPills(item)}
-                              {collapsedKidPants[item.id] === false && (
-                                <div style={{ overflowX: 'auto' }}>
-                                  <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
-                                    <thead>
-                                      <tr>
-                                        <th style={{ borderRight: '1px solid var(--border-color)' }}>Jenis</th>
-                                        {KID_SIZES.map(s => (
-                                          <th key={s} style={{ borderRight: '1px solid var(--border-color)' }}>{s}</th>
-                                        ))}
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      <tr>
-                                        <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>Short Pants</td>
-                                        {KID_SIZES.map(s => (
-                                          <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
-                                            <input
-                                              type="number"
-                                              min="0"
-                                              value={displayQty(item.sizes[s]?.pants)}
-                                              onChange={(e) => updateItemQty(item.id, s, 'pants', e.target.value)}
-                                              placeholder="0"
-                                              className="qty-input"
-                                            />
-                                          </td>
-                                        ))}
-                                      </tr>
-                                    </tbody>
-                                  </table>
-                                </div>
-                              )}
-                            </div>
+                        {/* Item Calculations Footnote */}
+                        <div className="item-calculations-footer">
+                          <div className="calc-pill">
+                            <span className="calc-pill-label">Qty</span>
+                            <strong className="calc-pill-value">{summary.qty} pcs</strong>
                           </div>
-
-                          {/* Mobile Size Breakdown Grid */}
-                          <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
-                            
-                            {/* Mobile Adult Section */}
-                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
-                              <div 
-                                onClick={() => toggleAdultSizesCollapse(item.id)}
-                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdults[item.id] !== false && !hasSelectedAdultSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
-                              >
-                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Adult Sizes</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  {collapsedAdults[item.id] !== false && summary.adultShirtQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.adultShirtQty} pcs</span>}
-                                  {collapsedAdults[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                                </div>
-                              </div>
-                              {collapsedAdults[item.id] !== false && getSelectedAdultSizesPills(item)}
-                              {collapsedAdults[item.id] === false && (
-                                <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
-                                  {ADULT_SIZES.map(s => (
-                                    <div key={s} className="size-input-card">
-                                      <div className="size-card-title">
-                                        <span>Size {s}</span>
-                                        {getSizeCost(s) !== 0 && (
-                                          <span className={getSizeCost(s) > 0 ? "size-card-extra-badge" : "size-card-discount-badge"}>
-                                            {getSizeCost(s) > 0 ? `+${getSizeCost(s)}` : getSizeCost(s)}
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="size-inputs-row">
-                                        <div className="size-qty-group">
-                                          <span className="size-qty-lbl">Short</span>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            value={displayQty(item.sizes[s]?.short)}
-                                            onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
-                                            placeholder="0"
-                                            className={`size-qty-input ${parseInt(item.sizes[s]?.short || 0) > 0 ? 'has-value' : ''}`}
-                                          />
-                                        </div>
-                                        <div className="size-qty-group">
-                                          <span className="size-qty-lbl">Long (+RM5)</span>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            value={displayQty(item.sizes[s]?.long)}
-                                            onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
-                                            placeholder="0"
-                                            className={`size-qty-input ${parseInt(item.sizes[s]?.long || 0) > 0 ? 'has-value' : ''}`}
-                                          />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Mobile Kid Section */}
-                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
-                              <div 
-                                onClick={() => toggleKidSizesCollapse(item.id)}
-                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKids[item.id] !== false && !hasSelectedKidSizes(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
-                              >
-                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Kid Sizes</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  {collapsedKids[item.id] !== false && summary.kidShirtQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.kidShirtQty} pcs</span>}
-                                  {collapsedKids[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                                </div>
-                              </div>
-                              {collapsedKids[item.id] !== false && getSelectedKidSizesPills(item)}
-                              {collapsedKids[item.id] === false && (
-                                <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
-                                  {KID_SIZES.map(s => (
-                                    <div key={s} className="size-input-card">
-                                      <div className="size-card-title">
-                                        <span>Size {s}</span>
-                                        {getSizeCost(s) !== 0 && (
-                                          <span className="size-card-discount-badge">
-                                            {getSizeCost(s) > 0 ? `+${getSizeCost(s)}` : getSizeCost(s)}
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="size-inputs-row">
-                                        <div className="size-qty-group">
-                                          <span className="size-qty-lbl">Short</span>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            value={displayQty(item.sizes[s]?.short)}
-                                            onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
-                                            placeholder="0"
-                                            className={`size-qty-input ${parseInt(item.sizes[s]?.short || 0) > 0 ? 'has-value' : ''}`}
-                                          />
-                                        </div>
-                                        <div className="size-qty-group">
-                                          <span className="size-qty-lbl">Long (+RM5)</span>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            value={displayQty(item.sizes[s]?.long)}
-                                            onChange={(e) => updateItemQty(item.id, s, 'long', e.target.value)}
-                                            placeholder="0"
-                                            className={`size-qty-input ${parseInt(item.sizes[s]?.long || 0) > 0 ? 'has-value' : ''}`}
-                                          />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Mobile Adult Pants Section */}
-                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
-                              <div 
-                                onClick={() => toggleAdultPantsCollapse(item.id)}
-                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdultPants[item.id] !== false && !hasSelectedAdultPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
-                              >
-                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Adult Pants Sizes (RM25/pcs)</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  {collapsedAdultPants[item.id] !== false && summary.adultPantsQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.adultPantsQty} pcs</span>}
-                                  {collapsedAdultPants[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                                </div>
-                              </div>
-                              {collapsedAdultPants[item.id] !== false && getSelectedAdultPantsPills(item)}
-                              {collapsedAdultPants[item.id] === false && (
-                                <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
-                                  {ADULT_PANTS_SIZES.map(s => (
-                                    <div key={s} className="size-input-card">
-                                      <div className="size-card-title">
-                                        <span>Size {s}</span>
-                                      </div>
-                                      <div className="size-inputs-row">
-                                        <div className="size-qty-group">
-                                          <span className="size-qty-lbl">Short Pants</span>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            value={displayQty(item.sizes[s]?.pants)}
-                                            onChange={(e) => updateItemQty(item.id, s, 'pants', e.target.value)}
-                                            placeholder="0"
-                                            className={`size-qty-input ${parseInt(item.sizes[s]?.pants || 0) > 0 ? 'has-value' : ''}`}
-                                          />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Mobile Kid Pants Section */}
-                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
-                              <div 
-                                onClick={() => toggleKidPantsCollapse(item.id)}
-                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKidPants[item.id] !== false && !hasSelectedKidPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
-                              >
-                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Kid Pants Sizes (RM23/pcs)</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  {collapsedKidPants[item.id] !== false && summary.kidPantsQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.kidPantsQty} pcs</span>}
-                                  {collapsedKidPants[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                                </div>
-                              </div>
-                              {collapsedKidPants[item.id] !== false && getSelectedKidPantsPills(item)}
-                              {collapsedKidPants[item.id] === false && (
-                                <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
-                                  {KID_SIZES.map(s => (
-                                    <div key={s} className="size-input-card">
-                                      <div className="size-card-title">
-                                        <span>Size {s}</span>
-                                      </div>
-                                      <div className="size-inputs-row">
-                                        <div className="size-qty-group">
-                                          <span className="size-qty-lbl">Short Pants</span>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            value={displayQty(item.sizes[s]?.pants)}
-                                            onChange={(e) => updateItemQty(item.id, s, 'pants', e.target.value)}
-                                            placeholder="0"
-                                            className={`size-qty-input ${parseInt(item.sizes[s]?.pants || 0) > 0 ? 'has-value' : ''}`}
-                                          />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
+                          <div className="calc-pill">
+                            <span className="calc-pill-label">Base ({basePrice}x)</span>
+                            <strong className="calc-pill-value">RM {summary.base.toFixed(2)}</strong>
+                          </div>
+                          <div className="calc-pill">
+                            <span className="calc-pill-label">Add-ons</span>
+                            <strong className="calc-pill-value">RM {summary.addons.toFixed(2)}</strong>
+                          </div>
+                          <div className="calc-pill subtotal-pill">
+                            <span className="calc-pill-label">Subtotal Item</span>
+                            <strong className="calc-pill-value">RM {summary.subtotal.toFixed(2)}</strong>
                           </div>
                         </div>
-                      )}
-                    </div>
+                          </>
+                        )}
 
-                    {/* Item Calculations Footnote */}
-                    <div className="item-calculations-footer">
-                      <div className="calc-pill">
-                        <span className="calc-pill-label">Qty</span>
-                        <strong className="calc-pill-value">{summary.qty} pcs</strong>
                       </div>
-                      <div className="calc-pill">
-                        <span className="calc-pill-label">Base ({basePrice}x)</span>
-                        <strong className="calc-pill-value">RM {summary.base.toFixed(2)}</strong>
-                      </div>
-                      <div className="calc-pill">
-                        <span className="calc-pill-label">Add-ons</span>
-                        <strong className="calc-pill-value">RM {summary.addons.toFixed(2)}</strong>
-                      </div>
-                      <div className="calc-pill subtotal-pill">
-                        <span className="calc-pill-label">Subtotal Item</span>
-                        <strong className="calc-pill-value">RM {summary.subtotal.toFixed(2)}</strong>
-                      </div>
-                    </div>
-                      </>
-                    )}
-
+                    );
+                  })
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="section-header-row">
+                    <h4 className="meta-section-title" style={{ borderBottom: 'none', marginBottom: 0, paddingBottom: 0 }}>B.2. Butiran Banner (Items)</h4>
+                    <button type="button" onClick={addBannerItem} className="btn btn-secondary btn-sm btn-add-design">
+                      <Plus size={14} /> Tambah Design Baru
+                    </button>
                   </div>
-                );
-              })}
+
+                  {bannerItems.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '2rem', border: '1px dashed var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      Tiada design banner. Klik "Tambah Design Baru" untuk menambah banner.
+                    </div>
+                  ) : (
+                    bannerItems.map((item, index) => {
+                      const summary = calculateItemSummary(item);
+                      return (
+                        <div key={item.id} className="design-item-card card">
+                          
+                          {/* Header: Design Info & Remove Button */}
+                          <div 
+                            className="design-item-header"
+                            onClick={() => toggleDesignCollapse(item.id)}
+                            style={{ cursor: 'pointer', userSelect: 'none', borderBottom: collapsedDesigns[item.id] !== false ? 'none' : '1px dashed var(--border-color)', marginBottom: collapsedDesigns[item.id] !== false ? '0' : '1.25rem', paddingBottom: collapsedDesigns[item.id] !== false ? '0' : '0.5rem' }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', flex: 1 }}>
+                              <h5 style={{ margin: 0, whiteSpace: 'nowrap' }}>BANNER #{index + 1} {item.design_name ? `- ${item.design_name}` : ''}</h5>
+                              {collapsedDesigns[item.id] !== false ? <ChevronDown size={16} style={{ flexShrink: 0 }} /> : <ChevronUp size={16} style={{ flexShrink: 0 }} />}
+                              {collapsedDesigns[item.id] !== false && (
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: '0.25rem' }}>
+                                  <span style={{ fontWeight: '600', color: 'var(--text-dark)' }}>{summary.qty} pcs</span> | RM {summary.subtotal.toFixed(2)}
+                                </div>
+                              )}
+                            </div>
+                            
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); removeBannerItem(item.id); }}
+                              className="btn-text text-red"
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}
+                            >
+                              <Trash2 size={14} /> Delete
+                            </button>
+                          </div>
+
+                          {collapsedDesigns[item.id] === false && (
+                            <>
+                              <div className="grid-2 specs-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.2rem 1rem' }}>
+                                <div className="form-group">
+                                  <label className="form-label">Nama/Code Design (Optional)</label>
+                                  <input
+                                    type="text"
+                                    value={item.design_name}
+                                    onChange={(e) => updateBannerItemField(item.id, 'design_name', e.target.value)}
+                                    placeholder="Cth: Banner Shield Pro"
+                                    className="form-control"
+                                  />
+                                </div>
+
+                                <div className="form-group">
+                                  <label className="form-label">Imej Design (Maks 300KB)</label>
+                                  <div className="design-upload-row">
+                                    <input
+                                      type="file"
+                                      id={`img_banner_${item.id}`}
+                                      accept="image/*"
+                                      onChange={(e) => handleBannerImageUpload(e, item.id)}
+                                      className="file-input-hidden"
+                                    />
+                                    {!item.design_image ? (
+                                      <label htmlFor={`img_banner_${item.id}`} className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>
+                                        <Upload size={12} /> Pilih Imej
+                                      </label>
+                                    ) : (
+                                      <div className="design-image-preview-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                        <img src={item.design_image} className="design-img-preview" alt="Design Preview" style={{ height: '50px', width: '50px', borderRadius: '4px' }} />
+                                        <button
+                                          type="button"
+                                          onClick={() => updateBannerItemField(item.id, 'design_image', '')}
+                                          className="btn btn-secondary btn-sm"
+                                          style={{ borderColor: '#FEE2E2', color: '#B91C1C', padding: '0.4rem 1rem' }}
+                                        >
+                                          Buang Imej
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="form-group">
+                                  <label className="form-label">Harga Seunit (RM)</label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={item.price}
+                                    onChange={(e) => updateBannerItemField(item.id, 'price', e.target.value)}
+                                    placeholder="0.00"
+                                    className="form-control"
+                                  />
+                                </div>
+
+                                <div className="form-group">
+                                  <label className="form-label">Bilangan (Pcs)</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={item.qty}
+                                    onChange={(e) => updateBannerItemField(item.id, 'qty', e.target.value)}
+                                    placeholder="0"
+                                    className="form-control"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="item-calculations-footer" style={{ marginTop: '1rem' }}>
+                                <div className="calc-pill subtotal-pill">
+                                  <span className="calc-pill-label">Subtotal Item</span>
+                                  <strong className="calc-pill-value">RM {summary.subtotal.toFixed(2)}</strong>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </>
+              )}
             </div>
 
             {/* Row 3: Notes & Discount */}

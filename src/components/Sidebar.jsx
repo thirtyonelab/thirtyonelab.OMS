@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, FileText, Users, Settings, Database, HardDrive } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, Settings, Database, HardDrive, Factory } from 'lucide-react';
 import { isCloudMode, getSettings } from '../services/storage';
 
 export default function Sidebar({ activeTab, setActiveTab }) {
@@ -36,6 +36,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
   const navItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'invoices', label: 'Invoices', icon: FileText },
+    { id: 'manufacturing', label: 'Manufacturing', icon: Factory },
     { id: 'clients', label: 'Clients', icon: Users },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];

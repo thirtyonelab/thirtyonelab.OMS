@@ -118,6 +118,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
 
   // Calculations for display
   const totalQty = invoice.items.reduce((total, item) => {
+    if (item.item_type === 'banner') return total;
     return total + SIZES.reduce((itemTotal, size) => {
       const sQty = parseInt(item.sizes[size]?.short || 0, 10);
       const lQty = parseInt(item.sizes[size]?.long || 0, 10);
@@ -125,11 +126,13 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     }, 0);
   }, 0);
 
-  const basePrice = invoice.items[0]?.is_repeat_order 
-    ? parseFloat(invoice.items[0].custom_base_price) || 0 
+  const firstBajuItem = invoice.items.find(item => item.item_type !== 'banner');
+  const basePrice = firstBajuItem?.is_repeat_order 
+    ? parseFloat(firstBajuItem.custom_base_price) || 0 
     : getBasePrice(totalQty);
 
   const calculateItemQty = (item) => {
+    if (item.item_type === 'banner') return parseInt(item.qty || 0, 10);
     return SIZES.reduce((itemTotal, size) => {
       const sQty = parseInt(item.sizes[size]?.short || 0, 10);
       const lQty = parseInt(item.sizes[size]?.long || 0, 10);
@@ -139,6 +142,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
   };
 
   const calculateItemSubtotal = (item, basePrice) => {
+    if (item.item_type === 'banner') return parseFloat(item.subtotal || 0);
     let itemBaseTotal = 0;
     let itemAddonTotal = 0;
 
@@ -506,6 +510,25 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                 </thead>
                 <tbody>
                   {invoice.items.map((item, idx) => {
+                    if (item.item_type === 'banner') {
+                      const qty = parseInt(item.qty || 0, 10);
+                      const price = parseFloat(item.price || 0);
+                      const subtotal = parseFloat(item.subtotal || 0);
+                      return (
+                        <tr key={item.id} className="print-avoid-break">
+                          <td style={{ verticalAlign: 'top', textAlign: 'center' }}>{idx + 1}.</td>
+                          <td style={{ textAlign: 'left', verticalAlign: 'top' }}>
+                            <div className="print-item-desc">
+                              <span className="print-design-name" style={{ fontWeight: '800' }}>Banner: {item.design_name || 'Unnamed'}</span>
+                            </div>
+                          </td>
+                          <td style={{ textAlign: 'center', verticalAlign: 'top' }}>{qty}</td>
+                          <td style={{ textAlign: 'center', verticalAlign: 'top' }}>{price.toFixed(2)}</td>
+                          <td style={{ textAlign: 'center', verticalAlign: 'top' }} className="font-bold">{subtotal.toFixed(2)}</td>
+                        </tr>
+                      );
+                    }
+
                     const subRows = getItemSubRows(item, basePrice);
                     const firstRow = subRows[0];
                     const remainingRows = subRows.slice(1);

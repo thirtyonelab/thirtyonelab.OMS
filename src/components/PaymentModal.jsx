@@ -5,6 +5,7 @@ import { X, CheckCircle2, AlertCircle } from 'lucide-react';
 export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
   const [deposit, setDeposit] = useState(invoice.deposit || 0);
   const [status, setStatus] = useState(invoice.status || 'Unpaid');
+  const [pengeluaran, setPengeluaran] = useState(invoice.pengeluaran || '');
   const [loading, setLoading] = useState(false);
 
   const grandTotal = parseFloat(invoice.grand_total);
@@ -51,7 +52,7 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
     e.preventDefault();
     setLoading(true);
     try {
-      const success = await updateInvoicePayment(invoice.id, deposit, status);
+      const success = await updateInvoicePayment(invoice.id, deposit, status, pengeluaran);
       if (success) {
         onSaveSuccess();
       } else {
@@ -69,7 +70,7 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
         <div className="modal-header">
-          <h3>KEMASKINI BAYARAN</h3>
+          <h3>UPDATE INVOICE</h3>
           <button className="modal-close" onClick={onClose}>
             <X size={20} />
           </button>
@@ -145,6 +146,19 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
               </div>
             </div>
 
+            <div className="form-group" style={{ marginTop: '0.25rem' }}>
+              <label className="form-label" style={{ color: 'var(--primary-red)' }}>Kos Pengeluaran / Manufacturing (RM)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={pengeluaran}
+                onChange={(e) => setPengeluaran(e.target.value)}
+                placeholder="0.00"
+                className="form-control"
+              />
+            </div>
+
           </div>
 
           <div className="modal-footer">
@@ -152,7 +166,7 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
               Batal
             </button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              <CheckCircle2 size={16} /> {loading ? 'Menyimpan...' : 'Simpan Pembayaran'}
+              <CheckCircle2 size={16} /> {loading ? 'Menyimpan...' : 'Update'}
             </button>
           </div>
         </form>

@@ -342,44 +342,71 @@ export default function Clients({ onCreateInvoiceForClient }) {
                                             )}
                                           </div>
                                           <div className="spec-details">
-                                            <div className="spec-row">
-                                              <span className="spec-label">Nama/Code</span>
-                                              <span className="spec-value">: {item.design_name || '-'}</span>
-                                            </div>
-                                            <div className="spec-row">
-                                              <span className="spec-label">Material</span>
-                                              <span className="spec-value">: {item.material || '-'}</span>
-                                            </div>
-                                            <div className="spec-row">
-                                              <span className="spec-label">Cutting</span>
-                                              <span className="spec-value">: {item.cutting || '-'}</span>
-                                            </div>
-                                            <div className="spec-row">
-                                              <span className="spec-label">Jenis Neck</span>
-                                              <span className="spec-value">: {item.neck || '-'}</span>
-                                            </div>
-                                            <div className="spec-row">
-                                              <span className="spec-label">Name Set</span>
-                                              <span className="spec-value">: {item.name_set || '-'}</span>
-                                            </div>
-                                            <div className="spec-row" style={{ marginTop: '0.3rem', paddingTop: '0.4rem', borderTop: '1px dashed var(--border-color)' }}>
-                                              <span className="spec-label" style={{ fontWeight: 700, color: 'var(--text-dark)' }}>Base Price</span>
-                                              <span className="spec-value" style={{ fontWeight: 700, color: 'var(--primary-red)' }}>: RM {(() => {
-                                                const totalQty = inv.items.reduce((sum, i) => sum + (i.qty || 0), 0);
-                                                const base = getBasePrice(totalQty);
-                                                const discountType = inv.discount_type || 'per_pcs';
-                                                const discountVal = inv.discount_value !== undefined ? inv.discount_value : (inv.discount_per_pcs || 0);
-                                                
-                                                if (discountType === 'bulk' && discountVal > 0) {
-                                                  return `${base.toFixed(2)} /pcs (Diskaun Pukal RM${parseFloat(discountVal).toFixed(2)})`;
-                                                } else {
-                                                  const finalPrice = base - discountVal;
-                                                  return discountVal > 0
-                                                    ? `${finalPrice.toFixed(2)} /pcs (diskaun RM${parseFloat(discountVal).toFixed(2)})`
-                                                    : `${base.toFixed(2)} /pcs`;
-                                                }
-                                              })()}</span>
-                                            </div>
+                                            {item.item_type === 'banner' ? (
+                                              <>
+                                                <div className="spec-row">
+                                                  <span className="spec-label">Item Type</span>
+                                                  <span className="spec-value">: Banner</span>
+                                                </div>
+                                                <div className="spec-row">
+                                                  <span className="spec-label">Nama/Code</span>
+                                                  <span className="spec-value">: {item.design_name || '-'}</span>
+                                                </div>
+                                                <div className="spec-row">
+                                                  <span className="spec-label">Harga Seunit</span>
+                                                  <span className="spec-value">: RM {parseFloat(item.price || 0).toFixed(2)}</span>
+                                                </div>
+                                                <div className="spec-row">
+                                                  <span className="spec-label">Kuantiti</span>
+                                                  <span className="spec-value">: {item.qty} pcs</span>
+                                                </div>
+                                                <div className="spec-row" style={{ marginTop: '0.3rem', paddingTop: '0.4rem', borderTop: '1px dashed var(--border-color)' }}>
+                                                  <span className="spec-label" style={{ fontWeight: 700, color: 'var(--text-dark)' }}>Subtotal</span>
+                                                  <span className="spec-value" style={{ fontWeight: 700, color: 'var(--primary-red)' }}>: RM {parseFloat(item.subtotal || 0).toFixed(2)}</span>
+                                                </div>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <div className="spec-row">
+                                                  <span className="spec-label">Nama/Code</span>
+                                                  <span className="spec-value">: {item.design_name || '-'}</span>
+                                                </div>
+                                                <div className="spec-row">
+                                                  <span className="spec-label">Material</span>
+                                                  <span className="spec-value">: {item.material || '-'}</span>
+                                                </div>
+                                                <div className="spec-row">
+                                                  <span className="spec-label">Cutting</span>
+                                                  <span className="spec-value">: {item.cutting || '-'}</span>
+                                                </div>
+                                                <div className="spec-row">
+                                                  <span className="spec-label">Jenis Neck</span>
+                                                  <span className="spec-value">: {item.neck || '-'}</span>
+                                                </div>
+                                                <div className="spec-row">
+                                                  <span className="spec-label">Name Set</span>
+                                                  <span className="spec-value">: {item.name_set || '-'}</span>
+                                                </div>
+                                                <div className="spec-row" style={{ marginTop: '0.3rem', paddingTop: '0.4rem', borderTop: '1px dashed var(--border-color)' }}>
+                                                  <span className="spec-label" style={{ fontWeight: 700, color: 'var(--text-dark)' }}>Base Price</span>
+                                                  <span className="spec-value" style={{ fontWeight: 700, color: 'var(--primary-red)' }}>: RM {(() => {
+                                                    const totalQty = inv.items.reduce((sum, i) => sum + (i.qty || 0), 0);
+                                                    const base = getBasePrice(totalQty);
+                                                    const discountType = inv.discount_type || 'per_pcs';
+                                                    const discountVal = inv.discount_value !== undefined ? inv.discount_value : (inv.discount_per_pcs || 0);
+                                                    
+                                                    if (discountType === 'bulk' && discountVal > 0) {
+                                                      return `${base.toFixed(2)} /pcs (Diskaun Pukal RM${parseFloat(discountVal).toFixed(2)})`;
+                                                    } else {
+                                                      const finalPrice = base - discountVal;
+                                                      return discountVal > 0
+                                                        ? `${finalPrice.toFixed(2)} /pcs (diskaun RM${parseFloat(discountVal).toFixed(2)})`
+                                                        : `${base.toFixed(2)} /pcs`;
+                                                    }
+                                                  })()}</span>
+                                                </div>
+                                              </>
+                                            )}
                                           </div>
                                         </div>
                                       ))
@@ -433,26 +460,51 @@ export default function Clients({ onCreateInvoiceForClient }) {
                                     )}
                                   </div>
                                   <div className="spec-details">
-                                    <div className="spec-row">
-                                      <span className="spec-label">Nama/Code</span>
-                                      <span className="spec-value">: {item.design_name || '-'}</span>
-                                    </div>
-                                    <div className="spec-row">
-                                      <span className="spec-label">Material</span>
-                                      <span className="spec-value">: {item.material || '-'}</span>
-                                    </div>
-                                    <div className="spec-row">
-                                      <span className="spec-label">Cutting</span>
-                                      <span className="spec-value">: {item.cutting || '-'}</span>
-                                    </div>
-                                    <div className="spec-row">
-                                      <span className="spec-label">Jenis Neck</span>
-                                      <span className="spec-value">: {item.neck || '-'}</span>
-                                    </div>
-                                    <div className="spec-row">
-                                      <span className="spec-label">Name Set</span>
-                                      <span className="spec-value">: {item.name_set || '-'}</span>
-                                    </div>
+                                    {item.item_type === 'banner' ? (
+                                      <>
+                                        <div className="spec-row">
+                                          <span className="spec-label">Item Type</span>
+                                          <span className="spec-value">: Banner</span>
+                                        </div>
+                                        <div className="spec-row">
+                                          <span className="spec-label">Nama/Code</span>
+                                          <span className="spec-value">: {item.design_name || '-'}</span>
+                                        </div>
+                                        <div className="spec-row">
+                                          <span className="spec-label">Harga Seunit</span>
+                                          <span className="spec-value">: RM {parseFloat(item.price || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div className="spec-row">
+                                          <span className="spec-label">Kuantiti</span>
+                                          <span className="spec-value">: {item.qty} pcs</span>
+                                        </div>
+                                        <div className="spec-row" style={{ marginTop: '0.3rem', paddingTop: '0.4rem', borderTop: '1px dashed var(--border-color)' }}>
+                                          <span className="spec-label" style={{ fontWeight: 700, color: 'var(--text-dark)' }}>Subtotal</span>
+                                          <span className="spec-value" style={{ fontWeight: 700, color: 'var(--primary-red)' }}>: RM {parseFloat(item.subtotal || 0).toFixed(2)}</span>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <div className="spec-row">
+                                          <span className="spec-label">Nama/Code</span>
+                                          <span className="spec-value">: {item.design_name || '-'}</span>
+                                        </div>
+                                        <div className="spec-row">
+                                          <span className="spec-label">Material</span>
+                                          <span className="spec-value">: {item.material || '-'}</span>
+                                        </div>
+                                        <div className="spec-row">
+                                          <span className="spec-label">Cutting</span>
+                                          <span className="spec-value">: {item.cutting || '-'}</span>
+                                        </div>
+                                        <div className="spec-row">
+                                          <span className="spec-label">Jenis Neck</span>
+                                          <span className="spec-value">: {item.neck || '-'}</span>
+                                        </div>
+                                        <div className="spec-row">
+                                          <span className="spec-label">Name Set</span>
+                                          <span className="spec-value">: {item.name_set || '-'}</span>
+                                        </div>
                                     <div className="spec-row" style={{ marginTop: '0.3rem', paddingTop: '0.4rem', borderTop: '1px dashed var(--border-color)' }}>
                                       <span className="spec-label" style={{ fontWeight: 700, color: 'var(--text-dark)' }}>Base Price</span>
                                       <span className="spec-value" style={{ fontWeight: 700, color: 'var(--primary-red)' }}>: RM {(() => {
@@ -471,7 +523,9 @@ export default function Clients({ onCreateInvoiceForClient }) {
                                         }
                                       })()}</span>
                                     </div>
-                                  </div>
+                                  </>
+                                )}
+                              </div>
                                 </div>
                               ))
                             ) : (

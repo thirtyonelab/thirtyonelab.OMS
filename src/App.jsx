@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, FileText, Users, Settings as SettingsIcon } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, Settings as SettingsIcon, Factory } from 'lucide-react';
 import { isCloudMode } from './services/storage';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Invoices from './pages/Invoices';
 import Clients from './pages/Clients';
+import Manufacturing from './pages/Manufacturing';
 import Settings from './pages/Settings';
 
 // Modals
@@ -100,6 +101,8 @@ export default function App() {
             onCreateInvoiceForClient={handleOpenInvoiceForClient}
           />
         );
+      case 'manufacturing':
+        return <Manufacturing key={`manu_${refreshKey}`} />;
       case 'settings':
         return <Settings key={`settings_${refreshKey}`} />;
       default:
@@ -129,6 +132,7 @@ export default function App() {
         {[
           { id: 'overview', label: 'Overview', icon: LayoutDashboard },
           { id: 'invoices', label: 'Invoices', icon: FileText },
+          { id: 'manufacturing', label: 'Manufacturing', icon: Factory },
           { id: 'clients', label: 'Clients', icon: Users },
           { id: 'settings', label: 'Settings', icon: SettingsIcon },
         ].map(item => {
