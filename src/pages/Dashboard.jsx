@@ -38,12 +38,15 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
     let countDeposit = 0;
     let totalPengeluaranThisMonth = 0;
 
+    let totalSalesThisMonth = 0;
+
     invoices.forEach(inv => {
       const invDate = new Date(inv.date);
       const isCurrentMonth = invDate.getMonth() === currentMonth && invDate.getFullYear() === currentYear;
 
       if (isCurrentMonth) {
         totalPengeluaranThisMonth += parseFloat(inv.pengeluaran || 0);
+        totalSalesThisMonth += parseFloat(inv.grand_total || 0);
       }
 
       if (inv.status === 'Paid' && isCurrentMonth) {
@@ -72,7 +75,8 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
       countUnpaid,
       countDeposit,
       totalPengeluaranThisMonth,
-      untungBersih: totalThisMonth - totalPengeluaranThisMonth
+      totalSalesThisMonth,
+      untungBersih: totalSalesThisMonth - totalPengeluaranThisMonth
     };
   };
 
