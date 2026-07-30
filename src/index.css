@@ -404,8 +404,10 @@ input[type=number] {
   }
   
   .modal-content {
+    max-height: 80vh;
     max-height: 82dvh;
     width: 96%;
+    margin-bottom: max(3rem, env(safe-area-inset-bottom));
   }
 
   /* Main Layout overrides */
