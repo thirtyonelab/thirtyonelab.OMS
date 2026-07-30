@@ -399,15 +399,18 @@ input[type=number] {
 
   /* Modals on Mobile */
   .modal-overlay {
-    padding: 1rem;
-    padding-bottom: 85px; /* Leave space for bottom nav bar */
+    padding: 0;
+    align-items: flex-end; /* Align to the bottom like a native bottom sheet */
   }
   
   .modal-content {
-    max-height: 80vh;
-    max-height: 82dvh;
-    width: 96%;
-    margin-bottom: max(3rem, env(safe-area-inset-bottom));
+    max-height: 85dvh;
+    max-height: 85vh; /* Fallback */
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 16px 16px 0 0; /* Premium rounded top corners */
+    overflow: hidden; /* Prevent child backgrounds from clipping the rounded corners */
   }
 
   /* Main Layout overrides */
