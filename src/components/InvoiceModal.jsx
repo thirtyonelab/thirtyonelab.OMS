@@ -1913,8 +1913,6 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
           display: flex;
           flex-direction: column;
           gap: 2.5rem;
-          max-height: 70vh;
-          overflow-y: auto;
         }
 
         .meta-section-title {

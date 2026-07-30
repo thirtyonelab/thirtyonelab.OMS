@@ -272,6 +272,7 @@ input[type=number] {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 1rem;
   animation: fadeIn 0.3s ease-out;
 }
 
@@ -280,8 +281,9 @@ input[type=number] {
   width: 90%;
   max-width: 900px;
   max-height: 90vh;
-  overflow-y: auto;
+  overflow: hidden; /* no scroll on container — only body scrolls */
   box-shadow: var(--shadow-lg);
+  border-radius: 12px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -294,27 +296,29 @@ input[type=number] {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  position: sticky;
-  top: 0;
+  flex-shrink: 0; /* never collapse */
   background-color: var(--white);
+  border-radius: 12px 12px 0 0;
   z-index: 10;
 }
 
 .modal-body {
   padding: 2rem;
   overflow-y: auto;
+  flex: 1;
+  min-height: 0; /* required for flex child to scroll */
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal-footer {
   padding: 1.5rem 2rem;
-  padding-top: 2rem;
   border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
-  position: sticky;
-  bottom: 0;
+  flex-shrink: 0; /* never collapse */
   background-color: var(--white);
+  border-radius: 0 0 12px 12px;
   z-index: 10;
 }
 
@@ -398,17 +402,27 @@ input[type=number] {
 
   /* Modals on Mobile */
   .modal-overlay {
-    padding: 1rem;
-    padding-bottom: 85px; /* Leave space for bottom nav bar */
+    padding: 0.75rem;
+    align-items: flex-start;
+    padding-top: 2rem;
   }
-  
+
   .modal-content {
-    max-height: 80vh;
-    width: 96%;
+    max-height: 85vh;
+    width: 100%;
+  }
+
+  .modal-header {
+    padding: 1.25rem 1.5rem;
+  }
+
+  .modal-body {
+    padding: 1.5rem;
   }
 
   .modal-footer {
-    padding-bottom: 2.5rem; /* Extra space to clear phone home button */
+    padding: 1.25rem 1.5rem;
+    padding-bottom: 2.5rem; /* Clear phone home button / gesture bar */
   }
 
   /* Main Layout overrides */
