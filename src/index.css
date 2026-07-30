@@ -399,18 +399,17 @@ input[type=number] {
 
   /* Modals on Mobile */
   .modal-overlay {
-    padding: 0;
-    align-items: flex-end; /* Align to the bottom like a native bottom sheet */
+    padding: 1rem;
+    padding-top: 2rem; /* Give comfortable spacing from top browser bar */
+    padding-bottom: 120px; /* Safe zone from phone bottom bar & home button */
+    align-items: flex-start; /* Align modals to top instead of centering them */
   }
   
   .modal-content {
-    max-height: 85dvh;
-    max-height: 85vh; /* Fallback */
-    width: 100%;
-    max-width: 100%;
-    margin: 0;
-    border-radius: 16px 16px 0 0; /* Premium rounded top corners */
-    overflow: hidden; /* Prevent child backgrounds from clipping the rounded corners */
+    max-height: 72vh; /* Strict limit to prevent stretching to the bottom */
+    max-height: 72dvh;
+    width: 96%;
+    margin-bottom: 0;
   }
 
   /* Main Layout overrides */
