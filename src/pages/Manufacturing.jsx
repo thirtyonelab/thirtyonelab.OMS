@@ -41,9 +41,9 @@ export default function Manufacturing() {
 
   const getStatusText = (status) => {
     switch (status) {
-      case 'Paid': return '✅ Selesai';
-      case 'Deposit': return '🟡 Deposit';
-      case 'Unpaid': return '🔴 Unpaid';
+      case 'Paid': return 'Selesai';
+      case 'Deposit': return 'Deposit';
+      case 'Unpaid': return 'Unpaid';
       default: return status;
     }
   };
