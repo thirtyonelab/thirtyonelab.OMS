@@ -377,8 +377,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
         .search-filters-bar {
           display: flex;
-          gap: 2rem;
-          align-items: center;
+          gap: 1.5rem;
+          align-items: flex-end;
           padding: 1.25rem 2rem;
         }
 
@@ -398,6 +398,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         .search-input {
           padding-left: 2.75rem;
           width: 100%;
+          height: 42px;
         }
 
         .filter-group-row {
