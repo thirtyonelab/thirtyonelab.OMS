@@ -544,6 +544,16 @@ export default function Clients({ onCreateInvoiceForClient }) {
               <button onClick={() => setSelectedClient(null)} className="btn btn-secondary">
                 Tutup
               </button>
+              <button 
+                onClick={() => { 
+                  const clientToEdit = selectedClient; 
+                  setSelectedClient(null); 
+                  handleEditClick(clientToEdit); 
+                }} 
+                className="btn btn-primary"
+              >
+                <Edit2 size={14} /> Edit Maklumat
+              </button>
             </div>
           </div>
         </div>
