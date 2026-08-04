@@ -223,6 +223,7 @@ export const getInvoices = async () => {
         discount_value = meta.discount_value;
         client_address = meta.client_address;
         if (meta.pengeluaran !== undefined) pengeluaran = meta.pengeluaran;
+        if (meta.order_status !== undefined) invoice.order_status = meta.order_status;
       } catch (e) {}
     }
     return {
@@ -341,7 +342,8 @@ export const saveInvoice = async (invoiceData) => {
         discount_type: finalInvoiceData.discount_type,
         discount_value: finalInvoiceData.discount_value,
         client_address: finalInvoiceData.client_address,
-        pengeluaran: finalInvoiceData.pengeluaran
+        pengeluaran: finalInvoiceData.pengeluaran,
+        order_status: finalInvoiceData.order_status
       };
       const dbInvoiceData = {
         ...finalInvoiceData,
@@ -351,6 +353,7 @@ export const saveInvoice = async (invoiceData) => {
       delete dbInvoiceData.discount_value;
       delete dbInvoiceData.client_address;
       delete dbInvoiceData.pengeluaran;
+      delete dbInvoiceData.order_status;
 
       const { data, error } = await client
         .from('invoices')

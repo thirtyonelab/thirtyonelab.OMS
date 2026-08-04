@@ -11,6 +11,31 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
   const [statusFilter, setStatusFilter] = useState('All');
   const [loading, setLoading] = useState(false);
 
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth().toString());
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear().toString());
+
+  const monthsList = [
+    { value: '0', label: 'Jan' },
+    { value: '1', label: 'Feb' },
+    { value: '2', label: 'Mar' },
+    { value: '3', label: 'Apr' },
+    { value: '4', label: 'May' },
+    { value: '5', label: 'Jun' },
+    { value: '6', label: 'Jul' },
+    { value: '7', label: 'Aug' },
+    { value: '8', label: 'Sep' },
+    { value: '9', label: 'Oct' },
+    { value: '10', label: 'Nov' },
+    { value: '11', label: 'Dec' }
+  ];
+
+  const yearsList = [
+    (now.getFullYear()).toString(),
+    (now.getFullYear() - 1).toString(),
+    (now.getFullYear() - 2).toString()
+  ];
+
   useEffect(() => {
     loadData();
   }, []);
@@ -31,9 +56,8 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
 
   // --- METRIC CALCULATIONS ---
   const calculateMetrics = () => {
-    const now = new Date();
-    const currentMonth = now.getMonth(); // 0-11
-    const currentYear = now.getFullYear();
+    const currentMonth = parseInt(selectedMonth, 10);
+    const currentYear = parseInt(selectedYear, 10);
 
     // 1. Status Bayaran Counts
     let countUnpaid = 0;
@@ -138,16 +162,22 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
   return (
     <div className="main-content">
       {/* Page Header - Desktop View */}
-      <div className="dashboard-header desktop-only" style={{ marginBottom: '1.5rem' }}>
+      <div className="dashboard-header desktop-only" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <span className="section-tag">{tr('dashboardTag')}</span>
           <h1 style={{ fontSize: '1.75rem', fontWeight: '800', marginTop: '0.5rem' }}>{tr('dashboardTitle')}</h1>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={loadData} className="btn btn-secondary" title={tr('refresh')}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="form-control" style={{ width: '100px', height: '40px' }}>
+            {monthsList.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+          </select>
+          <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="form-control" style={{ width: '80px', height: '40px' }}>
+            {yearsList.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <button onClick={loadData} className="btn btn-secondary" style={{ height: '40px' }} title={tr('refresh')}>
             <RefreshCw size={16} />
           </button>
-          <button onClick={() => onOpenInvoiceModal(null)} className="btn btn-primary" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button onClick={() => onOpenInvoiceModal(null)} className="btn btn-primary" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', height: '40px' }}>
             <Plus size={16} /> {tr('newOrder')}
           </button>
         </div>
@@ -155,9 +185,22 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
 
       {/* Page Header - Mobile View */}
       <div className="mobile-only" style={{ marginBottom: '1.5rem' }}>
-        <div>
-          <span className="section-tag" style={{ fontSize: '0.6rem', letterSpacing: '2px' }}>{tr('dashboardTag')}</span>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: '800', marginTop: '0.25rem' }}>{tr('dashboardTitle')}</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div>
+            <span className="section-tag" style={{ fontSize: '0.6rem', letterSpacing: '2px' }}>{tr('dashboardTag')}</span>
+            <h1 style={{ fontSize: '1.25rem', fontWeight: '800', marginTop: '0.25rem' }}>{tr('dashboardTitle')}</h1>
+          </div>
+          <button onClick={() => onOpenInvoiceModal(null)} className="btn btn-primary btn-sm" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <Plus size={14} /> New
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="form-control" style={{ flex: 1, fontSize: '0.8rem' }}>
+            {monthsList.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+          </select>
+          <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="form-control" style={{ flex: 1, fontSize: '0.8rem' }}>
+            {yearsList.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
         </div>
       </div>
 
