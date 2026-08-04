@@ -898,9 +898,9 @@ input[type=number] {
     background-color: var(--primary-red);
     color: var(--white);
     border: none;
-    border-radius: 0;
-    width: 36px;
-    height: 48px;
+    border-radius: 0 32px 32px 0;
+    width: 32px;
+    height: 64px;
     display: flex;
     align-items: center;
     justify-content: center;

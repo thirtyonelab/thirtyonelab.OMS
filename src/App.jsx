@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, FileText, Users, Settings as SettingsIcon, Factory } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, Settings as SettingsIcon, Factory, Cloud, Database, ChevronRight } from 'lucide-react';
 import { isCloudMode } from './services/storage';
 import { LanguageProvider } from './context/LanguageContext';
 import Sidebar from './components/Sidebar';
@@ -125,14 +125,18 @@ export default function App() {
       <header className="mobile-top-bar mobile-only">
         <span className="mobile-brand-name">THIRTYONE <span style={{ color: 'var(--primary-red)' }}>LAB</span><sup style={{ color: 'var(--primary-red)', fontSize: '0.5em' }}>&reg;</sup></span>
         <div className="mobile-status-indicator">
-          <div className={`mobile-status-dot ${cloudActive ? 'cloud' : 'local'}`}></div>
+          {cloudActive ? (
+            <Cloud size={14} color="var(--primary-red)" strokeWidth={2.5} style={{ marginRight: '4px' }} />
+          ) : (
+            <Database size={14} color="var(--primary-red)" strokeWidth={2.5} style={{ marginRight: '4px' }} />
+          )}
           <span className="mobile-status-text">{cloudActive ? 'CLOUD' : 'LOCAL'}</span>
         </div>
       </header>
 
       {/* Floating Menu Button for Mobile */}
       <button className="mobile-menu-btn mobile-only" onClick={() => setIsMobileMenuOpen(true)}>
-        ☰
+        <ChevronRight size={18} />
       </button>
 
       {/* Sidebar (Navigation) */}

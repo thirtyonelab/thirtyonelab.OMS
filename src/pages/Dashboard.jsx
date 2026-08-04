@@ -168,16 +168,16 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
           <h1 style={{ fontSize: '1.75rem', fontWeight: '800', marginTop: '0.5rem' }}>{tr('dashboardTitle')}</h1>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="form-control" style={{ width: '100px', height: '40px' }}>
+          <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="form-control" style={{ width: '100px', height: '40px', padding: '0 0.5rem' }}>
             {monthsList.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
-          <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="form-control" style={{ width: '80px', height: '40px' }}>
+          <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="form-control" style={{ width: '80px', height: '40px', padding: '0 0.5rem' }}>
             {yearsList.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-          <button onClick={loadData} className="btn btn-secondary" style={{ height: '40px' }} title={tr('refresh')}>
+          <button onClick={loadData} className="btn btn-secondary" style={{ height: '40px', padding: '0 1rem' }} title={tr('refresh')}>
             <RefreshCw size={16} />
           </button>
-          <button onClick={() => onOpenInvoiceModal(null)} className="btn btn-primary" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', height: '40px' }}>
+          <button onClick={() => onOpenInvoiceModal(null)} className="btn btn-primary" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', height: '40px', padding: '0 1rem' }}>
             <Plus size={16} /> {tr('newOrder')}
           </button>
         </div>
@@ -195,10 +195,10 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
           </button>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="form-control" style={{ flex: 1, fontSize: '0.8rem' }}>
+          <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="form-control" style={{ flex: 1, fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}>
             {monthsList.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
-          <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="form-control" style={{ flex: 1, fontSize: '0.8rem' }}>
+          <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="form-control" style={{ flex: 1, fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}>
             {yearsList.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>

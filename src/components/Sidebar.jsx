@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, FileText, Users, Settings, Database, HardDrive, Factory, BookOpen, BarChart2, Globe } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, Settings, Database, HardDrive, Factory, BookOpen, BarChart2, Globe, Cloud } from 'lucide-react';
 import { isCloudMode, getSettings } from '../services/storage';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -147,7 +147,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
         <div className="status-indicator">
           {cloudActive ? (
             <>
-              <div className="status-dot cloud"></div>
+              <Cloud size={18} color="var(--primary-red)" strokeWidth={2.5} />
               <div className="status-text">
                 <span className="status-label">{tr('cloudSync')}</span>
                 <span className="status-desc">{tr('cloudDesc')}</span>
@@ -155,7 +155,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
             </>
           ) : (
             <>
-              <div className="status-dot local"></div>
+              <Database size={18} color="var(--primary-red)" strokeWidth={2.5} />
               <div className="status-text">
                 <span className="status-label">{tr('localMode')}</span>
                 <span className="status-desc">{tr('localDesc')}</span>
