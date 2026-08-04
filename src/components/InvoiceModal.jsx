@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getClients, saveInvoice, getNextInvoiceNo, getInvoices } from '../services/storage';
 import { X, Plus, Trash2, Upload, AlertTriangle, Save, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 import { SIZES, ADULT_SIZES, KID_SIZES, getBasePrice, getSizeCost } from '../data/sizePricing';
 import { generateUUID } from '../utils/uuid.js';
 import { MATERIALS, CUTTINGS, NECKS } from '../data/constants.js';
@@ -266,6 +267,7 @@ const createEmptyBannerItem = () => ({
 });
 
 export default function InvoiceModal({ invoice, prefilledClient, onClose, onSaveSuccess }) {
+  const { tr } = useLanguage();
   const [clients, setClients] = useState([]);
   const [clientSearch, setClientSearch] = useState('');
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
@@ -286,6 +288,10 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   const [notes, setNotes] = useState('');
   const [isRepeatOrder, setIsRepeatOrder] = useState(false);
   const [customBasePrice, setCustomBasePrice] = useState('');
+  const [repeatOrderPrices, setRepeatOrderPrices] = useState(null);
+  const [pengeluaran, setPengeluaran] = useState('');
+  const [status, setStatus] = useState('Unpaid');
+  const [deposit, setDeposit] = useState(0);
   
   // UI States
   const [loading, setLoading] = useState(false);
@@ -386,7 +392,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
     if (invoice) {
       setInvoiceNo(invoice.invoice_no);
       setClientName(invoice.client_name);
-      setClientPhone(invoice.client_phone);
+      setClientPhone(formatPhoneNumber(invoice.client_phone));
       setClientId(invoice.client_id || '');
       setJobName(invoice.job_name || '');
       setDate(invoice.date);
@@ -402,6 +408,9 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       setDiscountValue(invoice.discount_value !== undefined ? invoice.discount_value : (invoice.discount_per_pcs || 0));
       setNotes(invoice.notes || '');
       setClientAddress(invoice.client_address || '');
+      setPengeluaran(invoice.pengeluaran !== undefined ? invoice.pengeluaran.toString() : '');
+      setStatus(invoice.status || 'Unpaid');
+      setDeposit(invoice.deposit !== undefined ? invoice.deposit : 0);
 
       const firstItem = invoice.items[0];
       if (firstItem && firstItem.is_repeat_order) {
@@ -414,6 +423,9 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
     } else {
       setIsRepeatOrder(false);
       setCustomBasePrice('');
+      setPengeluaran('');
+      setStatus('Unpaid');
+      setDeposit(0);
       const nextNo = await getNextInvoiceNo();
       setInvoiceNo(nextNo);
       setItems([]);
@@ -431,6 +443,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   };
 
   const checkPreviousOrderBasePrice = async (cId, cPhone) => {
+    setRepeatOrderPrices(null);
+    let hasClientHistory = false;
     try {
       const allInvoices = await getInvoices();
       const clientInvoices = allInvoices.filter(inv => 
@@ -438,10 +452,31 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
         (cPhone && inv.client_phone === cPhone)
       );
       if (clientInvoices.length > 0) {
+        hasClientHistory = true;
         const latestInvoice = clientInvoices[0];
         if (latestInvoice.client_address) {
           setClientAddress(latestInvoice.client_address);
         }
+
+        // --- Collect Shirt (Baju) & Banner Prices from latest invoice ---
+        let bajuPrice = null;
+        let bannerPrice = null;
+
+        if (latestInvoice.items && Array.isArray(latestInvoice.items)) {
+          latestInvoice.items.forEach(item => {
+            if (item.item_type === 'banner') {
+              if (bannerPrice === null && parseFloat(item.price) > 0) {
+                bannerPrice = parseFloat(item.price);
+              }
+            } else {
+              if (bajuPrice === null && parseFloat(item.price) > 0) {
+                bajuPrice = parseFloat(item.price);
+              }
+            }
+          });
+        }
+
+        // Fallback: if no explicit baju price stored, derive from base price
         const firstBajuItem = latestInvoice.items.find(i => i.item_type !== 'banner');
         if (firstBajuItem) {
           let prevBase = 0;
@@ -461,15 +496,22 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
           if (prevBase > 0) {
             setIsRepeatOrder(true);
             setCustomBasePrice(prevBase);
-            return;
+            if (bajuPrice === null) bajuPrice = prevBase;
           }
+        }
+
+        // Only show the info box when there is at least one known price
+        if (bajuPrice !== null || bannerPrice !== null) {
+          setRepeatOrderPrices({ bajuPrice, bannerPrice });
         }
       }
     } catch (e) {
       console.error('Error fetching client last invoice base price:', e);
     }
-    setIsRepeatOrder(false);
-    setCustomBasePrice('');
+    if (!hasClientHistory && repeatOrderPrices === null) {
+      setIsRepeatOrder(false);
+      setCustomBasePrice('');
+    }
   };
 
   // Autocomplete / Search Client
@@ -486,6 +528,49 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
     setClientId(c.id);
     setShowClientSuggestions(false);
     checkPreviousOrderBasePrice(c.id, c.phone);
+  };
+
+  const formatPhoneNumber = (value) => {
+    if (!value) return '';
+
+    // Strip non-digits
+    let digits = ('' + value).replace(/\D/g, '');
+
+    // Strip leading country code 60 if present
+    if (digits.startsWith('60') && digits.length >= 11) {
+      digits = digits.substring(2);
+    }
+
+    // Strip leading 0 if present (e.g., 01125507190 -> 1125507190)
+    if (digits.startsWith('0')) {
+      digits = digits.substring(1);
+    }
+
+    // 11-digit Malaysian number (e.g. 011-2550 7190 -> 10 digits after removing '0': 1125507190)
+    if (digits.length === 10) {
+      const match = digits.match(/^(\d{2})(\d{4})(\d{4})$/);
+      if (match) {
+        return `+60 ${match[1]}-${match[2]} ${match[3]}`;
+      }
+    }
+    // 10-digit Malaysian number (e.g. 012-345 6789 -> 9 digits after removing '0': 123456789)
+    else if (digits.length === 9) {
+      const match = digits.match(/^(\d{2})(\d{3})(\d{4})$/);
+      if (match) {
+        return `+60 ${match[1]}-${match[2]} ${match[3]}`;
+      }
+    }
+
+    return value;
+  };
+
+  const handlePhoneChange = (e) => {
+    setClientPhone(e.target.value);
+  };
+
+  const handlePhoneBlur = (e) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setClientPhone(formatted);
   };
 
   // Items Management
@@ -654,8 +739,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   const totalDiscount = discountType === 'bulk' ? (parseFloat(discountValue) || 0) : ((parseFloat(discountValue) || 0) * totalQty);
   const grandTotal = Math.max(0, grossSubtotal - totalDiscount);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSave = async (e) => {
     if (!clientName.trim()) {
       alert('Sila masukkan nama pelanggan.');
       return;
@@ -702,7 +786,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       invoice_no: invoiceNo,
       client_id: clientId || null,
       client_name: clientName.trim(),
-      client_phone: clientPhone.trim(),
+      client_phone: formatPhoneNumber(clientPhone).trim(),
       client_address: clientAddress.trim(),
       job_name: jobName.trim(),
       date: date,
@@ -712,12 +796,11 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       discount_value: parseFloat(discountValue) || 0,
       discount_per_pcs: discountType === 'per_pcs' ? (parseFloat(discountValue) || 0) : 0,
       grand_total: grandTotal,
-      // If editing, preserve payments, otherwise set default
-      deposit: invoice ? invoice.deposit : 0,
-      balance: invoice ? grandTotal - invoice.deposit : grandTotal,
-      status: invoice ? invoice.status : 'Unpaid',
+      deposit: parseFloat(deposit) || 0,
+      balance: grandTotal - (parseFloat(deposit) || 0),
+      status: status,
       notes: notes.trim(),
-      pengeluaran: invoice ? (parseFloat(invoice.pengeluaran) || 0) : 0
+      pengeluaran: parseFloat(pengeluaran) || 0
     };
 
     try {
@@ -741,21 +824,21 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form>
           <div className="modal-body form-modal-body">
             
-            {/* Row 1: Basic Details */}
+            {/* Row 1: Basic Details & Payment Info */}
             <div className="invoice-meta-section">
-              <h4 className="meta-section-title">A. Maklumat Asas Tempahan</h4>
+              <h4 className="meta-section-title">A. MAKLUMAT ASAS TEMPAHAN</h4>
               
-              <div className="meta-layout-container" style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'stretch' }}>
+              <div className="meta-layout-container" style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'stretch', marginBottom: '1.5rem' }}>
                 
                 {/* Left side: Client Inputs (2/3 width on desktop) */}
                 <div className="meta-left-inputs" style={{ flex: '2', minWidth: '320px' }}>
-                  <div className="grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.2rem 1rem' }}>
+                  <div className="grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.2rem 1rem' }}>
                     
                     {/* Client Name Input with Autocomplete */}
-                    <div className="form-group autocomplete-container" style={{ margin: 0 }}>
+                    <div className="form-group autocomplete-container" style={{ margin: 0, gridColumn: '1 / -1' }}>
                       <label className="form-label">Nama Pelanggan *</label>
                       <input
                         type="text"
@@ -785,52 +868,21 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                       )}
                     </div>
 
-                    <div className="form-group" style={{ margin: 0 }}>
+                    <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
                       <label className="form-label">No. Telefon Pelanggan *</label>
                       <input
                         type="text"
                         value={clientPhone}
-                        onChange={(e) => setClientPhone(e.target.value)}
-                        placeholder="Cth: 0123456789"
-                        className="form-control"
-                        required
-                      />
-                    </div>
-
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">No. Invoice</label>
-                      <input
-                        type="text"
-                        value={invoiceNo}
-                        className="form-control disabled-input"
-                        disabled
-                      />
-                    </div>
-
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">Nama Job (Nama Projek)</label>
-                      <input
-                        type="text"
-                        value={jobName}
-                        onChange={(e) => setJobName(e.target.value)}
-                        placeholder="Cth: KKM"
-                        className="form-control"
-                      />
-                    </div>
-
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">Tarikh Invoice</label>
-                      <input
-                        type="date"
-                        value={date}
-                        onChange={(e) => setDate(e.target.value)}
+                        onChange={handlePhoneChange}
+                        onBlur={handlePhoneBlur}
+                        placeholder="Cth: 01125507190"
                         className="form-control"
                         required
                       />
                     </div>
 
                     <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
-                      <label className="form-label">Alamat Pelanggan (Optional)</label>
+                      <label className="form-label">Alamat Penuh (Optional)</label>
                       <textarea
                         value={clientAddress}
                         onChange={(e) => setClientAddress(e.target.value)}
@@ -844,7 +896,86 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                   </div>
                 </div>
 
-                {/* Right side: Options and Summary Card (1/3 width on desktop) */}
+                {/* Right side: Job Name & Invoice Info (1/3 width on desktop) */}
+                <div className="meta-right-widget" style={{ 
+                  flex: '1', 
+                  minWidth: '280px', 
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1.2rem'
+                }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Nama Kerja (Job Name)</label>
+                      <input
+                        type="text"
+                        value={jobName}
+                        onChange={(e) => setJobName(e.target.value)}
+                        placeholder="Cth: Event Sukan"
+                        className="form-control"
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Tarikh Invois</label>
+                      <input
+                        type="date"
+                        value={date}
+                        onChange={(e) => setDate(e.target.value)}
+                        className="form-control"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">No. Invois</label>
+                      <input
+                        type="text"
+                        value={invoiceNo}
+                        className="form-control disabled-input"
+                        disabled
+                      />
+                    </div>
+                </div>
+              </div>
+
+              <h4 className="meta-section-title">B. MAKLUMAT BAYARAN & PELANGGAN</h4>
+              
+              <div className="meta-layout-container" style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'stretch' }}>
+                
+                {/* Left side: Payment Inputs (2/3 width on desktop) */}
+                <div className="meta-left-inputs" style={{ flex: '2', minWidth: '320px' }}>
+                  <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.2rem 1rem' }}>
+                    
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Status Bayaran</label>
+                      <select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
+                        className="form-control"
+                      >
+                        <option value="Unpaid">Unpaid</option>
+                        <option value="Deposit">Deposit</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Void">Void</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">RM Deposit</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={deposit}
+                        onChange={(e) => setDeposit(e.target.value)}
+                        placeholder="Cth: 400.00"
+                        className="form-control"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right side: Follow Invoice Lama (1/3 width on desktop) */}
                 <div className="meta-right-widget" style={{ 
                   flex: '1', 
                   minWidth: '280px', 
@@ -868,9 +999,26 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                           onChange={(e) => setIsRepeatOrder(e.target.checked)}
                           style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary-red)' }}
                         />
-                        Follow Invoice Lama
+                        Follow Invoice Lama?
                       </label>
                     </div>
+
+                    {/* Price Suggestions Box */}
+                    {isRepeatOrder && repeatOrderPrices && (
+                      <div style={{ backgroundColor: '#fff', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text-dark)', marginBottom: '0.25rem' }}>Harga Terakhir:</div>
+                        {repeatOrderPrices.bajuPrice !== null && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Baju (1pcs):</span> <span>RM {parseFloat(repeatOrderPrices.bajuPrice).toFixed(2)}</span>
+                          </div>
+                        )}
+                        {repeatOrderPrices.bannerPrice !== null && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Banner (1 unit):</span> <span>RM {parseFloat(repeatOrderPrices.bannerPrice).toFixed(2)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {isRepeatOrder && (
                       <div className="form-group" style={{ margin: 0 }}>
@@ -881,35 +1029,13 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                           min="0"
                           value={customBasePrice}
                           onChange={(e) => setCustomBasePrice(e.target.value)}
-                          placeholder="Cth: 46.00"
+                          placeholder="Cth: 40.00"
                           className="form-control"
                           style={{ height: '36px', padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
                           required={isRepeatOrder}
                         />
                       </div>
                     )}
-                  </div>
-
-                  {/* Summary Widget (Quota Banner) */}
-                  <div className="quota-banner" style={{ 
-                    marginTop: 'auto',
-                    display: 'flex', 
-                    justifyContent: 'space-around', 
-                    backgroundColor: 'var(--primary-red-light)', 
-                    border: '1px solid var(--primary-red)', 
-                    borderRadius: '4px',
-                    padding: '0.6rem',
-                    margin: 0,
-                    width: '100%'
-                  }}>
-                    <div className="quota-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <span className="quota-label" style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>Kuantiti Invoice</span>
-                      <span className="quota-value" style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--primary-red)' }}>{totalQty} pcs</span>
-                    </div>
-                    <div className="quota-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <span className="quota-label" style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>Harga Asas /pcs</span>
-                      <span className="quota-value" style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--primary-red)' }}>RM {basePrice}</span>
-                    </div>
                   </div>
 
                 </div>
@@ -1808,16 +1934,30 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
             <div className="invoice-summary-section">
               <h4 className="meta-section-title">C. Ringkasan & Diskaun</h4>
               <div className="grid-2">
-                <div className="form-group">
-                  <label className="form-label">Catatan Invoice (Optional)</label>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows="3"
-                    placeholder="Catatan tambahan untuk dicetak di atas invoice..."
-                    className="form-control"
-                    style={{ resize: 'none' }}
-                  ></textarea>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Catatan Invoice (Optional)</label>
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      rows="3"
+                      placeholder="Catatan tambahan untuk dicetak di atas invoice..."
+                      className="form-control"
+                      style={{ resize: 'none' }}
+                    ></textarea>
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Kos Pengeluaran Kilang (RM) (Optional)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={pengeluaran}
+                      onChange={(e) => setPengeluaran(e.target.value)}
+                      placeholder="0.00"
+                      className="form-control"
+                    />
+                  </div>
                 </div>
 
                 <div className="summary-card-calc">
@@ -1898,11 +2038,11 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
           </div>
 
           <div className="modal-footer">
-            <button type="button" onClick={onClose} className="btn btn-secondary">
-              Batal
+            <button type="button" onClick={onClose} className="btn btn-secondary" disabled={loading}>
+              {tr('cancel')}
             </button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              <Save size={16} /> {loading ? 'Menyimpan...' : 'Simpan Invoice'}
+            <button type="button" onClick={handleSave} className="btn btn-primary" disabled={loading}>
+              <Save size={16} /> {loading ? 'Menyimpan...' : tr('saveInvoice')}
             </button>
           </div>
         </form>
@@ -1917,14 +2057,14 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
 
         .meta-section-title {
           font-family: var(--font-primary);
-          font-size: 0.8rem;
-          font-weight: 700;
-          letter-spacing: 1px;
+          font-size: 0.75rem;
+          font-weight: 800;
+          letter-spacing: 2px;
           text-transform: uppercase;
           border-bottom: 1px solid var(--border-color);
           padding-bottom: 0.5rem;
           margin-bottom: 1.25rem;
-          color: var(--text-dark);
+          color: var(--primary-red);
         }
 
         .disabled-input {

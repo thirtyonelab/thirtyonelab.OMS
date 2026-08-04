@@ -5,7 +5,8 @@ import { generateUUID } from '../utils/uuid.js';
 const STORAGE_KEYS = {
   SETTINGS: '31lab_settings',
   INVOICES: '31lab_invoices',
-  CLIENTS: '31lab_clients'
+  CLIENTS: '31lab_clients',
+  LEDGER: '31lab_ledger'
 };
 
 // Global Supabase client instance (initialized dynamically)
@@ -41,14 +42,14 @@ export const isCloudMode = () => {
 // Default Settings
 const DEFAULT_SETTINGS = {
   company_name: 'THIRTYONE LAB',
-  company_address: 'No 1, Jalan Sublimation, 43000 Kajang, Selangor',
-  company_phone: '012-3456789',
-  company_logo: '', // Base64
+  company_address: '26A, Jalan 1, Jalan Sungai Jelok, Taman Bukit Cantik, 43000 Kajang, Selangor',
+  company_phone: 'Tel: +60 11-2561 4436',
+  company_logo: '/Logo Header.webp', // Loads from public/
   invoice_prefix: 'NO.',
-  bank_name: 'Maybank',
-  bank_account: '112233445566 (THIRTYONE LAB)',
+  bank_name: 'Bank Islam',
+  bank_account: '0502 1020 4490 03 (Hidayatul Rizman bin Rafiuddarajat)',
   qr_code: '', // Base64
-  terms: '1. Deposit 50% diperlukan sebelum cetakan bermula.\n2. Baki bayaran perlu dijelaskan semasa pick-up.\n3. Tiada pemulangan wang selepas design dicetak.'
+  terms: 'The ordered goods will be processed within **two weeks** after we receive a **50% deposit (or half payment).**\nGoods sold are **neither returnable nor refundable.** Otherwise, a **20% cancellation fee** on the total purchase price will be imposed.'
 };
 
 // --- SETTINGS SERVICE ---
@@ -230,7 +231,8 @@ export const getInvoices = async () => {
       discount_type: discount_type !== undefined ? discount_type : (parseFloat(invoice.discount_per_pcs || 0) > 0 ? 'per_pcs' : 'bulk'),
       discount_value: discount_value !== undefined ? discount_value : (parseFloat(invoice.discount_per_pcs || 0) || 0),
       client_address: client_address || '',
-      pengeluaran: pengeluaran !== undefined ? (parseFloat(pengeluaran) || 0) : 0
+      pengeluaran: pengeluaran !== undefined ? (parseFloat(pengeluaran) || 0) : 0,
+      order_status: invoice.order_status || 'PENDING'
     };
   });
 };
@@ -461,3 +463,57 @@ export const updateInvoicePayment = async (id, depositAmount, status, pengeluara
   const saved = await saveInvoice(updatedInvoice);
   return saved !== null;
 };
+
+export const updateManufacturingStatus = async (id, order_status, pengeluaranVal) => {
+  const invoices = await getInvoices();
+  const invoice = invoices.find(inv => inv.id === id);
+  if (!invoice) return false;
+
+  const updatedInvoice = {
+    ...invoice,
+    order_status,
+    pengeluaran: parseFloat(pengeluaranVal) || 0,
+    updated_at: new Date().toISOString()
+  };
+
+  const saved = await saveInvoice(updatedInvoice);
+  return saved !== null;
+};
+
+// --- LEDGER SERVICE (LOCAL STORAGE ONLY FOR NOW) ---
+export const getLedger = async () => {
+  const stored = localStorage.getItem(STORAGE_KEYS.LEDGER);
+  return stored ? JSON.parse(stored) : [];
+};
+
+export const saveLedgerEntry = async (entryData) => {
+  const ledger = await getLedger();
+  let finalEntry = { ...entryData, updated_at: new Date().toISOString() };
+  
+  if (finalEntry.id) {
+    const index = ledger.findIndex(l => l.id === finalEntry.id);
+    if (index !== -1) {
+      ledger[index] = finalEntry;
+    } else {
+      ledger.push(finalEntry);
+    }
+  } else {
+    finalEntry.id = generateUUID();
+    finalEntry.recorded_at = finalEntry.recorded_at || new Date().toISOString();
+    ledger.push(finalEntry);
+  }
+  
+  // Sort by date descending
+  ledger.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
+  
+  localStorage.setItem(STORAGE_KEYS.LEDGER, JSON.stringify(ledger));
+  return finalEntry;
+};
+
+export const deleteLedgerEntry = async (id) => {
+  const ledger = await getLedger();
+  const filtered = ledger.filter(l => l.id !== id);
+  localStorage.setItem(STORAGE_KEYS.LEDGER, JSON.stringify(filtered));
+  return true;
+};
+

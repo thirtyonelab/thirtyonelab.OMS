@@ -1,85 +1,49 @@
 @media print {
-  /* Hide interactive, layout and navigation elements */
-  .sidebar,
-  .no-print,
-  button,
-  .btn,
-  .modal-close,
-  .modal-header,
-  .modal-footer,
-  .mobile-top-bar,
-  .mobile-bottom-nav,
-  .mobile-only,
-  .dashboard-header,
-  .invoices-header,
-  .clients-header,
-  .settings-header,
-  .search-filters-bar,
-  .card,
-  .table-container,
-  .mobile-cards-list {
-    display: none !important;
+  /* Hide all app UI elements by default during print */
+  body * {
+    visibility: hidden;
   }
 
-  /* Keep main-content container reset but hide its children during print */
-  .main-content {
-    padding: 0 !important;
+  /* Only show the invoice sheet and its contents */
+  .A4-sheet,
+  .A4-sheet *,
+  .invoice-container,
+  .invoice-container * {
+    visibility: visible;
+  }
+
+  .A4-sheet {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm !important;
+    height: auto !important;
+    min-height: 297mm !important;
+    padding: 12mm !important;
     margin: 0 !important;
-    overflow: visible !important;
-    background: transparent !important;
-    border: none !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
     box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+    transform: none !important; /* Reset visual scale during print */
   }
 
-
-
-  /* Reset main layout wrappers so the invoice can take full width */
+  /* Reset main layout wrappers */
   body, 
   #root, 
   .app-layout {
     background: #ffffff !important;
-    color: #111111 !important;
-    width: 100% !important;
-    height: auto !important;
     overflow: visible !important;
     padding: 0 !important;
     margin: 0 !important;
-    display: block !important;
-    box-shadow: none !important;
-  }
-
-  /* Reset modal styles to lay out inline as a regular page element */
-  .modal-overlay {
-    position: static !important;
-    background: transparent !important;
-    backdrop-filter: none !important;
-    display: block !important;
-    z-index: auto !important;
-    padding: 0 !important;
-    animation: none !important;
-  }
-
-  .modal-content {
-    width: 100% !important;
-    max-width: 100% !important;
-    height: auto !important;
-    max-height: none !important;
-    box-shadow: none !important;
-    border: none !important;
-    overflow: visible !important;
-    animation: none !important;
-    display: block !important;
-  }
-
-  .modal-body {
-    padding: 0 !important;
-    overflow: visible !important;
   }
 
   /* A4 Portrait size settings */
   @page {
     size: A4 portrait;
-    margin: 0; /* Hides default browser header and footer */
+    margin: 0;
   }
 
   /* Text formatting optimizations for printing */
@@ -101,69 +65,20 @@
     font-size: 0.7rem !important;
   }
 
-  .table tr:hover td {
-    background-color: transparent !important;
-  }
-
-  /* Prevent elements from breaking across pages awkwardly */
-  .print-avoid-break {
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
-
-  /* Enforce A4 proportions and single-page constraint on print */
-  .A4-sheet {
-    width: 210mm !important;
-    height: 297mm !important;
-    padding: 12mm !important;
-    margin: 0 !important;
-    box-sizing: border-box !important;
-    display: block !important;
-    position: relative !important;
-    overflow: hidden !important; /* Strictly clip to 1 page */
-    transform: none !important; /* Reset visual scale during print */
-    box-shadow: none !important; /* Remove shadow during print */
-    border: none !important; /* Remove any border during print */
-    background: #ffffff !important;
-    background-color: #ffffff !important;
-  }
-
-  .A4-scroll-wrapper {
-    padding: 0 !important;
-    margin: 0 !important;
-    overflow: visible !important;
-    display: block !important;
-    width: 100% !important;
-    height: auto !important;
-  }
-
-  .A4-scale-container {
-    width: 210mm !important;
-    height: 297mm !important;
-    overflow: visible !important;
-    transform: none !important;
-    display: block !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
   .invoice-container {
     width: 100% !important;
     max-width: 100% !important;
-    height: auto !important; /* Flow naturally on print to prevent stretching overflow */
+    height: auto !important;
     display: flex !important;
     flex-direction: column !important;
     gap: 0.6rem !important;
     margin: 0 !important;
     padding: 0 !important;
-    background: transparent !important;
-    background-color: transparent !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
     box-shadow: none !important;
     border: none !important;
-  }
-
-  .invoice-table-section {
-    flex-grow: 0 !important;
+    outline: none !important;
   }
 
   .thank-you-footer {

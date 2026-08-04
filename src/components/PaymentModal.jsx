@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { updateInvoicePayment } from '../services/storage';
-import { X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Save } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
+  const { tr } = useLanguage();
   const [deposit, setDeposit] = useState(invoice.deposit || 0);
   const [status, setStatus] = useState(invoice.status || 'Unpaid');
-  const [pengeluaran, setPengeluaran] = useState(invoice.pengeluaran || '');
   const [loading, setLoading] = useState(false);
 
   const grandTotal = parseFloat(invoice.grand_total);
@@ -52,7 +53,7 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
     e.preventDefault();
     setLoading(true);
     try {
-      const success = await updateInvoicePayment(invoice.id, deposit, status, pengeluaran);
+      const success = await updateInvoicePayment(invoice.id, deposit, status, invoice.pengeluaran);
       if (success) {
         onSaveSuccess();
       } else {
@@ -145,28 +146,14 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
                 </span>
               </div>
             </div>
-
-            <div className="form-group" style={{ marginTop: '0.25rem' }}>
-              <label className="form-label" style={{ color: 'var(--primary-red)' }}>Kos Pengeluaran / Manufacturing (RM)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={pengeluaran}
-                onChange={(e) => setPengeluaran(e.target.value)}
-                placeholder="0.00"
-                className="form-control"
-              />
-            </div>
-
           </div>
 
           <div className="modal-footer">
             <button type="button" onClick={onClose} className="btn btn-secondary">
-              Batal
+              {tr('cancel')}
             </button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              <CheckCircle2 size={16} /> {loading ? 'Menyimpan...' : 'Update'}
+              <Save size={16} /> {loading ? 'Menyimpan...' : tr('save')}
             </button>
           </div>
         </form>

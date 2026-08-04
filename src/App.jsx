@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, FileText, Users, Settings as SettingsIcon, Factory } from 'lucide-react';
 import { isCloudMode } from './services/storage';
+import { LanguageProvider } from './context/LanguageContext';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Invoices from './pages/Invoices';
 import Clients from './pages/Clients';
 import Manufacturing from './pages/Manufacturing';
 import Settings from './pages/Settings';
+import Ledger from './pages/Ledger';
+import Reports from './pages/Reports';
 
 // Modals
 import InvoiceModal from './components/InvoiceModal';
@@ -19,6 +22,7 @@ import './styles/print.css';
 export default function App() {
   const [activeTab, setActiveTab] = useState('overview');
   const [cloudActive, setCloudActive] = useState(isCloudMode());
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setCloudActive(isCloudMode());
@@ -103,6 +107,10 @@ export default function App() {
         );
       case 'manufacturing':
         return <Manufacturing key={`manu_${refreshKey}`} />;
+      case 'ledger':
+        return <Ledger key={`ledger_${refreshKey}`} />;
+      case 'reports':
+        return <Reports key={`reports_${refreshKey}`} />;
       case 'settings':
         return <Settings key={`settings_${refreshKey}`} />;
       default:
@@ -111,6 +119,7 @@ export default function App() {
   };
 
   return (
+    <LanguageProvider>
     <div className="app-layout">
       {/* Mobile Top Header (Visible only on mobile) */}
       <header className="mobile-top-bar mobile-only">
@@ -121,35 +130,21 @@ export default function App() {
         </div>
       </header>
 
-      {/* Sidebar (Navigation - Desktop Only) */}
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      {/* Floating Menu Button for Mobile */}
+      <button className="mobile-menu-btn mobile-only" onClick={() => setIsMobileMenuOpen(true)}>
+        ☰
+      </button>
+
+      {/* Sidebar (Navigation) */}
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
+      />
 
       {/* Main Pages Content */}
       {renderPage()}
-
-      {/* Mobile Bottom Navigation (Visible only on mobile) */}
-      <nav className="mobile-bottom-nav mobile-only">
-        {[
-          { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-          { id: 'invoices', label: 'Invoices', icon: FileText },
-          { id: 'manufacturing', label: 'Manufacturing', icon: Factory },
-          { id: 'clients', label: 'Clients', icon: Users },
-          { id: 'settings', label: 'Settings', icon: SettingsIcon },
-        ].map(item => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`mobile-nav-item ${isActive ? 'active' : ''}`}
-            >
-              <Icon size={20} />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
 
       {/* Modal 1: Create / Edit Invoice */}
       {invoiceModalOpen && (
@@ -184,5 +179,6 @@ export default function App() {
         />
       )}
     </div>
+    </LanguageProvider>
   );
 }

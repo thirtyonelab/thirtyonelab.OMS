@@ -402,7 +402,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
         </div>
 
         {/* Printable Area */}
-        <div className="A4-scroll-wrapper" style={{ overflow: 'auto', flex: 1, padding: '1rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div className="A4-scroll-wrapper" style={{ overflow: 'auto', flex: 1, padding: '0.25rem 0 1rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div 
             className="A4-scale-container" 
             onTouchEnd={handleDoubleTap}
@@ -435,7 +435,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                 {settings.company_logo ? (
                   <img src={settings.company_logo} alt="Company Logo" className="invoice-print-logo" />
                 ) : (
-                  <div className="logo-placeholder">{settings.company_name[0]}</div>
+                  <img src={`${import.meta.env.BASE_URL}Logo%20Header.webp`} alt="Company Logo" className="invoice-print-logo" />
                 )}
                 <div className="company-text">
                   <h1 className="company-print-name">
@@ -736,7 +736,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
           background: #ffffff;
           padding: 12mm;
           box-shadow: none;
-          border: 1px solid var(--border-color);
+          border: none;
           margin: 0 auto;
           overflow: hidden;
         }
@@ -1054,8 +1054,9 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
           .A4-scroll-wrapper {
             width: 100%;
             overflow-x: auto;
-            background-color: var(--border-color);
-            padding: 1rem 0;
+            background-color: #ffffff;
+            padding: 0.25rem 0 1rem 0;
+            align-items: flex-start !important;
           }
           .A4-sheet {
             width: 210mm; /* Keep A4 width to prevent squishing */

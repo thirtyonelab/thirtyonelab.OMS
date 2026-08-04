@@ -1,24 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { getInvoices } from '../services/storage';
-import { Search, DollarSign, AlertCircle, Wallet, Plus, ArrowRight, Eye, RefreshCw, Factory } from 'lucide-react';
+import { getInvoices, getLedger } from '../services/storage';
+import { Search, Plus, ArrowRight, Eye, RefreshCw, CreditCard, Activity, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaymentModal, onOpenInvoiceDetail }) {
+  const { tr } = useLanguage();
   const [invoices, setInvoices] = useState([]);
+  const [ledger, setLedger] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadInvoices();
+    loadData();
   }, []);
 
-  const loadInvoices = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const data = await getInvoices();
-      setInvoices(data);
+      const invs = await getInvoices();
+      setInvoices(invs);
+      const ledg = await getLedger();
+      setLedger(ledg);
     } catch (e) {
-      console.error('Error loading invoices in dashboard:', e);
+      console.error('Error loading data in dashboard:', e);
     } finally {
       setLoading(false);
     }
@@ -30,61 +35,78 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
     const currentMonth = now.getMonth(); // 0-11
     const currentYear = now.getFullYear();
 
-    let totalThisMonth = 0;
-    let totalUnpaid = 0;
-    let totalDeposit = 0;
-    let countThisMonth = 0;
+    // 1. Status Bayaran Counts
     let countUnpaid = 0;
     let countDeposit = 0;
-    let totalPengeluaranThisMonth = 0;
-    let countPengeluaranThisMonth = 0;
-    let countUntungThisMonth = 0;
+    let countPaidThisMonth = 0;
 
-    let totalCollectedForUntung = 0;
+    // 2. Status Operasi Counts
+    let countPending = 0;
+    let countProcessing = 0;
+    let countCompleted = 0;
+
+    // 3. Financial Totals (current month)
+    let collectedInvoicesMonth = 0;
+    let kosKilangMonth = 0;
 
     invoices.forEach(inv => {
       const invDate = new Date(inv.date);
       const isCurrentMonth = invDate.getMonth() === currentMonth && invDate.getFullYear() === currentYear;
 
-      if (isCurrentMonth) {
-        const p = parseFloat(inv.pengeluaran || 0);
-        if (p > 0) countPengeluaranThisMonth++;
-        totalPengeluaranThisMonth += p;
-
-        countUntungThisMonth++;
-        const paidAmount = inv.status === 'Paid' ? parseFloat(inv.grand_total || 0) : parseFloat(inv.deposit || 0);
-        totalCollectedForUntung += paidAmount;
-      }
-
-      if (inv.status === 'Paid' && isCurrentMonth) {
-        totalThisMonth += parseFloat(inv.grand_total || 0);
-        countThisMonth++;
-      } else if (inv.status === 'Unpaid') {
-        totalUnpaid += parseFloat(inv.grand_total || 0);
+      // Status Bayaran
+      if (inv.status === 'Unpaid') {
         countUnpaid++;
       } else if (inv.status === 'Deposit') {
-        totalDeposit += parseFloat(inv.deposit || 0);
         countDeposit++;
-        // Include the remaining unpaid balance of the deposit invoice in totalUnpaid
-        const balance = inv.balance !== undefined ? parseFloat(inv.balance) : (parseFloat(inv.grand_total || 0) - parseFloat(inv.deposit || 0));
-        totalUnpaid += balance;
-        if (balance > 0) {
-          countUnpaid++;
+      } else if (inv.status === 'Paid' && isCurrentMonth) {
+        countPaidThisMonth++;
+      }
+
+      // Status Operasi
+      const opStatus = inv.order_status || 'PENDING';
+      if (opStatus === 'PENDING') countPending++;
+      else if (opStatus === 'PROCESSING') countProcessing++;
+      else if (opStatus === 'COMPLETED') countCompleted++;
+
+      // Current month financials
+      if (isCurrentMonth) {
+        const paidAmount = inv.status === 'Paid' ? parseFloat(inv.grand_total || 0) : parseFloat(inv.deposit || 0);
+        collectedInvoicesMonth += paidAmount;
+        kosKilangMonth += parseFloat(inv.pengeluaran || 0);
+      }
+    });
+
+    // Ledger totals for current month
+    let ledgerINMonth = 0;
+    let ledgerOUTMonth = 0;
+
+    ledger.forEach(entry => {
+      const entryDate = new Date(entry.date);
+      const isCurrentMonth = entryDate.getMonth() === currentMonth && entryDate.getFullYear() === currentYear;
+
+      if (isCurrentMonth) {
+        if (entry.type === 'IN') {
+          ledgerINMonth += parseFloat(entry.amount || 0);
+        } else {
+          ledgerOUTMonth += parseFloat(entry.amount || 0);
         }
       }
     });
 
+    const totalKutipanJualan = collectedInvoicesMonth + ledgerINMonth;
+    const totalKosKeluar = kosKilangMonth + ledgerOUTMonth;
+    const untungBersih = totalKutipanJualan - totalKosKeluar;
+
     return {
-      totalThisMonth,
-      totalUnpaid,
-      totalDeposit,
-      countThisMonth,
       countUnpaid,
       countDeposit,
-      totalPengeluaranThisMonth,
-      countPengeluaranThisMonth,
-      countUntungThisMonth,
-      untungBersih: totalCollectedForUntung - totalPengeluaranThisMonth
+      countPaidThisMonth,
+      countPending,
+      countProcessing,
+      countCompleted,
+      totalKutipanJualan,
+      totalKosKeluar,
+      untungBersih
     };
   };
 
@@ -115,163 +137,233 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
 
   return (
     <div className="main-content">
-      {/* Welcome & New Invoice Button */}
-      <div className="dashboard-header">
+      {/* Page Header - Desktop View */}
+      <div className="dashboard-header desktop-only" style={{ marginBottom: '1.5rem' }}>
         <div>
-          <span className="section-tag">Pusat Kawalan Utama</span>
-          <h1>Overview Dashboard</h1>
+          <span className="section-tag">{tr('dashboardTag')}</span>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: '800', marginTop: '0.5rem' }}>{tr('dashboardTitle')}</h1>
         </div>
-        <button onClick={() => onOpenInvoiceModal(null)} className="btn btn-primary">
-          <Plus size={16} /> New Invoice
-        </button>
-      </div>
-
-      {/* Summary Metrics Cards */}
-      <div className="metrics-grid">
-        
-        {/* Metric Card 1: Total Paid This Month */}
-        <div className="card metric-card">
-          <div className="metric-icon-wrapper paid">
-            <DollarSign size={24} />
-          </div>
-          <div className="metric-content">
-            <span className="metric-title-lbl">Kutipan Bulan Ni</span>
-            <h3 className="metric-value">
-              RM {metrics.totalThisMonth.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </h3>
-            <span className="metric-subtitle">Invoice paid penuh bulan semasa</span>
-            <span style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: '#15803D' }}>{metrics.countThisMonth} Invoice</span>
-          </div>
-        </div>
-
-        {/* Metric Card 2: Total Unpaid */}
-        <div className="card metric-card">
-          <div className="metric-icon-wrapper unpaid">
-            <AlertCircle size={24} />
-          </div>
-          <div className="metric-content">
-            <span className="metric-title-lbl">Belum Bayar (Unpaid)</span>
-            <h3 className="metric-value" style={{ color: 'var(--primary-red)' }}>
-              RM {metrics.totalUnpaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </h3>
-            <span className="metric-subtitle">Nilai keseluruhan invoice unpaid</span>
-            <span style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{metrics.countUnpaid} Invoice</span>
-          </div>
-        </div>
-
-        {/* Metric Card 3: Total Deposit Only */}
-        <div className="card metric-card">
-          <div className="metric-icon-wrapper deposit">
-            <Wallet size={24} />
-          </div>
-          <div className="metric-content">
-            <span className="metric-title-lbl">Deposit Only</span>
-            <h3 className="metric-value" style={{ color: '#D97706' }}>
-              RM {metrics.totalDeposit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </h3>
-            <span className="metric-subtitle">Jumlah kutipan deposit setakat ini</span>
-            <span style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: '#D97706' }}>{metrics.countDeposit} Invoice</span>
-          </div>
-        </div>
-        
-        {/* Metric Card 4: Total Pengeluaran */}
-        <div className="card metric-card">
-          <div className="metric-icon-wrapper" style={{ backgroundColor: '#F3F4F6', color: '#4B5563' }}>
-            <Factory size={24} />
-          </div>
-          <div className="metric-content">
-            <span className="metric-title-lbl">Pengeluaran</span>
-            <h3 className="metric-value">
-              RM {metrics.totalPengeluaranThisMonth.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </h3>
-            <span style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: '#4B5563' }}>{metrics.countPengeluaranThisMonth} Invoice</span>
-          </div>
-        </div>
-
-        {/* Metric Card 5: Untung Bersih */}
-        <div className="card metric-card untung-card" style={{ backgroundColor: '#E2F5EA', borderColor: '#15803D' }}>
-          <div className="metric-content" style={{ width: '100%' }}>
-            <span className="metric-title-lbl" style={{ color: '#15803D' }}>Untung Bersih</span>
-            <h3 className="metric-value" style={{ color: '#15803D', fontSize: '1.5rem' }}>
-              RM {metrics.untungBersih.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </h3>
-            <span style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: '#166534' }}>{metrics.countUntungThisMonth} Invoice</span>
-          </div>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button onClick={loadData} className="btn btn-secondary" title={tr('refresh')}>
+            <RefreshCw size={16} />
+          </button>
+          <button onClick={() => onOpenInvoiceModal(null)} className="btn btn-primary" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <Plus size={16} /> {tr('newOrder')}
+          </button>
         </div>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div className="search-filters-bar card">
-        <div className="search-box">
-          <Search size={18} className="search-icon" />
-          <input
-            type="text"
-            placeholder="Cari nama pelanggan atau nombor invoice..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="form-control search-input"
-          />
+      {/* Page Header - Mobile View */}
+      <div className="mobile-only" style={{ marginBottom: '1.5rem' }}>
+        <div>
+          <span className="section-tag" style={{ fontSize: '0.6rem', letterSpacing: '2px' }}>{tr('dashboardTag')}</span>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: '800', marginTop: '0.25rem' }}>{tr('dashboardTitle')}</h1>
+        </div>
+      </div>
+
+      {/* Net Profit Hero Card (Top Priority Display) */}
+      <div className="card" style={{ padding: '2.5rem', textAlign: 'center', marginBottom: '1.5rem', border: '2px solid #15803D' }}>
+        <span className="summary-label" style={{ fontSize: '0.7rem', letterSpacing: '2px' }}>{tr('netProfit')}</span>
+        <h2 style={{ fontSize: '3rem', fontWeight: '900', margin: '0.75rem 0', color: '#15803D', lineHeight: '1' }}>
+          RM {metrics.untungBersih.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </h2>
+        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>{tr('netProfitDesc')}</span>
+      </div>
+
+      {/* Status Cards Grid (2 Columns Desktop) */}
+      <div className="dashboard-status-grid desktop-only" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+        
+        {/* STATUS BAYARAN */}
+        <div className="card" style={{ padding: '1.75rem' }}>
+          <h3 className="section-title" style={{ fontSize: '0.7rem', fontWeight: '800', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <CreditCard size={16} strokeWidth={2} /> {tr('statusBayaran')}
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <AlertCircle size={14} className="text-red" /> {tr('unpaid')}
+              </span>
+              <span style={{ fontWeight: '700' }}>{metrics.countUnpaid}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Clock size={14} style={{ color: '#D97706' }} /> {tr('deposit')}
+              </span>
+              <span style={{ fontWeight: '700' }}>{metrics.countDeposit}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0' }}>
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <CheckCircle2 size={14} style={{ color: '#15803D' }} /> {tr('paidMonth')}
+              </span>
+              <span style={{ fontWeight: '700' }}>{metrics.countPaidThisMonth}</span>
+            </div>
+          </div>
         </div>
 
-        <div className="filter-box">
-          <span className="select-label">Status</span>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="form-control filter-select"
-          >
-            <option value="All">Semua Status</option>
-            <option value="Paid">Paid</option>
-            <option value="Deposit">Deposit</option>
-            <option value="Unpaid">Unpaid</option>
-          </select>
+        {/* STATUS OPERASI */}
+        <div className="card" style={{ padding: '1.75rem' }}>
+          <h3 className="section-title" style={{ fontSize: '0.7rem', fontWeight: '800', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Activity size={16} strokeWidth={2} /> {tr('statusOperasi')}
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Clock size={14} className="text-muted" /> {tr('pending')}
+              </span>
+              <span style={{ fontWeight: '700' }}>{metrics.countPending}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <RefreshCw size={14} style={{ color: '#2563EB' }} /> {tr('processing')}
+              </span>
+              <span style={{ fontWeight: '700' }}>{metrics.countProcessing}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0' }}>
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <CheckCircle2 size={14} style={{ color: '#15803D' }} /> {tr('completed')}
+              </span>
+              <span style={{ fontWeight: '700' }}>{metrics.countCompleted}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Status Cards Mobile View (Stacked) */}
+      <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+        {/* STATUS BAYARAN Mobile */}
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <CreditCard size={14} strokeWidth={2} /> {tr('statusBayaran')}
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <AlertCircle size={13} className="text-red" /> {tr('unpaid')}
+              </span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countUnpaid}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Clock size={13} style={{ color: '#D97706' }} /> {tr('deposit')}
+              </span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countDeposit}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <CheckCircle2 size={13} style={{ color: '#15803D' }} /> {tr('paidMonth')}
+              </span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countPaidThisMonth}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* STATUS OPERASI Mobile */}
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Activity size={14} strokeWidth={2} /> {tr('statusOperasi')}
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Clock size={13} className="text-muted" /> {tr('pending')}
+              </span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countPending}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <RefreshCw size={13} style={{ color: '#2563EB' }} /> {tr('processing')}
+              </span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countProcessing}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <CheckCircle2 size={13} style={{ color: '#15803D' }} /> {tr('completed')}
+              </span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countCompleted}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Financial Totals Grid (2 Columns Desktop) */}
+      <div className="dashboard-totals-grid desktop-only" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
+        
+        {/* TOTAL KUTIPAN JUALAN */}
+        <div className="card" style={{ padding: '1.75rem', borderLeft: '4px solid #15803D' }}>
+          <span className="summary-label" style={{ fontSize: '0.65rem', letterSpacing: '1.5px' }}>{tr('totalKutipan')}</span>
+          <h3 style={{ fontSize: '1.75rem', fontWeight: '900', margin: '0.5rem 0', color: '#15803D', lineHeight: '1' }}>
+            RM {metrics.totalKutipanJualan.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </h3>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{tr('thisMonth')}</span>
+        </div>
+
+        {/* TOTAL KOS (KELUAR) */}
+        <div className="card" style={{ padding: '1.75rem', borderLeft: '4px solid var(--primary-red)' }}>
+          <span className="summary-label" style={{ fontSize: '0.65rem', letterSpacing: '1.5px' }}>{tr('totalKos')}</span>
+          <h3 style={{ fontSize: '1.75rem', fontWeight: '900', margin: '0.5rem 0', color: 'var(--primary-red)', lineHeight: '1' }}>
+            RM {metrics.totalKosKeluar.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </h3>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{tr('kilangLejar')}</span>
+        </div>
+      </div>
+
+      {/* Financial Totals Mobile View (Stacked) */}
+      <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+        {/* TOTAL KUTIPAN JUALAN Mobile */}
+        <div className="card" style={{ padding: '1.25rem', borderLeft: '4px solid #15803D' }}>
+          <span className="summary-label" style={{ fontSize: '0.6rem', letterSpacing: '1px' }}>{tr('totalKutipan')}</span>
+          <h3 style={{ fontSize: '1.5rem', fontWeight: '900', margin: '0.25rem 0', color: '#15803D', lineHeight: '1' }}>
+            RM {metrics.totalKutipanJualan.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </h3>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{tr('thisMonth')}</span>
+        </div>
+
+        {/* TOTAL KOS (KELUAR) Mobile */}
+        <div className="card" style={{ padding: '1.25rem', borderLeft: '4px solid var(--primary-red)' }}>
+          <span className="summary-label" style={{ fontSize: '0.6rem', letterSpacing: '1px' }}>{tr('totalKos')}</span>
+          <h3 style={{ fontSize: '1.5rem', fontWeight: '900', margin: '0.25rem 0', color: 'var(--primary-red)', lineHeight: '1' }}>
+            RM {metrics.totalKosKeluar.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </h3>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{tr('kilangLejar')}</span>
         </div>
       </div>
 
       {/* Recent Invoices Table */}
       <div className="card" style={{ padding: 0 }}>
-        <div className="table-header-row">
-          <h3 className="table-title">Recent Invoices</h3>
-          <button onClick={() => setActiveTab('invoices')} className="btn-text view-all-btn">
-            View All <ArrowRight size={14} />
+        <div className="table-header-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem 1.5rem', alignItems: 'center', borderBottom: '1px solid var(--border-color)' }}>
+          <h3 className="table-title" style={{ fontSize: '0.85rem' }}>{tr('recentInvoices')}</h3>
+          <button onClick={() => setActiveTab('invoices')} className="btn-text view-all-btn" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary-red)' }}>
+            {tr('viewAll')} <ArrowRight size={14} />
           </button>
         </div>
 
-        {loading ? (
-          <div className="loading-state">Memuatkan invoice terkini...</div>
+        {loading && invoices.length === 0 ? (
+          <div className="loading-state" style={{ padding: '2rem', textAlign: 'center' }}>{tr('loadingInvoice')}</div>
         ) : recentInvoices.length === 0 ? (
-          <div className="empty-state">Tiada invoice terkini ditemui.</div>
+          <div className="empty-state" style={{ padding: '2rem', textAlign: 'center' }}>{tr('noInvoice')}</div>
         ) : (
           <>
             <div className="table-container desktop-only">
               <table className="table">
                 <thead>
                   <tr>
-                    <th style={{ textAlign: 'center' }}>No. Invoice</th>
-                    <th style={{ textAlign: 'center' }}>Tarikh</th>
-                    <th style={{ textAlign: 'center' }}>Nama Pelanggan</th>
-                    <th style={{ textAlign: 'center' }}>Jumlah (RM)</th>
-                    <th style={{ textAlign: 'center' }}>Baki (RM)</th>
-                    <th style={{ textAlign: 'center' }}>Status</th>
-                    <th style={{ textAlign: 'center' }}>Tindakan</th>
+                    <th style={{ textAlign: 'center' }}>{tr('invNo')}</th>
+                    <th style={{ textAlign: 'left' }}>{tr('clientName')}</th>
+                    <th style={{ textAlign: 'center' }}>{tr('date')}</th>
+                    <th style={{ textAlign: 'right', paddingRight: '1.5rem' }}>{tr('amount')}</th>
+                    <th style={{ textAlign: 'center' }}>{tr('statusBayaran')}</th>
+                    <th style={{ textAlign: 'center' }}>{tr('statusOperasi')}</th>
+                    <th style={{ textAlign: 'center' }}>{tr('actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {recentInvoices.map((inv) => (
                     <tr key={inv.id}>
                       <td style={{ textAlign: 'center' }} className="font-bold">{inv.invoice_no}</td>
-                      <td style={{ textAlign: 'center' }}>{inv.date}</td>
-                      <td style={{ textAlign: 'center' }}>
-                        <div className="client-cell" style={{ alignItems: 'center' }}>
-                          <span className="client-name">{inv.client_name}</span>
-                          <span className="client-phone-sub">{inv.client_phone}</span>
-                        </div>
-                      </td>
-                      <td style={{ textAlign: 'center' }} className="font-bold">
-                        {parseFloat(inv.grand_total).toFixed(2)}
-                      </td>
-                      <td style={{ textAlign: 'center' }} className={parseFloat(inv.balance) > 0 ? 'text-red font-bold' : 'font-bold'}>
-                        {parseFloat(inv.balance ?? inv.grand_total).toFixed(2)}
+                      <td className="font-bold">{inv.client_name}</td>
+                      <td style={{ textAlign: 'center' }}>{new Date(inv.date).toLocaleDateString('en-GB')}</td>
+                      <td style={{ textAlign: 'right', paddingRight: '1.5rem' }}>
+                        {parseFloat(inv.grand_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <span className={`badge ${getStatusBadgeClass(inv.status)}`}>
@@ -279,21 +371,18 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
                         </span>
                       </td>
                       <td style={{ textAlign: 'center' }}>
-                        <div className="actions-cell">
-                          <button
-                            onClick={() => onOpenInvoiceDetail(inv)}
-                            className="btn btn-secondary btn-sm"
-                          >
-                            <Eye size={12} /> View/Print
-                          </button>
-                          <button
-                            onClick={() => onOpenPaymentModal(inv)}
-                            className="btn btn-secondary btn-sm"
-                            style={{ color: '#D97706', borderColor: '#FEF3C7' }}
-                          >
-                            <RefreshCw size={12} /> Update Payment
-                          </button>
-                        </div>
+                        <span className={`badge ${inv.order_status === 'COMPLETED' ? 'badge-paid' : inv.order_status === 'PROCESSING' ? 'badge-deposit' : 'badge-unpaid'}`}>
+                          {inv.order_status || 'PENDING'}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button 
+                          onClick={() => onOpenInvoiceDetail(inv)} 
+                          className="btn btn-secondary btn-sm"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                        >
+                          <Eye size={12} /> {tr('view')}
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -303,38 +392,22 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
 
             <div className="mobile-cards-list mobile-only">
               {recentInvoices.map((inv) => (
-                <div key={inv.id} className="mobile-card">
+                <div key={inv.id} className="mobile-card" onClick={() => onOpenInvoiceDetail(inv)} style={{ cursor: 'pointer' }}>
                   <div className="mobile-card-row">
                     <span className="mobile-card-title">{inv.invoice_no}</span>
                     <span className={`badge ${getStatusBadgeClass(inv.status)}`}>
                       {inv.status}
                     </span>
                   </div>
-                  <div className="mobile-card-row">
-                    <div className="mobile-card-detail">
-                      <div className="mobile-card-bold">{inv.client_name}</div>
-                      <div>Tel: {inv.client_phone}</div>
-                      <div>Tarikh: {inv.date}</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div className="mobile-card-detail">Jumlah: <span className="mobile-card-bold">RM {parseFloat(inv.grand_total).toFixed(2)}</span></div>
-                      <div className="mobile-card-detail">Baki: <span className={`mobile-card-bold ${parseFloat(inv.balance ?? inv.grand_total) > 0 ? 'text-red' : ''}`}>RM {parseFloat(inv.balance ?? inv.grand_total).toFixed(2)}</span></div>
-                    </div>
+                  <div className="mobile-card-row" style={{ marginTop: '0.5rem' }}>
+                    <span style={{ fontSize: '0.85rem' }}>{inv.client_name}</span>
+                    <span className="font-bold">
+                      RM {parseFloat(inv.grand_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
                   </div>
-                  <div className="mobile-card-actions">
-                    <button
-                      onClick={() => onOpenInvoiceDetail(inv)}
-                      className="btn btn-secondary btn-sm"
-                    >
-                      <Eye size={12} /> View/Print
-                    </button>
-                    <button
-                      onClick={() => onOpenPaymentModal(inv)}
-                      className="btn btn-secondary btn-sm"
-                      style={{ color: '#D97706', borderColor: '#FEF3C7' }}
-                    >
-                      <RefreshCw size={12} /> Update Payment
-                    </button>
+                  <div className="mobile-card-row" style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    <span>{tr('statusOperasi')}: {inv.order_status || 'PENDING'}</span>
+                    <span>{new Date(inv.date).toLocaleDateString('en-GB')}</span>
                   </div>
                 </div>
               ))}
@@ -344,238 +417,19 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
       </div>
 
       <style>{`
-        .dashboard-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .metrics-grid {
-          display: grid;
-          grid-template-columns: repeat(5, 1fr);
-          gap: 1.5rem;
-          margin-bottom: 2rem;
-        }
-
-        .metric-card {
-          flex-direction: row !important;
-          align-items: center;
-          gap: 1.5rem;
-          padding: 1.75rem 2rem;
-        }
-
-        .metric-icon-wrapper {
-          height: 52px;
-          width: 52px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .metric-icon-wrapper.paid {
-          background-color: #E2F5EA;
-          color: #15803D;
-        }
-
-        .metric-icon-wrapper.unpaid {
-          background-color: #FEE2E2;
-          color: #B91C1C;
-        }
-
-        .metric-icon-wrapper.deposit {
-          background-color: #FEF3C7;
-          color: #D97706;
-        }
-
-        .metric-content {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .metric-title-lbl {
+        .summary-label {
           font-family: var(--font-primary);
           font-size: 0.65rem;
-          font-weight: 700;
-          letter-spacing: 1px;
-          text-transform: uppercase;
-          color: var(--text-muted);
-          margin-bottom: 0.25rem;
-        }
-
-        .metric-value {
-          font-family: var(--font-primary);
-          font-size: 1.35rem;
           font-weight: 800;
-          color: var(--text-dark);
-          line-height: 1.2;
-        }
-
-        .metric-subtitle {
-          font-size: 0.7rem;
-          color: var(--text-light);
-          margin-top: 0.25rem;
-        }
-
-        /* Search & Filter Layout */
-        .search-filters-bar {
-          display: flex !important;
-          flex-direction: row !important;
-          align-items: flex-end !important;
-          gap: 1.5rem !important;
-          padding: 1.25rem 2rem !important;
-        }
-
-        .search-box {
-          position: relative;
-          display: flex;
-          align-items: center;
-          flex: 1;
-          height: 42px;
-        }
-
-        .search-icon {
-          position: absolute;
-          left: 1rem;
-          color: var(--text-light);
-        }
-
-        .search-input {
-          padding-left: 2.75rem;
-          width: 100%;
-          height: 42px;
-        }
-
-        .filter-box {
-          display: flex;
-          flex-direction: column;
-          gap: 0.3rem;
-          flex-shrink: 0;
-        }
-
-        .select-label {
-          font-size: 0.65rem;
-          font-weight: 700;
           letter-spacing: 1px;
           text-transform: uppercase;
           color: var(--text-muted);
-          margin-bottom: 0;
         }
 
-        .filter-select {
-          min-width: 150px;
-          height: 42px;
-          font-size: 0.85rem;
-        }
-
-        /* Table header row decoration */
-        .table-header-row {
-          padding: 1.5rem 2rem;
-          border-bottom: 1px solid var(--border-color);
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .table-title {
-          font-family: var(--font-primary);
-          font-size: 0.85rem;
-          font-weight: 700;
-          letter-spacing: 1px;
-          text-transform: uppercase;
-        }
-
-        .view-all-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.35rem;
-          font-size: 0.75rem;
-        }
-
-        .client-cell {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .client-name {
-          font-weight: 600;
-        }
-
-        .client-phone-sub {
-          font-size: 0.75rem;
-          color: var(--text-muted);
-        }
-
-        .actions-cell {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.5rem;
-        }
-
-        .loading-state, .empty-state {
-          padding: 3rem;
-          text-align: center;
-          color: var(--text-muted);
-          font-family: var(--font-primary);
-          font-size: 0.85rem;
-          letter-spacing: 1px;
-          text-transform: uppercase;
-        }
-
-        .text-red {
-          color: var(--primary-red);
-        }
-
-        .font-bold {
-          font-weight: 600;
-        }
-
-        @media (max-width: 1200px) {
-          .metrics-grid {
-            grid-template-columns: repeat(3, 1fr);
-          }
-          .untung-card {
-            grid-column: span 2;
-          }
-        }
-
-        @media (max-width: 900px) {
-          .search-filters-bar {
-            flex-direction: column !important;
-            align-items: stretch !important;
-            gap: 1rem !important;
-            padding: 1.25rem !important;
-          }
-          
-          .filter-box {
-            width: 100%;
-            flex-direction: column;
-            gap: 0.3rem;
-          }
-          
-          .filter-select {
-            flex: 1;
-            width: 100%;
-          }
-        }
-
-        @media (max-width: 640px) {
-          .metrics-grid {
-            grid-template-columns: 1fr 1fr;
-            gap: 0.75rem;
-          }
-          .untung-card {
-            grid-column: 1 / -1;
-          }
-          .metric-card {
-            flex-direction: column !important;
-            align-items: flex-start;
-            padding: 1.25rem 1rem;
-            gap: 0.75rem;
-          }
-          .metric-value {
-            font-size: 1.15rem;
+        @media (max-width: 768px) {
+          .dashboard-counts-row,
+          .dashboard-totals-row {
+            grid-template-columns: 1fr !important;
           }
         }
       `}</style>

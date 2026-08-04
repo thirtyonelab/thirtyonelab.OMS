@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { getInvoices, deleteInvoice } from '../services/storage';
 import { Search, Plus, Eye, Edit2, RefreshCw, Trash2 } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 const ITEMS_PER_PAGE = 10;
 
 export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpenInvoiceDetail }) {
+  const { tr, language } = useLanguage();
   const [invoices, setInvoices] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -13,6 +15,9 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
+
+  // Status counts for quick view
+  const [statusCounts, setStatusCounts] = useState({ unpaid: 0, deposit: 0, paid: 0, total: 0 });
 
   useEffect(() => {
     loadInvoices();
@@ -23,6 +28,16 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
     try {
       const data = await getInvoices();
       setInvoices(data);
+
+      let unpaid = 0;
+      let deposit = 0;
+      let paid = 0;
+      data.forEach(inv => {
+        if (inv.status === 'Unpaid') unpaid++;
+        else if (inv.status === 'Deposit') deposit++;
+        else if (inv.status === 'Paid') paid++;
+      });
+      setStatusCounts({ unpaid, deposit, paid, total: data.length });
     } catch (e) {
       console.error('Error loading invoices list:', e);
     } finally {
@@ -74,31 +89,32 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
     }
   };
 
+  
   const monthsList = [
-    { value: '0', label: 'Januari' },
-    { value: '1', label: 'Februari' },
-    { value: '2', label: 'Mac' },
-    { value: '3', label: 'April' },
-    { value: '4', label: 'Mei' },
-    { value: '5', label: 'Jun' },
-    { value: '6', label: 'Julai' },
-    { value: '7', label: 'Ogos' },
-    { value: '8', label: 'September' },
-    { value: '9', label: 'Oktober' },
-    { value: '10', label: 'November' },
-    { value: '11', label: 'Disember' }
+    { value: '0', label: language === 'EN' ? 'January' : 'Januari' },
+    { value: '1', label: language === 'EN' ? 'February' : 'Februari' },
+    { value: '2', label: language === 'EN' ? 'March' : 'Mac' },
+    { value: '3', label: language === 'EN' ? 'April' : 'April' },
+    { value: '4', label: language === 'EN' ? 'May' : 'Mei' },
+    { value: '5', label: language === 'EN' ? 'June' : 'Jun' },
+    { value: '6', label: language === 'EN' ? 'July' : 'Julai' },
+    { value: '7', label: language === 'EN' ? 'August' : 'Ogos' },
+    { value: '8', label: language === 'EN' ? 'September' : 'September' },
+    { value: '9', label: language === 'EN' ? 'October' : 'Oktober' },
+    { value: '10', label: language === 'EN' ? 'November' : 'November' },
+    { value: '11', label: language === 'EN' ? 'December' : 'Disember' }
   ];
 
   return (
     <div className="main-content">
       {/* Header */}
-      <div className="invoices-header">
+      <div className="invoices-header" style={{ marginBottom: '1.5rem' }}>
         <div>
-          <span className="section-tag">Pengurusan Dokumen</span>
-          <h1>Invoices & Bil</h1>
+          <span className="section-tag">{tr('ordersTag')}</span>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: '800', marginTop: '0.5rem' }}>{tr('ordersTitle')}</h1>
         </div>
-        <button onClick={() => onOpenInvoiceModal(null)} className="btn btn-primary">
-          <Plus size={16} /> New Invoice
+        <button onClick={() => onOpenInvoiceModal(null)} className="btn btn-primary" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <Plus size={16} /> {tr('newOrder')}
         </button>
       </div>
 
@@ -108,7 +124,7 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
           <Search size={18} className="search-icon" />
           <input
             type="text"
-            placeholder="Cari nama pelanggan atau nombor invoice..."
+            placeholder={tr('searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="form-control search-input"
@@ -117,13 +133,13 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
 
         <div className="filter-group-row">
           <div className="filter-box">
-            <span className="select-label">Bulan</span>
+            <span className="select-label">{tr('month')}</span>
             <select
               value={monthFilter}
               onChange={(e) => setMonthFilter(e.target.value)}
               className="form-control filter-select"
             >
-              <option value="All">Semua Bulan</option>
+              <option value="All">{tr('allMonths')}</option>
               {monthsList.map(m => (
                 <option key={m.value} value={m.value}>{m.label}</option>
               ))}
@@ -131,16 +147,16 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
           </div>
 
           <div className="filter-box">
-            <span className="select-label">Status</span>
+            <span className="select-label">{tr('status')}</span>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="form-control filter-select"
             >
-              <option value="All">Semua Status</option>
+              <option value="All">{tr('allStatus')}</option>
               <option value="Paid">Paid</option>
-              <option value="Deposit">Deposit</option>
-              <option value="Unpaid">Unpaid</option>
+              <option value="Deposit">{tr('deposit')}</option>
+              <option value="Unpaid">{tr('unpaid')}</option>
             </select>
           </div>
         </div>
@@ -149,40 +165,41 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
       {/* Invoices List Table */}
       <div className="card" style={{ padding: 0 }}>
         {loading ? (
-          <div className="loading-state">Memuatkan semua invoice...</div>
+          <div className="loading-state">{tr('loadingInvoice')}</div>
         ) : paginatedInvoices.length === 0 ? (
-          <div className="empty-state">Tiada invoice ditemui.</div>
+          <div className="empty-state">{tr('noInvoice')}</div>
         ) : (
           <>
             <div className="table-container desktop-only">
               <table className="table">
                 <thead>
                   <tr>
-                    <th style={{ textAlign: 'center' }}>No. Invoice</th>
-                    <th style={{ textAlign: 'center' }}>Tarikh</th>
-                    <th style={{ textAlign: 'center' }}>Nama Pelanggan</th>
-                    <th style={{ textAlign: 'center' }}>Jumlah (RM)</th>
-                    <th style={{ textAlign: 'center' }}>Baki (RM)</th>
-                    <th style={{ textAlign: 'center' }}>Status</th>
-                    <th style={{ textAlign: 'center' }}>Tindakan</th>
+                    <th style={{ textAlign: 'center' }}>{tr('invNo')}</th>
+                    <th style={{ textAlign: 'left' }}>{tr('clientName')}</th>
+                    <th style={{ textAlign: 'center' }}>{tr('date')}</th>
+                    <th style={{ textAlign: 'right' }}>{tr('amount')}</th>
+                    <th style={{ textAlign: 'center' }}>{tr('status')}</th>
+                    <th style={{ textAlign: 'center' }}>{tr('actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedInvoices.map((inv) => (
                     <tr key={inv.id}>
-                      <td className="font-bold">{inv.invoice_no}</td>
-                      <td>{inv.date}</td>
+                      <td style={{ textAlign: 'center' }} className="font-bold">{inv.invoice_no}</td>
                       <td>
                         <div className="client-cell">
                           <span className="client-name">{inv.client_name}</span>
                           <span className="client-phone-sub">{inv.client_phone}</span>
                         </div>
                       </td>
-                      <td style={{ textAlign: 'center' }} className="font-bold">
+                      <td style={{ textAlign: 'center' }}>{inv.date}</td>
+                      <td style={{ textAlign: 'right' }} className="font-bold">
                         {parseFloat(inv.grand_total).toFixed(2)}
-                      </td>
-                      <td style={{ textAlign: 'center' }} className={parseFloat(inv.balance) > 0 ? 'text-red font-bold' : 'font-bold'}>
-                        {parseFloat(inv.balance ?? inv.grand_total).toFixed(2)}
+                        {inv.status === 'Deposit' && inv.deposit && (
+                          <span style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>
+                            D: {parseFloat(inv.deposit).toFixed(2)}
+                          </span>
+                        )}
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <span className={`badge ${getStatusBadgeClass(inv.status)}`}>
@@ -194,16 +211,16 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
                           <button
                             onClick={() => onOpenInvoiceDetail(inv)}
                             className="btn btn-secondary btn-sm"
-                            title="Lihat / Cetak PDF"
+                            title="Lihat / Cetak"
                           >
-                            <Eye size={12} /> View/Print
+                            <Eye size={12} /> {tr('view')}
                           </button>
                           <button
                             onClick={() => onOpenInvoiceModal(inv)}
                             className="btn btn-secondary btn-sm"
-                            title="Edit Invoice"
+                            title="Edit Invois"
                           >
-                            <Edit2 size={12} /> Edit
+                            <Edit2 size={12} /> {tr('edit')}
                           </button>
                           <button
                             onClick={() => onOpenPaymentModal(inv)}
@@ -211,15 +228,15 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
                             style={{ color: '#D97706', borderColor: '#FEF3C7' }}
                             title="Rekod Bayaran"
                           >
-                            <RefreshCw size={12} /> Update
+                            <RefreshCw size={12} /> {tr('deposit') === 'Deposit' ? 'Bayar' : 'Bayar'}
                           </button>
                           <button
                             onClick={() => handleDelete(inv.id, inv.invoice_no)}
                             className="btn btn-secondary btn-sm"
                             style={{ borderColor: '#FEE2E2', color: '#B91C1C' }}
-                            title="Padam Invoice"
+                            title="Padam Invois"
                           >
-                            <Trash2 size={12} /> Delete
+                            <Trash2 size={12} /> {tr('delete')}
                           </button>
                         </div>
                       </td>
@@ -246,7 +263,9 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div className="mobile-card-detail">Jumlah: <span className="mobile-card-bold">RM {parseFloat(inv.grand_total).toFixed(2)}</span></div>
-                      <div className="mobile-card-detail">Baki: <span className={`mobile-card-bold ${parseFloat(inv.balance ?? inv.grand_total) > 0 ? 'text-red' : ''}`}>RM {parseFloat(inv.balance ?? inv.grand_total).toFixed(2)}</span></div>
+                      {inv.status === 'Deposit' && inv.deposit && (
+                        <div className="mobile-card-detail" style={{ color: '#B45309', fontWeight: 'bold' }}>Depo: RM {parseFloat(inv.deposit).toFixed(2)}</div>
+                      )}
                     </div>
                   </div>
                   <div className="mobile-card-actions" style={{ flexWrap: 'wrap' }}>
@@ -254,27 +273,27 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
                       onClick={() => onOpenInvoiceDetail(inv)}
                       className="btn btn-secondary btn-sm"
                     >
-                      <Eye size={12} /> View
+                      <Eye size={12} /> {tr('view')}
                     </button>
                     <button
                       onClick={() => onOpenInvoiceModal(inv)}
                       className="btn btn-secondary btn-sm"
                     >
-                      <Edit2 size={12} /> Edit
+                      <Edit2 size={12} /> {tr('edit')}
                     </button>
                     <button
                       onClick={() => onOpenPaymentModal(inv)}
                       className="btn btn-secondary btn-sm"
                       style={{ color: '#D97706', borderColor: '#FEF3C7' }}
                     >
-                      <RefreshCw size={12} /> Bayar
+                      <RefreshCw size={12} /> {tr('deposit') === 'Deposit' ? 'Bayar' : 'Bayar'}
                     </button>
                     <button
                       onClick={() => handleDelete(inv.id, inv.invoice_no)}
                       className="btn btn-secondary btn-sm"
                       style={{ borderColor: '#FEE2E2', color: '#B91C1C' }}
                     >
-                      <Trash2 size={12} /> Padam
+                      <Trash2 size={12} /> {tr('delete')}
                     </button>
                   </div>
                 </div>
@@ -292,7 +311,7 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
             disabled={currentPage === 1}
             className="btn btn-secondary btn-sm pag-btn"
           >
-            Sebelum
+            {tr('previous')}
           </button>
           
           <div className="pagination-numbers">
@@ -315,7 +334,7 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
             disabled={currentPage === totalPages}
             className="btn btn-secondary btn-sm pag-btn"
           >
-            Seterusnya
+            {tr('next')}
           </button>
         </div>
       )}

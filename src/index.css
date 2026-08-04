@@ -93,7 +93,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 ::-webkit-scrollbar-thumb {
   background: var(--border-color);
-  border-radius: 3px;
+  border-radius: 0;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-light);
@@ -239,7 +239,7 @@ input[type=number] {
   letter-spacing: 1px;
   text-transform: uppercase;
   padding: 0.25rem 0.75rem;
-  border-radius: 20px;
+  border-radius: 0;
   display: inline-flex;
   width: fit-content;
 }
@@ -257,6 +257,14 @@ input[type=number] {
 .badge-unpaid {
   background-color: #FEE2E2;
   color: #B91C1C;
+}
+
+.text-red {
+  color: var(--primary-red);
+}
+
+.text-muted {
+  color: var(--text-muted);
 }
 
 /* Modals */
@@ -426,7 +434,9 @@ input[type=number] {
   }
 
   .modal-content {
-    position: relative;
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100% !important;
     max-width: 100% !important;
     height: 100vh !important;
@@ -438,7 +448,7 @@ input[type=number] {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    margin: 0;
+    margin: 0 !important;
   }
 
   .modal-content > form {
@@ -859,7 +869,7 @@ input[type=number] {
   .mobile-status-dot {
     width: 7px;
     height: 7px;
-    border-radius: 50%;
+    border-radius: 0;
   }
 
   .mobile-status-dot.cloud {
@@ -879,52 +889,30 @@ input[type=number] {
     color: var(--text-dark);
   }
 
-  /* Mobile Bottom Navigation Bar */
-  .mobile-bottom-nav {
+  /* Floating Mobile Menu Button */
+  .mobile-menu-btn {
     position: fixed;
-    bottom: 0;
+    top: 50%;
     left: 0;
-    right: 0;
-    height: 65px;
-    background-color: var(--white);
-    border-top: 1px solid var(--border-color);
+    transform: translateY(-50%);
+    background-color: var(--primary-red);
+    color: var(--white);
+    border: none;
+    border-radius: 0;
+    width: 36px;
+    height: 48px;
     display: flex;
-    justify-content: space-around;
-    align-items: center;
-    z-index: 99;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .mobile-nav-item {
-    display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.15rem;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-family: var(--font-primary);
-    font-size: 0.5rem;
-    font-weight: 700;
-    letter-spacing: 0.25px;
-    text-transform: uppercase;
+    font-size: 1.25rem;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+    z-index: 100;
     cursor: pointer;
-    flex: 1;
-    height: 100%;
     transition: var(--transition);
   }
 
-  .mobile-nav-item:hover {
-    color: var(--primary-red);
-  }
-
-  .mobile-nav-item.active {
-    color: var(--primary-red);
-  }
-
-  .mobile-nav-item.active svg {
-    stroke-width: 2.5;
+  .mobile-menu-btn:hover {
+    background-color: var(--primary-red-hover);
   }
 }
 
@@ -939,13 +927,15 @@ input[type=number] {
   to { transform: translateY(0); opacity: 1; }
 }
 
+/* A4 Sheet Responsive Safety (screen only, does not affect print) */
+
 /* Global Size Pricing Badge & Header Styles */
 .size-card-extra-badge {
   font-size: 0.6rem;
   color: #15803D;
   background-color: #E8F5E9;
   padding: 0.1rem 0.35rem;
-  border-radius: 4px;
+  border-radius: 0;
   font-weight: 700;
 }
 
@@ -954,7 +944,7 @@ input[type=number] {
   color: var(--primary-red);
   background-color: var(--primary-red-light);
   padding: 0.1rem 0.35rem;
-  border-radius: 4px;
+  border-radius: 0;
   font-weight: 700;
 }
 
