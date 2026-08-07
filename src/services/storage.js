@@ -343,7 +343,8 @@ export const saveInvoice = async (invoiceData) => {
         discount_value: finalInvoiceData.discount_value,
         client_address: finalInvoiceData.client_address,
         pengeluaran: finalInvoiceData.pengeluaran,
-        order_status: finalInvoiceData.order_status
+        order_status: finalInvoiceData.order_status,
+        discount_per_pcs: finalInvoiceData.discount_per_pcs
       };
       const dbInvoiceData = {
         ...finalInvoiceData,
@@ -354,6 +355,7 @@ export const saveInvoice = async (invoiceData) => {
       delete dbInvoiceData.client_address;
       delete dbInvoiceData.pengeluaran;
       delete dbInvoiceData.order_status;
+      delete dbInvoiceData.discount_per_pcs;
 
       const { data, error } = await client
         .from('invoices')

@@ -808,7 +808,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       onSaveSuccess();
     } catch (err) {
       console.error(err);
-      alert('Ralat semasa menyimpan invoice.');
+      alert('Ralat semasa menyimpan invoice: ' + (err.message || err));
     } finally {
       setLoading(false);
     }
