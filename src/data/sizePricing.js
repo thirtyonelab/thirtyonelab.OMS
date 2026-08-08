@@ -9,7 +9,7 @@ export const KID_SIZES = [
 export const SIZES = [...KID_SIZES, ...ADULT_SIZES];
 
 export const getBasePrice = (totalQty) => {
-  if (totalQty < 5) return 55;
+  if (totalQty < 5) return 80;
   if (totalQty <= 9) return 50;
   if (totalQty <= 39) return 39;
   if (totalQty <= 69) return 37;

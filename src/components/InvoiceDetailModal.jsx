@@ -192,6 +192,18 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
   };
 
   const getItemSubRows = (item, basePrice) => {
+    if (item.print_method === 'DTF' && item.baju_source === 'customer') {
+      const qty = parseInt(item.dtf_qty || 0, 10);
+      const price = parseFloat(item.dtf_price || 0);
+      return [{
+        prefix: '• Service:',
+        value: 'Press Service Cost',
+        qty: qty,
+        price: price,
+        total: qty * price
+      }];
+    }
+
     const rows = [];
     const isRepeatOrder = item.is_repeat_order || false;
     const materialPrice = (isRepeatOrder && !item.material_addon) ? 0 : (MATERIALS.find(m => m.id === item.material)?.price || 0);
@@ -541,7 +553,11 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                             <div className="print-item-desc">
                               <span className="print-design-name" style={{ fontWeight: '800' }}>Design: {item.design_name || 'Unnamed'}</span>
                               <div className="print-specs-row" style={{ fontSize: '0.78rem', margin: '0.15rem 0 0.4rem 0' }}>
-                                Print Method: {item.print_method || 'Sublimation'} | Material: {item.material && MATERIALS.find(m => m.id === item.material)?.price > 0 ? `${item.material} (+RM${MATERIALS.find(m => m.id === item.material).price})` : item.material} | Cutting: {item.cutting && CUTTINGS.find(c => c.id === item.cutting)?.price > 0 ? `${item.cutting} (+RM${CUTTINGS.find(c => c.id === item.cutting).price})` : item.cutting} | Neck: {item.neck && NECKS.find(n => n.id === item.neck)?.price > 0 ? `${item.neck} (+RM${NECKS.find(n => n.id === item.neck).price})` : item.neck}{item.name_set === 'Yes' ? ' | Name Set: Yes (+RM3)' : ''}
+                                {item.print_method === 'DTF' && item.baju_source === 'customer' ? (
+                                  <>Print Method: DTF (Customer's Shirt)</>
+                                ) : (
+                                  <>Print Method: {item.print_method || 'Sublimation'} | Material: {item.material && MATERIALS.find(m => m.id === item.material)?.price > 0 ? `${item.material} (+RM${MATERIALS.find(m => m.id === item.material).price})` : item.material} | Cutting: {item.cutting && CUTTINGS.find(c => c.id === item.cutting)?.price > 0 ? `${item.cutting} (+RM${CUTTINGS.find(c => c.id === item.cutting).price})` : item.cutting} | Neck: {item.neck && NECKS.find(n => n.id === item.neck)?.price > 0 ? `${item.neck} (+RM${NECKS.find(n => n.id === item.neck).price})` : item.neck}{item.name_set === 'Yes' ? ' | Name Set: Yes (+RM3)' : ''}</>
+                                )}
                               </div>
                               <div style={{ display: 'flex', alignItems: 'flex-start', fontWeight: '600', fontSize: '0.78rem', color: '#1E293B' }}>
                                 <span style={{ minWidth: '7.8rem', display: 'inline-block', flexShrink: 0 }}>{firstRow.prefix}</span>

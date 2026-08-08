@@ -242,6 +242,9 @@ const createEmptyItem = () => ({
   design_name: '',
   design_image: '',
   print_method: 'Sublimation',
+  baju_source: '',
+  dtf_price: '',
+  dtf_qty: '',
   material: 'Eyelet',
   cutting: 'Normal',
   neck: 'Roundneck',
@@ -585,7 +588,11 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   const updateItemField = (itemId, field, value) => {
     setItems(prev => prev.map(item => {
       if (item.id === itemId) {
-        return { ...item, [field]: value };
+        const updatedItem = { ...item, [field]: value };
+        if (field === 'print_method' && value === 'DTF') {
+          updatedItem.baju_source = '';
+        }
+        return updatedItem;
       }
       return item;
     }));
@@ -647,9 +654,9 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
 
   // 2. Calculations per Design Item
   const calculateItemSummary = (item) => {
-    if (item.item_type === 'banner') {
-      const qty = parseInt(item.qty || 0, 10);
-      const price = parseFloat(item.price || 0);
+    if (item.item_type === 'banner' || (item.print_method === 'DTF' && item.baju_source === 'customer')) {
+      const qty = parseInt(item.item_type === 'banner' ? item.qty : item.dtf_qty || 0, 10);
+      const price = parseFloat(item.item_type === 'banner' ? item.price : item.dtf_price || 0);
       const subtotal = qty * price;
       return {
         qty,
@@ -1172,6 +1179,23 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                             </select>
                           </div>
 
+                          {item.print_method === 'DTF' && (
+                            <div className="form-group">
+                              <label className="form-label">Pilihan Baju</label>
+                              <select
+                                value={item.baju_source || ''}
+                                onChange={(e) => updateItemField(item.id, 'baju_source', e.target.value)}
+                                className="form-control"
+                              >
+                                <option value="" disabled>-- Sila Pilih --</option>
+                                <option value="thirtyone_lab">Baju dari thirtyone lab</option>
+                                <option value="customer">Baju customer sendiri</option>
+                              </select>
+                            </div>
+                          )}
+
+                          {(item.print_method !== 'DTF' || item.baju_source === 'thirtyone_lab') && (
+                            <>
                            <div className="form-group">
                             <label className="form-label">Jenis Material</label>
                             <select
@@ -1274,6 +1298,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                               </label>
                             )}
                           </div>
+                          </>
+                          )}
 
                           <div className="form-group col-span-2">
                             <label className="form-label">Imej Design (Maks 300KB)</label>
@@ -1307,6 +1333,38 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                         </div>
 
                         {/* Breakdown Matrix */}
+                        {item.print_method === 'DTF' && item.baju_source === 'customer' && (
+                          <div className="dtf-customer-section" style={{ padding: '1rem', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '1rem' }}>
+                            <h5 style={{ marginBottom: '1rem', color: 'var(--text-dark)', fontSize: '0.9rem' }}>Maklumat Tempahan DTF (Baju Sendiri)</h5>
+                            <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                              <div className="form-group">
+                                <label className="form-label">Harga 1 Pcs (RM)</label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={item.dtf_price || ''}
+                                  onChange={(e) => updateItemField(item.id, 'dtf_price', e.target.value)}
+                                  placeholder="Contoh: 15.00"
+                                  className="form-control"
+                                />
+                              </div>
+                              <div className="form-group">
+                                <label className="form-label">Bilangan Pcs (Kuantiti)</label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={item.dtf_qty || ''}
+                                  onChange={(e) => updateItemField(item.id, 'dtf_qty', e.target.value)}
+                                  placeholder="Contoh: 10"
+                                  className="form-control"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {(item.print_method !== 'DTF' || item.baju_source === 'thirtyone_lab') && (
                         <div className="size-breakdown-section">
                           <div 
                             onClick={() => toggleSizesCollapse(item.id)}
@@ -1771,6 +1829,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                             </div>
                           )}
                         </div>
+                        )}
 
                         {/* Item Calculations Footnote */}
                         <div className="item-calculations-footer">
