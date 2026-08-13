@@ -1,4 +1,5 @@
 export const MATERIALS = [
+  { id: 'Tiada', label: 'Tiada (+RM0)', price: 0 },
   { id: 'Eyelet', label: 'Eyelet (+RM0)', price: 0 },
   { id: 'Diamond', label: 'Diamond (+RM3)', price: 3 },
   { id: 'Interlock', label: 'Interlock (+RM0)', price: 0 },
@@ -10,6 +11,7 @@ export const MATERIALS = [
 ];
 
 export const CUTTINGS = [
+  { id: 'Tiada', label: 'Tiada (+RM0)', price: 0 },
   { id: 'Normal', label: 'Normal (+RM0)', price: 0 },
   { id: 'Baseball', label: 'Baseball (+RM5)', price: 5 },
   { id: 'Boxy', label: 'Boxy (+RM5)', price: 5 },
@@ -20,6 +22,7 @@ export const CUTTINGS = [
 ];
 
 export const NECKS = [
+  { id: 'Tiada', label: 'Tiada (+RM0)', price: 0 },
   { id: 'Roundneck', label: 'Roundneck (+RM0)', price: 0 },
   { id: 'Collar Button (Polo)', label: 'Collar Button (Polo) (+RM6)', price: 6 },
   { id: 'Mandarin Zip', label: 'Mandarin Zip (+RM6)', price: 6 },

@@ -556,7 +556,13 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                                 {item.print_method === 'DTF' && item.baju_source === 'customer' ? (
                                   <>Print Method: DTF (Customer's Shirt)</>
                                 ) : (
-                                  <>Print Method: {item.print_method || 'Sublimation'} | Material: {item.material && MATERIALS.find(m => m.id === item.material)?.price > 0 ? `${item.material} (+RM${MATERIALS.find(m => m.id === item.material).price})` : item.material} | Cutting: {item.cutting && CUTTINGS.find(c => c.id === item.cutting)?.price > 0 ? `${item.cutting} (+RM${CUTTINGS.find(c => c.id === item.cutting).price})` : item.cutting} | Neck: {item.neck && NECKS.find(n => n.id === item.neck)?.price > 0 ? `${item.neck} (+RM${NECKS.find(n => n.id === item.neck).price})` : item.neck}{item.name_set === 'Yes' ? ' | Name Set: Yes (+RM3)' : ''}</>
+                                  <>
+                                    Print Method: {item.print_method || 'Sublimation'}
+                                    {item.material && item.material !== 'Tiada' ? ` | Material: ${MATERIALS.find(m => m.id === item.material)?.price > 0 ? `${item.material} (+RM${MATERIALS.find(m => m.id === item.material).price})` : item.material}` : ''}
+                                    {item.cutting && item.cutting !== 'Tiada' ? ` | Cutting: ${CUTTINGS.find(c => c.id === item.cutting)?.price > 0 ? `${item.cutting} (+RM${CUTTINGS.find(c => c.id === item.cutting).price})` : item.cutting}` : ''}
+                                    {item.neck && item.neck !== 'Tiada' ? ` | Neck: ${NECKS.find(n => n.id === item.neck)?.price > 0 ? `${item.neck} (+RM${NECKS.find(n => n.id === item.neck).price})` : item.neck}` : ''}
+                                    {item.name_set === 'Yes' ? ' | Name Set: Yes (+RM3)' : ''}
+                                  </>
                                 )}
                               </div>
                               <div style={{ display: 'flex', alignItems: 'flex-start', fontWeight: '600', fontSize: '0.78rem', color: '#1E293B' }}>
