@@ -439,10 +439,12 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
             onDoubleClick={() => setZoom(prev => (prev > 1 ? 1 : 1.8))}
             style={{ 
               width: `${794 * finalScale}px`, 
-              height: `${1122 * finalScale}px`, 
-              overflow: 'hidden',
+              height: 'auto',
+              minHeight: `${1122 * finalScale}px`, 
+              overflow: 'visible',
               flexShrink: 0,
-              cursor: zoom > 1 ? 'zoom-out' : 'zoom-in'
+              cursor: zoom > 1 ? 'zoom-out' : 'zoom-in',
+              paddingBottom: '2rem'
             }}
           >
             <div 
@@ -453,8 +455,9 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                 margin: 0,
                 flex: 'none',
                 width: '210mm',
-                height: '297mm',
-                overflow: 'hidden'
+                minHeight: '297mm',
+                height: 'auto',
+                overflow: 'visible'
               }}
             >
             <div className="invoice-container">
@@ -784,14 +787,15 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
         /* Styling for the A4 Sheet container - compressed layout to fit exactly 1 page */
         .A4-sheet {
           width: 210mm;
-          height: 297mm; /* Exactly 29.7 cm */
+          min-height: 297mm;
+          height: auto;
           box-sizing: border-box;
           background: #ffffff;
           padding: 12mm;
           box-shadow: none;
           border: none;
           margin: 0 auto;
-          overflow: hidden;
+          overflow: visible;
         }
 
         .invoice-container {
