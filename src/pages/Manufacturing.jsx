@@ -157,7 +157,7 @@ export default function Manufacturing() {
 
   const getItemSummary = (inv) => {
     if (!inv.items || !Array.isArray(inv.items)) return '-';
-    return inv.items.map(item => {
+    return inv.items.map((item, idx) => {
       let qty = 0;
       if (item.item_type === 'banner') {
         qty = parseInt(item.qty || 0, 10);
@@ -168,8 +168,12 @@ export default function Manufacturing() {
       }
       const typeLabel = item.item_type === 'banner' ? 'unit' : 'pcs';
       const itemName = item.design_name || (item.item_type ? (item.item_type.charAt(0).toUpperCase() + item.item_type.slice(1)) : 'Item');
-      return `${itemName} (${qty} ${typeLabel})`;
-    }).join(', ');
+      return (
+        <div key={item.id || idx} style={{ padding: '2px 0' }}>
+          • {itemName} ({qty} {typeLabel})
+        </div>
+      );
+    });
   };
 
   // Summary counts

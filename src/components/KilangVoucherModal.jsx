@@ -42,7 +42,7 @@ export default function KilangVoucherModal({ isOpen, onClose, invoice, settings 
 
   const getItemSummary = (inv) => {
     if (!inv.items || !Array.isArray(inv.items)) return '';
-    return inv.items.map(item => {
+    return inv.items.map((item, idx) => {
       let qty = 0;
       if (item.item_type === 'banner') {
         qty = parseInt(item.qty || 0, 10);
@@ -51,8 +51,12 @@ export default function KilangVoucherModal({ isOpen, onClose, invoice, settings 
           return sum + parseInt(s?.short || 0, 10) + parseInt(s?.long || 0, 10) + parseInt(s?.pants || 0, 10);
         }, 0);
       }
-      return `${item.design_name || item.item_type} (${qty})`;
-    }).join(', ');
+      return (
+        <div key={item.id || idx} style={{ padding: '1px 0' }}>
+          • {item.design_name || item.item_type} ({qty})
+        </div>
+      );
+    });
   };
 
   const companyName = settings?.company_name || 'THIRTYONE LAB';
