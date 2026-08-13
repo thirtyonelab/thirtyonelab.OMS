@@ -168,11 +168,20 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
       }
 
       if (pantsQty > 0) {
+        let adultPrice = 25;
+        let kidPrice = 23;
+        if (isRepeatOrder && item.custom_adult_pants_price && !isNaN(parseFloat(item.custom_adult_pants_price))) {
+          adultPrice = parseFloat(item.custom_adult_pants_price);
+        }
+        if (isRepeatOrder && item.custom_kid_pants_price && !isNaN(parseFloat(item.custom_kid_pants_price))) {
+          kidPrice = parseFloat(item.custom_kid_pants_price);
+        }
+        
         const ADULT_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
         if (ADULT_SIZES.includes(size)) {
-          itemAddonTotal += pantsQty * 25;
+          itemAddonTotal += pantsQty * adultPrice;
         } else {
-          itemAddonTotal += pantsQty * 23;
+          itemAddonTotal += pantsQty * kidPrice;
         }
       }
     });
@@ -298,6 +307,15 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     }
 
     // --- 3. PANTS ---
+    let adultPantsPrice = 25;
+    let kidPantsPrice = 23;
+    if (isRepeatOrder && item.custom_adult_pants_price && !isNaN(parseFloat(item.custom_adult_pants_price))) {
+      adultPantsPrice = parseFloat(item.custom_adult_pants_price);
+    }
+    if (isRepeatOrder && item.custom_kid_pants_price && !isNaN(parseFloat(item.custom_kid_pants_price))) {
+      kidPantsPrice = parseFloat(item.custom_kid_pants_price);
+    }
+
     const ADULT_PANTS = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
     const pAdultQty = ADULT_PANTS.reduce((sum, s) => sum + parseInt(item.sizes[s]?.pants || 0, 10), 0);
     if (pAdultQty > 0) {
@@ -305,8 +323,8 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
         prefix: '• Short Pants:',
         value: formatSubsetBreakdown(item.sizes, 'pants', ADULT_PANTS),
         qty: pAdultQty,
-        price: 25,
-        total: pAdultQty * 25
+        price: adultPantsPrice,
+        total: pAdultQty * adultPantsPrice
       });
     }
 
@@ -318,8 +336,8 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
         value: value,
         indent: pAdultQty > 0,
         qty: pKidQty,
-        price: 23,
-        total: pKidQty * 23
+        price: kidPantsPrice,
+        total: pKidQty * kidPantsPrice
       });
     }
 
@@ -558,10 +576,10 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                                 ) : (
                                   <>
                                     Print Method: {item.print_method || 'Sublimation'}
-                                    {item.material && item.material !== 'Tiada' ? ` | Material: ${MATERIALS.find(m => m.id === item.material)?.price > 0 ? `${item.material} (+RM${MATERIALS.find(m => m.id === item.material).price})` : item.material}` : ''}
-                                    {item.cutting && item.cutting !== 'Tiada' ? ` | Cutting: ${CUTTINGS.find(c => c.id === item.cutting)?.price > 0 ? `${item.cutting} (+RM${CUTTINGS.find(c => c.id === item.cutting).price})` : item.cutting}` : ''}
-                                    {item.neck && item.neck !== 'Tiada' ? ` | Neck: ${NECKS.find(n => n.id === item.neck)?.price > 0 ? `${item.neck} (+RM${NECKS.find(n => n.id === item.neck).price})` : item.neck}` : ''}
-                                    {item.name_set === 'Yes' ? ' | Name Set: Yes (+RM3)' : ''}
+                                    {item.material && item.material !== 'Tiada' ? ` | Material: ${MATERIALS.find(m => m.id === item.material)?.price > 0 && !(item.is_repeat_order && !item.material_addon) ? `${item.material} (+RM${MATERIALS.find(m => m.id === item.material).price})` : item.material}` : ''}
+                                    {item.cutting && item.cutting !== 'Tiada' ? ` | Cutting: ${CUTTINGS.find(c => c.id === item.cutting)?.price > 0 && !(item.is_repeat_order && !item.cutting_addon) ? `${item.cutting} (+RM${CUTTINGS.find(c => c.id === item.cutting).price})` : item.cutting}` : ''}
+                                    {item.neck && item.neck !== 'Tiada' ? ` | Neck: ${NECKS.find(n => n.id === item.neck)?.price > 0 && !(item.is_repeat_order && !item.neck_addon) ? `${item.neck} (+RM${NECKS.find(n => n.id === item.neck).price})` : item.neck}` : ''}
+                                    {item.name_set === 'Yes' ? (item.is_repeat_order && !item.name_set_addon ? ' | Name Set: Yes' : ' | Name Set: Yes (+RM3)') : ''}
                                   </>
                                 )}
                               </div>

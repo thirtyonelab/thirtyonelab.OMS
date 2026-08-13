@@ -253,6 +253,8 @@ const createEmptyItem = () => ({
   cutting_addon: false,
   neck_addon: false,
   name_set_addon: false,
+  custom_adult_pants_price: '',
+  custom_kid_pants_price: '',
   // Size Breakdown: sizeName -> { shortQty: 0, longQty: 0, pants: 0 }
   sizes: SIZES.reduce((acc, size) => {
     acc[size] = { short: 0, long: 0, pants: 0 };
@@ -713,12 +715,23 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       // Pants pricing (Flat rate)
       if (pantsQty > 0) {
         itemQty += pantsQty;
+        
+        let adultPrice = 25;
+        let kidPrice = 23;
+        
+        if (isRepeatOrder && item.custom_adult_pants_price && !isNaN(parseFloat(item.custom_adult_pants_price))) {
+          adultPrice = parseFloat(item.custom_adult_pants_price);
+        }
+        if (isRepeatOrder && item.custom_kid_pants_price && !isNaN(parseFloat(item.custom_kid_pants_price))) {
+          kidPrice = parseFloat(item.custom_kid_pants_price);
+        }
+
         if (ADULT_SIZES.includes(size)) {
           adultPantsQty += pantsQty;
-          itemAddonTotal += pantsQty * 25;
+          itemAddonTotal += pantsQty * adultPrice;
         } else if (KID_SIZES.includes(size)) {
           kidPantsQty += pantsQty;
-          itemAddonTotal += pantsQty * 23;
+          itemAddonTotal += pantsQty * kidPrice;
         }
       }
     });
@@ -1557,6 +1570,21 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                   {collapsedAdultPants[item.id] !== false && getSelectedAdultPantsPills(item)}
                                   {collapsedAdultPants[item.id] === false && (
                                     <div style={{ overflowX: 'auto' }}>
+                                      {isRepeatOrder && (
+                                        <div style={{ padding: '0.8rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--white)' }}>
+                                          <label style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '0.3rem' }}>Harga Custom / Invois Lama (RM/pcs)</label>
+                                          <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={item.custom_adult_pants_price || ''}
+                                            onChange={(e) => updateItemField(item.id, 'custom_adult_pants_price', e.target.value)}
+                                            placeholder="Cth: 20"
+                                            className="form-control"
+                                            style={{ maxWidth: '150px' }}
+                                          />
+                                        </div>
+                                      )}
                                       <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
                                         <thead>
                                           <tr>
@@ -1603,6 +1631,21 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                   {collapsedKidPants[item.id] !== false && getSelectedKidPantsPills(item)}
                                   {collapsedKidPants[item.id] === false && (
                                     <div style={{ overflowX: 'auto' }}>
+                                      {isRepeatOrder && (
+                                        <div style={{ padding: '0.8rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--white)' }}>
+                                          <label style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '0.3rem' }}>Harga Custom / Invois Lama (RM/pcs)</label>
+                                          <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={item.custom_kid_pants_price || ''}
+                                            onChange={(e) => updateItemField(item.id, 'custom_kid_pants_price', e.target.value)}
+                                            placeholder="Cth: 18"
+                                            className="form-control"
+                                            style={{ maxWidth: '150px' }}
+                                          />
+                                        </div>
+                                      )}
                                       <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
                                         <thead>
                                           <tr>
@@ -1763,6 +1806,20 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                   {collapsedAdultPants[item.id] !== false && getSelectedAdultPantsPills(item)}
                                   {collapsedAdultPants[item.id] === false && (
                                     <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
+                                      {isRepeatOrder && (
+                                        <div style={{ padding: '0.5rem', marginBottom: '0.5rem', backgroundColor: 'var(--white)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                          <label style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '0.3rem' }}>Harga Custom / Invois Lama (RM/pcs)</label>
+                                          <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={item.custom_adult_pants_price || ''}
+                                            onChange={(e) => updateItemField(item.id, 'custom_adult_pants_price', e.target.value)}
+                                            placeholder="Cth: 20"
+                                            className="form-control"
+                                          />
+                                        </div>
+                                      )}
                                       {ADULT_PANTS_SIZES.map(s => (
                                         <div key={s} className="size-input-card">
                                           <div className="size-card-title">
@@ -1802,6 +1859,20 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                   {collapsedKidPants[item.id] !== false && getSelectedKidPantsPills(item)}
                                   {collapsedKidPants[item.id] === false && (
                                     <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
+                                      {isRepeatOrder && (
+                                        <div style={{ padding: '0.5rem', marginBottom: '0.5rem', backgroundColor: 'var(--white)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                          <label style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '0.3rem' }}>Harga Custom / Invois Lama (RM/pcs)</label>
+                                          <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={item.custom_kid_pants_price || ''}
+                                            onChange={(e) => updateItemField(item.id, 'custom_kid_pants_price', e.target.value)}
+                                            placeholder="Cth: 18"
+                                            className="form-control"
+                                          />
+                                        </div>
+                                      )}
                                       {KID_SIZES.map(s => (
                                         <div key={s} className="size-input-card">
                                           <div className="size-card-title">
