@@ -81,13 +81,5 @@
     outline: none !important;
   }
 
-  .thank-you-footer {
-    position: absolute !important;
-    bottom: 12mm !important;
-    left: 12mm !important;
-    right: 12mm !important;
-    margin: 0 !important;
-    padding-top: 0.5rem !important;
-    border-top: 1px solid #e6e2dc !important;
-  }
+  /* Footer now flows naturally, no absolute positioning needed */
 }

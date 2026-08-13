@@ -716,9 +716,22 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
             <hr className="divider-line print-avoid-break" />
 
             {/* Centered Thank You Footer */}
-            <div className="thank-you-footer print-avoid-break">
+            <div 
+              className="thank-you-footer print-avoid-break"
+              style={invoice.items?.length >= 5 ? { display: 'flex', justifyContent: 'center', alignItems: 'baseline', gap: '0.4rem' } : {}}
+            >
               <p>THANK YOU FOR CHOOSING THIRTYONE LAB!</p>
-              <p style={{ textTransform: 'none', fontWeight: '500', fontStyle: 'italic', letterSpacing: '0.5px', marginTop: '0.15rem', color: '#777', fontSize: '0.6rem' }}>Wear With Pride.</p>
+              <p style={{ 
+                textTransform: 'none', 
+                fontWeight: '500', 
+                fontStyle: 'italic', 
+                letterSpacing: '0.5px', 
+                marginTop: invoice.items?.length >= 5 ? '0' : '0.15rem', 
+                color: '#777', 
+                fontSize: '0.6rem' 
+              }}>
+                Wear With Pride.
+              </p>
             </div>
 
           </div>
@@ -787,12 +800,14 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
           display: flex;
           flex-direction: column;
           gap: 0.6rem;
-          height: 100%;
-          justify-content: space-between;
+        }
+
+        .invoice-container > * {
+          flex-shrink: 0;
         }
 
         .invoice-table-section {
-          flex-grow: 1;
+          /* flex-grow removed so bottom elements follow naturally */
         }
 
         /* Header block styles */
