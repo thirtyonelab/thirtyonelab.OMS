@@ -578,11 +578,15 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                                   <>Print Method: DTF (Customer's Shirt)</>
                                 ) : (
                                   <>
-                                    Print Method: {item.print_method || 'Sublimation'}
-                                    {item.material && item.material !== 'Tiada' ? ` | Material: ${MATERIALS.find(m => m.id === item.material)?.price > 0 && !(item.is_repeat_order && !item.material_addon) ? `${item.material} (+RM${MATERIALS.find(m => m.id === item.material).price})` : item.material}` : ''}
-                                    {item.cutting && item.cutting !== 'Tiada' ? ` | Cutting: ${CUTTINGS.find(c => c.id === item.cutting)?.price > 0 && !(item.is_repeat_order && !item.cutting_addon) ? `${item.cutting} (+RM${CUTTINGS.find(c => c.id === item.cutting).price})` : item.cutting}` : ''}
-                                    {item.neck && item.neck !== 'Tiada' ? ` | Neck: ${NECKS.find(n => n.id === item.neck)?.price > 0 && !(item.is_repeat_order && !item.neck_addon) ? `${item.neck} (+RM${NECKS.find(n => n.id === item.neck).price})` : item.neck}` : ''}
-                                    {item.name_set === 'Yes' ? (item.is_repeat_order && !item.name_set_addon ? ' | Name Set: Yes' : ' | Name Set: Yes (+RM3)') : ''}
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.1rem 0' }}>
+                                      <span style={{ whiteSpace: 'nowrap' }}>Print Method: {item.print_method || 'Sublimation'}</span>
+                                      {item.material && item.material !== 'Tiada' ? <span style={{ whiteSpace: 'nowrap' }}>&nbsp;|&nbsp;Material: {MATERIALS.find(m => m.id === item.material)?.price > 0 && !(item.is_repeat_order && !item.material_addon) ? `${item.material} (+RM${MATERIALS.find(m => m.id === item.material).price})` : item.material}</span> : null}
+                                      {item.cutting && item.cutting !== 'Tiada' ? <span style={{ whiteSpace: 'nowrap' }}>&nbsp;|&nbsp;Cutting: {CUTTINGS.find(c => c.id === item.cutting)?.price > 0 && !(item.is_repeat_order && !item.cutting_addon) ? `${item.cutting} (+RM${CUTTINGS.find(c => c.id === item.cutting).price})` : item.cutting}</span> : null}
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.1rem 0', marginTop: '0.1rem' }}>
+                                      {item.neck && item.neck !== 'Tiada' ? <span style={{ whiteSpace: 'nowrap' }}>Neck: {NECKS.find(n => n.id === item.neck)?.price > 0 && !(item.is_repeat_order && !item.neck_addon) ? `${item.neck} (+RM${NECKS.find(n => n.id === item.neck).price})` : item.neck}</span> : null}
+                                      {item.name_set === 'Yes' ? <span style={{ whiteSpace: 'nowrap' }}>{(item.neck && item.neck !== 'Tiada') ? '\u00A0|\u00A0' : ''}{item.is_repeat_order && !item.name_set_addon ? 'Name Set: Yes' : 'Name Set: Yes (+RM3)'}</span> : null}
+                                    </div>
                                   </>
                                 )}
                               </div>
