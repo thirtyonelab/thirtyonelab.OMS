@@ -30,5 +30,13 @@ export const NECKS = [
   { id: 'Retro End', label: 'Retro End (+RM6)', price: 6 },
   { id: 'V-Neck', label: 'V-Neck (+RM3)', price: 3 },
   { id: 'V-Neck End', label: 'V-Neck End (+RM3)', price: 3 },
-  { id: 'V-Neck Outer', label: 'V-Neck Outer (+RM7)', price: 7 }
+  { id: 'V-Neck Outer', label: 'V-Neck Outer (+RM7)', price: 7 },
+  { id: 'V-Neck Cross', label: 'V-Neck Cross (+RM3)', price: 3 }
+];
+
+export const RIBS = [
+  { id: 'Tiada', label: 'Tiada (+RM0)', price: 0 },
+  { id: 'Kolar Sahaja', label: 'Kolar Sahaja (+RM2)', price: 2 },
+  { id: 'Tangan Sahaja', label: 'Tangan Sahaja (+RM2)', price: 2 },
+  { id: 'Kolar & Tangan', label: 'Kolar & Tangan (+RM4)', price: 4 }
 ];

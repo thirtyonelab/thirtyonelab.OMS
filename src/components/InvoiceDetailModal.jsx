@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getSettings } from '../services/storage';
 import { X, Printer, Receipt, ChevronDown, ChevronUp } from 'lucide-react';
-import { CUTTINGS, NECKS, MATERIALS } from '../data/constants';
+import { CUTTINGS, NECKS, MATERIALS, RIBS } from '../data/constants';
 import { SIZES, KID_SIZES, getBasePrice, getSizeCost } from '../data/sizePricing';
 
 const getPrintModeLabel = (mode) => {
@@ -41,6 +41,21 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
   const [controlsExpanded, setControlsExpanded] = useState(false);
   const [scale, setScale] = useState(1);
   const [zoom, setZoom] = useState(1);
+  const lastTapRef = useRef(0);
+  const sheetRef = useRef(null);
+  const [sheetHeight, setSheetHeight] = useState(1122);
+
+  useEffect(() => {
+    if (sheetRef.current) {
+      const resizeObserver = new ResizeObserver(entries => {
+        for (let entry of entries) {
+          setSheetHeight(entry.target.offsetHeight);
+        }
+      });
+      resizeObserver.observe(sheetRef.current);
+      return () => resizeObserver.disconnect();
+    }
+  }, [printMode, invoice]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -60,7 +75,6 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const lastTapRef = useRef(0);
   const handleDoubleTap = (e) => {
     const now = Date.now();
     const DOUBLE_PRESS_DELAY = 300;
@@ -150,8 +164,9 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     const materialPrice = (isRepeatOrder && !item.material_addon) ? 0 : (MATERIALS.find(m => m.id === item.material)?.price || 0);
     const cuttingPrice = (isRepeatOrder && !item.cutting_addon) ? 0 : (CUTTINGS.find(c => c.id === item.cutting)?.price || 0);
     const neckPrice = (isRepeatOrder && !item.neck_addon) ? 0 : (NECKS.find(n => n.id === item.neck)?.price || 0);
+    const ribPrice = (isRepeatOrder && !item.rib_addon) ? 0 : (RIBS.find(r => r.id === item.rib)?.price || 0);
     const nameSetPrice = item.name_set === 'Yes' ? ((isRepeatOrder && !item.name_set_addon) ? 0 : 3) : 0;
-    const designWideAddons = materialPrice + cuttingPrice + neckPrice + nameSetPrice;
+    const designWideAddons = materialPrice + cuttingPrice + neckPrice + ribPrice + nameSetPrice;
 
     SIZES.forEach(size => {
       const shortQty = parseInt(item.sizes[size]?.short || 0, 10);
@@ -164,7 +179,8 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
         itemAddonTotal += subQty * designWideAddons;
         const sizeAddon = getSizeCost(size);
         itemAddonTotal += subQty * sizeAddon;
-        itemAddonTotal += longQty * 5;
+        const lsPrice = (isRepeatOrder && !item.long_sleeve_addon) ? 0 : 5;
+        itemAddonTotal += longQty * lsPrice;
       }
 
       if (pantsQty > 0) {
@@ -218,9 +234,11 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     const materialPrice = (isRepeatOrder && !item.material_addon) ? 0 : (MATERIALS.find(m => m.id === item.material)?.price || 0);
     const cuttingPrice = (isRepeatOrder && !item.cutting_addon) ? 0 : (CUTTINGS.find(c => c.id === item.cutting)?.price || 0);
     const neckPrice = (isRepeatOrder && !item.neck_addon) ? 0 : (NECKS.find(n => n.id === item.neck)?.price || 0);
+    const ribPrice = (isRepeatOrder && !item.rib_addon) ? 0 : (RIBS.find(r => r.id === item.rib)?.price || 0);
     const nameSetPrice = item.name_set === 'Yes' ? ((isRepeatOrder && !item.name_set_addon) ? 0 : 3) : 0;
-    const designWideAddons = materialPrice + cuttingPrice + neckPrice + nameSetPrice;
+    const designWideAddons = materialPrice + cuttingPrice + neckPrice + ribPrice + nameSetPrice;
     const X = basePrice + designWideAddons;
+    const hasSleeveRib = item.rib === 'Tangan Sahaja' || item.rib === 'Kolar & Tangan';
 
     const STANDARD_ADULT = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
     const EXTRA_TIERS = [
@@ -234,7 +252,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     const ssStandardQty = STANDARD_ADULT.reduce((sum, s) => sum + parseInt(item.sizes[s]?.short || 0, 10), 0);
     if (ssStandardQty > 0) {
       rows.push({
-        prefix: '• Short Sleeve:',
+        prefix: hasSleeveRib ? '• Short Sleeve (Rib):' : '• Short Sleeve:',
         value: formatSubsetBreakdown(item.sizes, 'short', STANDARD_ADULT),
         qty: ssStandardQty,
         price: X,
@@ -269,14 +287,15 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     }
 
     // --- 2. LONG SLEEVE ---
+    const lsPrice = (isRepeatOrder && !item.long_sleeve_addon) ? 0 : 5;
     const lsStandardQty = STANDARD_ADULT.reduce((sum, s) => sum + parseInt(item.sizes[s]?.long || 0, 10), 0);
     if (lsStandardQty > 0) {
       rows.push({
-        prefix: '• Long Sleeve:',
+        prefix: hasSleeveRib ? '• Long Sleeve (Rib):' : '• Long Sleeve:',
         value: formatSubsetBreakdown(item.sizes, 'long', STANDARD_ADULT),
         qty: lsStandardQty,
-        price: X + 5,
-        total: lsStandardQty * (X + 5)
+        price: X + lsPrice,
+        total: lsStandardQty * (X + lsPrice)
       });
     }
 
@@ -288,8 +307,8 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
           value: formatSubsetBreakdown(item.sizes, 'long', tier.sizes),
           indent: true,
           qty: qty,
-          price: X + tier.addon + 5,
-          total: qty * (X + tier.addon + 5)
+          price: X + tier.addon + lsPrice,
+          total: qty * (X + tier.addon + lsPrice)
         });
       }
     });
@@ -301,8 +320,8 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
         value: formatSubsetBreakdown(item.sizes, 'long', KID_SIZES),
         indent: true,
         qty: lsKidQty,
-        price: X - 2 + 5,
-        total: lsKidQty * (X - 2 + 5)
+        price: X - 2 + lsPrice,
+        total: lsKidQty * (X - 2 + lsPrice)
       });
     }
 
@@ -439,7 +458,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
             onDoubleClick={() => setZoom(prev => (prev > 1 ? 1 : 1.8))}
             style={{ 
               width: `${794 * finalScale}px`, 
-              height: 'auto',
+              height: `${sheetHeight * finalScale}px`,
               minHeight: `${1122 * finalScale}px`, 
               overflow: 'visible',
               flexShrink: 0,
@@ -448,6 +467,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
             }}
           >
             <div 
+              ref={sheetRef}
               className="modal-body A4-sheet"
               style={{
                 transform: `scale(${finalScale})`,
@@ -584,7 +604,20 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                                       {item.cutting && item.cutting !== 'Tiada' ? <span style={{ whiteSpace: 'nowrap' }}>&nbsp;|&nbsp;Cutting: {CUTTINGS.find(c => c.id === item.cutting)?.price > 0 && !(item.is_repeat_order && !item.cutting_addon) ? `${item.cutting} (+RM${CUTTINGS.find(c => c.id === item.cutting).price})` : item.cutting}</span> : null}
                                     </div>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.1rem 0', marginTop: '0.1rem' }}>
-                                      {item.neck && item.neck !== 'Tiada' ? <span style={{ whiteSpace: 'nowrap' }}>Neck: {NECKS.find(n => n.id === item.neck)?.price > 0 && !(item.is_repeat_order && !item.neck_addon) ? `${item.neck} (+RM${NECKS.find(n => n.id === item.neck).price})` : item.neck}</span> : null}
+                                      {item.neck && item.neck !== 'Tiada' ? (() => {
+                                        const nPrice = (item.is_repeat_order && !item.neck_addon) ? 0 : (NECKS.find(n => n.id === item.neck)?.price || 0);
+                                        const rPrice = (item.is_repeat_order && !item.rib_addon) ? 0 : (RIBS.find(r => r.id === item.rib)?.price || 0);
+                                        const hasNeckRib = item.rib === 'Kolar Sahaja' || item.rib === 'Kolar & Tangan';
+                                        let displayText = item.neck;
+                                        if (hasNeckRib) displayText += ' (Rib)';
+                                        if (nPrice > 0 || (hasNeckRib && rPrice > 0)) {
+                                           const neckDisplayPrice = nPrice + (hasNeckRib ? (item.rib === 'Kolar & Tangan' ? 2 : rPrice) : 0);
+                                           if (neckDisplayPrice > 0) displayText += ` (+RM${neckDisplayPrice})`;
+                                        }
+                                        return <span style={{ whiteSpace: 'nowrap' }}>Neck: {displayText}</span>;
+                                      })() : (
+                                        (item.rib === 'Kolar Sahaja' || item.rib === 'Kolar & Tangan') ? <span style={{ whiteSpace: 'nowrap' }}>Rib (Kolar): {(item.is_repeat_order && !item.rib_addon) ? 'Yes' : 'Yes (+RM2)'}</span> : null
+                                      )}
                                       {item.name_set === 'Yes' ? <span style={{ whiteSpace: 'nowrap' }}>{(item.neck && item.neck !== 'Tiada') ? '\u00A0|\u00A0' : ''}{item.is_repeat_order && !item.name_set_addon ? 'Name Set: Yes' : 'Name Set: Yes (+RM3)'}</span> : null}
                                     </div>
                                   </>
@@ -596,26 +629,26 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                               </div>
                             </div>
                           </td>
-                          <td style={{ textAlign: 'center', verticalAlign: 'top' }}>{firstRow.qty}</td>
-                          <td style={{ textAlign: 'center', verticalAlign: 'top' }}>{firstRow.price.toFixed(2)}</td>
-                          <td style={{ textAlign: 'center', verticalAlign: 'top' }} className="font-bold">{firstRow.total.toFixed(2)}</td>
+                          <td style={{ textAlign: 'center', verticalAlign: 'bottom', paddingBottom: '0.4rem' }}>{firstRow.qty}</td>
+                          <td style={{ textAlign: 'center', verticalAlign: 'bottom', paddingBottom: '0.4rem' }}>{firstRow.price.toFixed(2)}</td>
+                          <td style={{ textAlign: 'center', verticalAlign: 'bottom', paddingBottom: '0.4rem' }} className="font-bold">{firstRow.total.toFixed(2)}</td>
                         </tr>
 
                         {remainingRows.map((row, rIdx) => (
                           <tr key={item.id + '_addon_' + rIdx} className="print-avoid-break">
                             <td style={{ textAlign: 'left', verticalAlign: 'top' }}>
                               <div className="print-item-desc">
-                                <div style={{ display: 'flex', alignItems: 'flex-start', fontWeight: row.indent ? 'normal' : '600', fontSize: '0.78rem', color: '#1E293B' }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', fontWeight: '600', fontSize: '0.78rem', color: '#1E293B' }}>
                                   <span style={{ minWidth: '7.8rem', display: 'inline-block', flexShrink: 0 }}>{row.prefix}</span>
                                   <span>{row.value}</span>
                                 </div>
                               </div>
                             </td>
-                            <td style={{ textAlign: 'center', verticalAlign: 'top' }}>{row.qty}</td>
-                            <td style={{ textAlign: 'center', verticalAlign: 'top' }}>
+                            <td style={{ textAlign: 'center', verticalAlign: 'bottom', paddingBottom: '0.4rem' }}>{row.qty}</td>
+                            <td style={{ textAlign: 'center', verticalAlign: 'bottom', paddingBottom: '0.4rem' }}>
                               {row.price < 0 ? `- ${Math.abs(row.price).toFixed(2)}` : row.price.toFixed(2)}
                             </td>
-                            <td style={{ textAlign: 'center', verticalAlign: 'top' }} className="font-bold">
+                            <td style={{ textAlign: 'center', verticalAlign: 'bottom', paddingBottom: '0.4rem' }} className="font-bold">
                               {row.total < 0 ? `- ${Math.abs(row.total).toFixed(2)}` : row.total.toFixed(2)}
                             </td>
                           </tr>

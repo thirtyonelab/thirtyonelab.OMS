@@ -4,8 +4,8 @@ import { X, Plus, Trash2, Upload, AlertTriangle, Save, Check, ChevronDown, Chevr
 import { useLanguage } from '../context/LanguageContext';
 import { SIZES, ADULT_SIZES, KID_SIZES, getBasePrice, getSizeCost } from '../data/sizePricing';
 import { generateUUID } from '../utils/uuid.js';
-import { MATERIALS, CUTTINGS, NECKS } from '../data/constants.js';
-export { getBasePrice, getSizeCost, MATERIALS, CUTTINGS, NECKS };
+import { MATERIALS, CUTTINGS, NECKS, RIBS } from '../data/constants.js';
+export { getBasePrice, getSizeCost, MATERIALS, CUTTINGS, NECKS, RIBS };
 
 const ADULT_PANTS_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
 
@@ -248,10 +248,13 @@ const createEmptyItem = () => ({
   material: 'Eyelet',
   cutting: 'Normal',
   neck: 'Roundneck',
+  rib: 'Tiada',
   name_set: 'No', // 'Yes' or 'No'
   material_addon: false,
   cutting_addon: false,
   neck_addon: false,
+  rib_addon: false,
+  long_sleeve_addon: false,
   name_set_addon: false,
   custom_adult_pants_price: '',
   custom_kid_pants_price: '',
@@ -684,8 +687,9 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
     const materialPrice = (isRepeatOrder && !item.material_addon) ? 0 : (MATERIALS.find(m => m.id === item.material)?.price || 0);
     const cuttingPrice = (isRepeatOrder && !item.cutting_addon) ? 0 : (CUTTINGS.find(c => c.id === item.cutting)?.price || 0);
     const neckPrice = (isRepeatOrder && !item.neck_addon) ? 0 : (NECKS.find(n => n.id === item.neck)?.price || 0);
+    const ribPrice = (isRepeatOrder && !item.rib_addon) ? 0 : (RIBS.find(r => r.id === item.rib)?.price || 0);
     const nameSetPrice = item.name_set === 'Yes' ? ((isRepeatOrder && !item.name_set_addon) ? 0 : 3) : 0;
-    const designWideAddons = materialPrice + cuttingPrice + neckPrice + nameSetPrice; // Apply to every piece
+    const designWideAddons = materialPrice + cuttingPrice + neckPrice + ribPrice + nameSetPrice; // Apply to every piece
 
     SIZES.forEach(size => {
       const shortQty = parseInt(item.sizes[size]?.short || 0, 10);
@@ -709,7 +713,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
         itemAddonTotal += subQty * sizeAddon;
 
         // Sleeve specific addon (+RM5 for Long Sleeve)
-        itemAddonTotal += longQty * 5;
+        const lsPrice = (isRepeatOrder && !item.long_sleeve_addon) ? 0 : 5;
+        itemAddonTotal += longQty * lsPrice;
       }
 
       // Pants pricing (Flat rate)
@@ -1288,6 +1293,32 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                           </div>
 
                           <div className="form-group">
+                            <label className="form-label">Rib</label>
+                            <select
+                              value={item.rib || 'Tiada'}
+                              onChange={(e) => updateItemField(item.id, 'rib', e.target.value)}
+                              className="form-control"
+                            >
+                              {RIBS.map(r => (
+                                <option key={r.id} value={r.id}>
+                                  {getDynamicOptionLabel(r.id, r.label, item.rib_addon, isRepeatOrder)}
+                                </option>
+                              ))}
+                            </select>
+                            {isRepeatOrder && (
+                              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '0.4rem', userSelect: 'none' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={item.rib_addon || false}
+                                  onChange={(e) => updateItemField(item.id, 'rib_addon', e.target.checked)}
+                                  style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '14px', height: '14px' }}
+                                />
+                                Add-on (Cas Tambahan)
+                              </label>
+                            )}
+                          </div>
+
+                          <div className="form-group">
                             <label className="form-label">Name Set (+RM3/pcs)</label>
                             <select
                               value={item.name_set}
@@ -1467,7 +1498,22 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                             ))}
                                           </tr>
                                           <tr>
-                                            <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>Long (+RM5)</td>
+                                            <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
+                                              Long (+RM{isRepeatOrder && !item.long_sleeve_addon ? 0 : 5})
+                                              {isRepeatOrder && (
+                                                <div style={{ marginTop: '0.2rem' }}>
+                                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.65rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', fontWeight: 'normal' }}>
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={item.long_sleeve_addon || false}
+                                                      onChange={(e) => updateItemField(item.id, 'long_sleeve_addon', e.target.checked)}
+                                                      style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '12px', height: '12px', margin: 0 }}
+                                                    />
+                                                    Add-on
+                                                  </label>
+                                                </div>
+                                              )}
+                                            </td>
                                             {ADULT_SIZES.map(s => (
                                               <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
                                                 <input
@@ -1535,7 +1581,22 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                             ))}
                                           </tr>
                                           <tr>
-                                            <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>Long (+RM5)</td>
+                                            <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
+                                              Long (+RM{isRepeatOrder && !item.long_sleeve_addon ? 0 : 5})
+                                              {isRepeatOrder && (
+                                                <div style={{ marginTop: '0.2rem' }}>
+                                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.65rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', fontWeight: 'normal' }}>
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={item.long_sleeve_addon || false}
+                                                      onChange={(e) => updateItemField(item.id, 'long_sleeve_addon', e.target.checked)}
+                                                      style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '12px', height: '12px', margin: 0 }}
+                                                    />
+                                                    Add-on
+                                                  </label>
+                                                </div>
+                                              )}
+                                            </td>
                                             {KID_SIZES.map(s => (
                                               <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
                                                 <input
@@ -1719,7 +1780,22 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                               />
                                             </div>
                                             <div className="size-qty-group">
-                                              <span className="size-qty-lbl">Long (+RM5)</span>
+                                              <span className="size-qty-lbl">
+                                                Long (+RM{isRepeatOrder && !item.long_sleeve_addon ? 0 : 5})
+                                                {isRepeatOrder && (
+                                                  <div style={{ marginTop: '0.1rem' }}>
+                                                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.6rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', fontWeight: 'normal' }}>
+                                                      <input
+                                                        type="checkbox"
+                                                        checked={item.long_sleeve_addon || false}
+                                                        onChange={(e) => updateItemField(item.id, 'long_sleeve_addon', e.target.checked)}
+                                                        style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '10px', height: '10px', margin: 0 }}
+                                                      />
+                                                      Add-on
+                                                    </label>
+                                                  </div>
+                                                )}
+                                              </span>
                                               <input
                                                 type="number"
                                                 min="0"
@@ -1774,7 +1850,22 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                               />
                                             </div>
                                             <div className="size-qty-group">
-                                              <span className="size-qty-lbl">Long (+RM5)</span>
+                                              <span className="size-qty-lbl">
+                                                Long (+RM{isRepeatOrder && !item.long_sleeve_addon ? 0 : 5})
+                                                {isRepeatOrder && (
+                                                  <div style={{ marginTop: '0.1rem' }}>
+                                                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.6rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', fontWeight: 'normal' }}>
+                                                      <input
+                                                        type="checkbox"
+                                                        checked={item.long_sleeve_addon || false}
+                                                        onChange={(e) => updateItemField(item.id, 'long_sleeve_addon', e.target.checked)}
+                                                        style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '10px', height: '10px', margin: 0 }}
+                                                      />
+                                                      Add-on
+                                                    </label>
+                                                  </div>
+                                                )}
+                                              </span>
                                               <input
                                                 type="number"
                                                 min="0"

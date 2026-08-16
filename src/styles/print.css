@@ -1,21 +1,36 @@
 @media print {
-  /* Hide all app UI elements by default during print */
-  body * {
-    visibility: hidden;
+  /* Hide all siblings of the main path to the modal */
+  body > :not(#root),
+  #root > :not(.app-layout),
+  .app-layout > :not(.print-modal-overlay) {
+    display: none !important;
   }
 
-  /* Only show the invoice sheet and its contents */
-  .A4-sheet,
-  .A4-sheet *,
-  .invoice-container,
-  .invoice-container * {
-    visibility: visible;
+  /* Reset the entire ancestor chain to allow natural pagination */
+  html, body, #root, .app-layout, .print-modal-overlay, 
+  .A4-modal-container, .A4-scroll-wrapper, .A4-scale-container {
+    display: block !important;
+    position: static !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
   }
 
+  /* Hide print controls */
+  .print-controls {
+    display: none !important;
+  }
+
+  /* The actual sheet styling for print */
   .A4-sheet {
-    position: absolute;
-    left: 0;
-    top: 0;
+    display: block !important;
+    position: static !important;
     width: 210mm !important;
     height: auto !important;
     min-height: 297mm !important;
@@ -23,34 +38,19 @@
     margin: 0 !important;
     box-sizing: border-box !important;
     background: #ffffff !important;
-    background-color: #ffffff !important;
     box-shadow: none !important;
     border: none !important;
     overflow: visible !important;
-    transform: none !important; /* Reset visual scale during print */
+    transform: none !important;
+    page-break-inside: auto !important;
   }
 
-  /* Reset main layout wrappers */
-  body, 
-  #root, 
-  .app-layout {
-    background: #ffffff !important;
-    overflow: visible !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  /* A4 Portrait size settings */
-  @page {
-    size: A4 portrait;
-    margin: 0;
-  }
-
-  /* Text formatting optimizations for printing */
+  /* Force print color for standard text */
   h1, h2, h3, h4, h5, h6, p, td, th {
-    color: #000000 !important;
+    color: #000000;
   }
 
+  /* Keep the table layout intact but optimize for print */
   .table th,
   .invoice-print-table th {
     border-bottom: 2px solid #000000 !important;
@@ -65,6 +65,26 @@
     font-size: 0.7rem !important;
   }
 
+  tr.print-avoid-break,
+  div.print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .balance-row-print,
+  .balance-row-print span {
+    color: #ef4444 !important; /* Tailwind red-500 equivalent for primary-red */
+  }
+
+  .receipt-highlight-row,
+  .receipt-highlight-row span {
+    color: #15803D !important;
+  }
+
+  .invoice-table-section {
+    page-break-inside: auto !important;
+  }
+
   .invoice-container {
     width: 100% !important;
     max-width: 100% !important;
@@ -74,12 +94,8 @@
     gap: 0.6rem !important;
     margin: 0 !important;
     padding: 0 !important;
-    background: #ffffff !important;
-    background-color: #ffffff !important;
+    background: transparent !important;
     box-shadow: none !important;
     border: none !important;
-    outline: none !important;
   }
-
-  /* Footer now flows naturally, no absolute positioning needed */
 }
