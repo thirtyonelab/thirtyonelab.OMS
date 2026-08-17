@@ -166,7 +166,8 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     const neckPrice = (isRepeatOrder && !item.neck_addon) ? 0 : (NECKS.find(n => n.id === item.neck)?.price || 0);
     const ribPrice = (isRepeatOrder && !item.rib_addon) ? 0 : (RIBS.find(r => r.id === item.rib)?.price || 0);
     const nameSetPrice = item.name_set === 'Yes' ? ((isRepeatOrder && !item.name_set_addon) ? 0 : 3) : 0;
-    const designWideAddons = materialPrice + cuttingPrice + neckPrice + ribPrice + nameSetPrice;
+    const ownBrandPrice = item.own_brand === 'Yes' ? ((isRepeatOrder && !item.own_brand_addon) ? 0 : 1.5) : 0;
+    const designWideAddons = materialPrice + cuttingPrice + neckPrice + ribPrice + nameSetPrice + ownBrandPrice;
 
     SIZES.forEach(size => {
       const shortQty = parseInt(item.sizes[size]?.short || 0, 10);
@@ -236,7 +237,8 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     const neckPrice = (isRepeatOrder && !item.neck_addon) ? 0 : (NECKS.find(n => n.id === item.neck)?.price || 0);
     const ribPrice = (isRepeatOrder && !item.rib_addon) ? 0 : (RIBS.find(r => r.id === item.rib)?.price || 0);
     const nameSetPrice = item.name_set === 'Yes' ? ((isRepeatOrder && !item.name_set_addon) ? 0 : 3) : 0;
-    const designWideAddons = materialPrice + cuttingPrice + neckPrice + ribPrice + nameSetPrice;
+    const ownBrandPrice = item.own_brand === 'Yes' ? ((isRepeatOrder && !item.own_brand_addon) ? 0 : 1.5) : 0;
+    const designWideAddons = materialPrice + cuttingPrice + neckPrice + ribPrice + nameSetPrice + ownBrandPrice;
     const X = basePrice + designWideAddons;
     const hasSleeveRib = item.rib === 'Tangan Sahaja' || item.rib === 'Kolar & Tangan';
 
@@ -617,6 +619,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                                         (item.rib === 'Kolar Sahaja' || item.rib === 'Kolar & Tangan') ? <span style={{ whiteSpace: 'nowrap' }}>&nbsp;|&nbsp;Rib (Kolar): {(item.is_repeat_order && !item.rib_addon) ? 'Yes' : 'Yes (+RM2)'}</span> : null
                                       )}
                                       {item.name_set === 'Yes' ? <span style={{ whiteSpace: 'nowrap' }}>&nbsp;|&nbsp;{item.is_repeat_order && !item.name_set_addon ? 'Name Set: Yes' : 'Name Set: Yes (+RM3)'}</span> : null}
+                                      {item.own_brand === 'Yes' ? <span style={{ whiteSpace: 'nowrap' }}>&nbsp;|&nbsp;{item.is_repeat_order && !item.own_brand_addon ? 'Tagging: Yes' : 'Tagging: Yes (+RM1.50)'}</span> : null}
                                     </div>
                                   </>
                                 )}

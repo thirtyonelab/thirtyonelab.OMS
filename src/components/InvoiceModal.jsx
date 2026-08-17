@@ -250,12 +250,14 @@ const createEmptyItem = () => ({
   neck: 'Roundneck',
   rib: 'Tiada',
   name_set: 'No', // 'Yes' or 'No'
+  own_brand: 'No', // 'Yes' or 'No'
   material_addon: false,
   cutting_addon: false,
   neck_addon: false,
   rib_addon: false,
   long_sleeve_addon: false,
   name_set_addon: false,
+  own_brand_addon: false,
   custom_adult_pants_price: '',
   custom_kid_pants_price: '',
   // Size Breakdown: sizeName -> { shortQty: 0, longQty: 0, pants: 0 }
@@ -689,7 +691,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
     const neckPrice = (isRepeatOrder && !item.neck_addon) ? 0 : (NECKS.find(n => n.id === item.neck)?.price || 0);
     const ribPrice = (isRepeatOrder && !item.rib_addon) ? 0 : (RIBS.find(r => r.id === item.rib)?.price || 0);
     const nameSetPrice = item.name_set === 'Yes' ? ((isRepeatOrder && !item.name_set_addon) ? 0 : 3) : 0;
-    const designWideAddons = materialPrice + cuttingPrice + neckPrice + ribPrice + nameSetPrice; // Apply to every piece
+    const ownBrandPrice = item.own_brand === 'Yes' ? ((isRepeatOrder && !item.own_brand_addon) ? 0 : 1.5) : 0;
+    const designWideAddons = materialPrice + cuttingPrice + neckPrice + ribPrice + nameSetPrice + ownBrandPrice; // Apply to every piece
 
     SIZES.forEach(size => {
       const shortQty = parseInt(item.sizes[size]?.short || 0, 10);
@@ -1336,6 +1339,31 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                   type="checkbox"
                                   checked={item.name_set_addon || false}
                                   onChange={(e) => updateItemField(item.id, 'name_set_addon', e.target.checked)}
+                                  style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '14px', height: '14px' }}
+                                />
+                                Add-on (Cas Tambahan)
+                              </label>
+                            )}
+                          </div>
+
+                          <div className="form-group">
+                            <label className="form-label">Tagging Own Brand (+RM1.50/pcs)</label>
+                            <select
+                              value={item.own_brand || 'No'}
+                              onChange={(e) => updateItemField(item.id, 'own_brand', e.target.value)}
+                              className="form-control"
+                            >
+                              <option value="No">No (+RM0)</option>
+                              <option value="Yes">
+                                {isRepeatOrder && !item.own_brand_addon ? 'Yes (+RM0)' : 'Yes (+RM1.50)'}
+                              </option>
+                            </select>
+                            {isRepeatOrder && (
+                              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '0.4rem', userSelect: 'none' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={item.own_brand_addon || false}
+                                  onChange={(e) => updateItemField(item.id, 'own_brand_addon', e.target.checked)}
                                   style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', width: '14px', height: '14px' }}
                                 />
                                 Add-on (Cas Tambahan)
