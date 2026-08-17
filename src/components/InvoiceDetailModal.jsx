@@ -602,8 +602,6 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                                       <span style={{ whiteSpace: 'nowrap' }}>Print Method: {item.print_method || 'Sublimation'}</span>
                                       {item.material && item.material !== 'Tiada' ? <span style={{ whiteSpace: 'nowrap' }}>&nbsp;|&nbsp;Material: {MATERIALS.find(m => m.id === item.material)?.price > 0 && !(item.is_repeat_order && !item.material_addon) ? `${item.material} (+RM${MATERIALS.find(m => m.id === item.material).price})` : item.material}</span> : null}
                                       {item.cutting && item.cutting !== 'Tiada' ? <span style={{ whiteSpace: 'nowrap' }}>&nbsp;|&nbsp;Cutting: {CUTTINGS.find(c => c.id === item.cutting)?.price > 0 && !(item.is_repeat_order && !item.cutting_addon) ? `${item.cutting} (+RM${CUTTINGS.find(c => c.id === item.cutting).price})` : item.cutting}</span> : null}
-                                    </div>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.1rem 0', marginTop: '0.1rem' }}>
                                       {item.neck && item.neck !== 'Tiada' ? (() => {
                                         const nPrice = (item.is_repeat_order && !item.neck_addon) ? 0 : (NECKS.find(n => n.id === item.neck)?.price || 0);
                                         const rPrice = (item.is_repeat_order && !item.rib_addon) ? 0 : (RIBS.find(r => r.id === item.rib)?.price || 0);
@@ -614,11 +612,11 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                                            const neckDisplayPrice = nPrice + (hasNeckRib ? (item.rib === 'Kolar & Tangan' ? 2 : rPrice) : 0);
                                            if (neckDisplayPrice > 0) displayText += ` (+RM${neckDisplayPrice})`;
                                         }
-                                        return <span style={{ whiteSpace: 'nowrap' }}>Neck: {displayText}</span>;
+                                        return <span style={{ whiteSpace: 'nowrap' }}>&nbsp;|&nbsp;Neck: {displayText}</span>;
                                       })() : (
-                                        (item.rib === 'Kolar Sahaja' || item.rib === 'Kolar & Tangan') ? <span style={{ whiteSpace: 'nowrap' }}>Rib (Kolar): {(item.is_repeat_order && !item.rib_addon) ? 'Yes' : 'Yes (+RM2)'}</span> : null
+                                        (item.rib === 'Kolar Sahaja' || item.rib === 'Kolar & Tangan') ? <span style={{ whiteSpace: 'nowrap' }}>&nbsp;|&nbsp;Rib (Kolar): {(item.is_repeat_order && !item.rib_addon) ? 'Yes' : 'Yes (+RM2)'}</span> : null
                                       )}
-                                      {item.name_set === 'Yes' ? <span style={{ whiteSpace: 'nowrap' }}>{(item.neck && item.neck !== 'Tiada') ? '\u00A0|\u00A0' : ''}{item.is_repeat_order && !item.name_set_addon ? 'Name Set: Yes' : 'Name Set: Yes (+RM3)'}</span> : null}
+                                      {item.name_set === 'Yes' ? <span style={{ whiteSpace: 'nowrap' }}>&nbsp;|&nbsp;{item.is_repeat_order && !item.name_set_addon ? 'Name Set: Yes' : 'Name Set: Yes (+RM3)'}</span> : null}
                                     </div>
                                   </>
                                 )}
