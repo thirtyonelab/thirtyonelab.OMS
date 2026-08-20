@@ -647,7 +647,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   const calculateTotalQty = () => {
     return items.reduce((total, item) => {
       return total + SIZES.reduce((itemTotal, size) => {
-        const sQty = parseInt(item.sizes[size]?.short || 0, 10);
+        let sQty = parseInt(item.sizes[size]?.short || 0, 10);
+        if (item.cutting === 'Muslimah') sQty = 0;
         const lQty = parseInt(item.sizes[size]?.long || 0, 10);
         return itemTotal + sQty + lQty;
       }, 0);
@@ -695,7 +696,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
     const designWideAddons = materialPrice + cuttingPrice + neckPrice + ribPrice + nameSetPrice + ownBrandPrice; // Apply to every piece
 
     SIZES.forEach(size => {
-      const shortQty = parseInt(item.sizes[size]?.short || 0, 10);
+      let shortQty = parseInt(item.sizes[size]?.short || 0, 10);
+      if (item.cutting === 'Muslimah') shortQty = 0;
       const longQty = parseInt(item.sizes[size]?.long || 0, 10);
       const pantsQty = parseInt(item.sizes[size]?.pants || 0, 10);
       const subQty = shortQty + longQty;
@@ -716,7 +718,10 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
         itemAddonTotal += subQty * sizeAddon;
 
         // Sleeve specific addon (+RM5 for Long Sleeve)
-        const lsPrice = (isRepeatOrder && !item.long_sleeve_addon) ? 0 : 5;
+        let lsPrice = (isRepeatOrder && !item.long_sleeve_addon) ? 0 : 5;
+        if (item.cutting === 'Muslimah') {
+          lsPrice = 0;
+        }
         itemAddonTotal += longQty * lsPrice;
       }
 
@@ -1517,6 +1522,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                                 <input
                                                   type="number"
                                                   min="0"
+                                                  disabled={item.cutting === 'Muslimah'}
                                                   value={displayQty(item.sizes[s]?.short)}
                                                   onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
                                                   placeholder="0"
@@ -1527,7 +1533,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                           </tr>
                                           <tr>
                                             <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
-                                              Long (+RM{isRepeatOrder && !item.long_sleeve_addon ? 0 : 5})
+                                              Long (+RM{item.cutting === 'Muslimah' ? 0 : (isRepeatOrder && !item.long_sleeve_addon ? 0 : 5)})
                                               {isRepeatOrder && (
                                                 <div style={{ marginTop: '0.2rem' }}>
                                                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.65rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', fontWeight: 'normal' }}>
@@ -1600,6 +1606,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                                 <input
                                                   type="number"
                                                   min="0"
+                                                  disabled={item.cutting === 'Muslimah'}
                                                   value={displayQty(item.sizes[s]?.short)}
                                                   onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
                                                   placeholder="0"
@@ -1610,7 +1617,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                           </tr>
                                           <tr>
                                             <td className="row-label" style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
-                                              Long (+RM{isRepeatOrder && !item.long_sleeve_addon ? 0 : 5})
+                                              Long (+RM{item.cutting === 'Muslimah' ? 0 : (isRepeatOrder && !item.long_sleeve_addon ? 0 : 5)})
                                               {isRepeatOrder && (
                                                 <div style={{ marginTop: '0.2rem' }}>
                                                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.65rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', fontWeight: 'normal' }}>
@@ -1801,6 +1808,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                               <input
                                                 type="number"
                                                 min="0"
+                                                disabled={item.cutting === 'Muslimah'}
                                                 value={displayQty(item.sizes[s]?.short)}
                                                 onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
                                                 placeholder="0"
@@ -1809,7 +1817,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                             </div>
                                             <div className="size-qty-group">
                                               <span className="size-qty-lbl">
-                                                Long (+RM{isRepeatOrder && !item.long_sleeve_addon ? 0 : 5})
+                                                Long (+RM{item.cutting === 'Muslimah' ? 0 : (isRepeatOrder && !item.long_sleeve_addon ? 0 : 5)})
                                                 {isRepeatOrder && (
                                                   <div style={{ marginTop: '0.1rem' }}>
                                                     <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.6rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', fontWeight: 'normal' }}>
@@ -1871,6 +1879,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                               <input
                                                 type="number"
                                                 min="0"
+                                                disabled={item.cutting === 'Muslimah'}
                                                 value={displayQty(item.sizes[s]?.short)}
                                                 onChange={(e) => updateItemQty(item.id, s, 'short', e.target.value)}
                                                 placeholder="0"
@@ -1879,7 +1888,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                             </div>
                                             <div className="size-qty-group">
                                               <span className="size-qty-lbl">
-                                                Long (+RM{isRepeatOrder && !item.long_sleeve_addon ? 0 : 5})
+                                                Long (+RM{item.cutting === 'Muslimah' ? 0 : (isRepeatOrder && !item.long_sleeve_addon ? 0 : 5)})
                                                 {isRepeatOrder && (
                                                   <div style={{ marginTop: '0.1rem' }}>
                                                     <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.6rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', fontWeight: 'normal' }}>

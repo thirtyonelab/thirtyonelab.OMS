@@ -134,7 +134,8 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
   const totalQty = invoice.items.reduce((total, item) => {
     if (item.item_type === 'banner') return total;
     return total + SIZES.reduce((itemTotal, size) => {
-      const sQty = parseInt(item.sizes[size]?.short || 0, 10);
+      let sQty = parseInt(item.sizes[size]?.short || 0, 10);
+      if (item.cutting === 'Muslimah') sQty = 0;
       const lQty = parseInt(item.sizes[size]?.long || 0, 10);
       return itemTotal + sQty + lQty;
     }, 0);
@@ -148,7 +149,8 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
   const calculateItemQty = (item) => {
     if (item.item_type === 'banner') return parseInt(item.qty || 0, 10);
     return SIZES.reduce((itemTotal, size) => {
-      const sQty = parseInt(item.sizes[size]?.short || 0, 10);
+      let sQty = parseInt(item.sizes[size]?.short || 0, 10);
+      if (item.cutting === 'Muslimah') sQty = 0;
       const lQty = parseInt(item.sizes[size]?.long || 0, 10);
       const pQty = parseInt(item.sizes[size]?.pants || 0, 10);
       return itemTotal + sQty + lQty + pQty;
@@ -170,7 +172,8 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     const designWideAddons = materialPrice + cuttingPrice + neckPrice + ribPrice + nameSetPrice + ownBrandPrice;
 
     SIZES.forEach(size => {
-      const shortQty = parseInt(item.sizes[size]?.short || 0, 10);
+      let shortQty = parseInt(item.sizes[size]?.short || 0, 10);
+      if (item.cutting === 'Muslimah') shortQty = 0;
       const longQty = parseInt(item.sizes[size]?.long || 0, 10);
       const pantsQty = parseInt(item.sizes[size]?.pants || 0, 10);
       const subQty = shortQty + longQty;
@@ -180,7 +183,10 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
         itemAddonTotal += subQty * designWideAddons;
         const sizeAddon = getSizeCost(size);
         itemAddonTotal += subQty * sizeAddon;
-        const lsPrice = (isRepeatOrder && !item.long_sleeve_addon) ? 0 : 5;
+        let lsPrice = (isRepeatOrder && !item.long_sleeve_addon) ? 0 : 5;
+        if (item.cutting === 'Muslimah') {
+          lsPrice = 0;
+        }
         itemAddonTotal += longQty * lsPrice;
       }
 
@@ -251,7 +257,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     ];
 
     // --- 1. SHORT SLEEVE ---
-    const ssStandardQty = STANDARD_ADULT.reduce((sum, s) => sum + parseInt(item.sizes[s]?.short || 0, 10), 0);
+    const ssStandardQty = STANDARD_ADULT.reduce((sum, s) => sum + (item.cutting === 'Muslimah' ? 0 : parseInt(item.sizes[s]?.short || 0, 10)), 0);
     if (ssStandardQty > 0) {
       rows.push({
         prefix: hasSleeveRib ? '• Short Sleeve (Rib):' : '• Short Sleeve:',
@@ -263,7 +269,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     }
 
     EXTRA_TIERS.forEach(tier => {
-      const qty = tier.sizes.reduce((sum, s) => sum + parseInt(item.sizes[s]?.short || 0, 10), 0);
+      const qty = tier.sizes.reduce((sum, s) => sum + (item.cutting === 'Muslimah' ? 0 : parseInt(item.sizes[s]?.short || 0, 10)), 0);
       if (qty > 0) {
         rows.push({
           prefix: '',
@@ -276,7 +282,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
       }
     });
 
-    const ssKidQty = KID_SIZES.reduce((sum, s) => sum + parseInt(item.sizes[s]?.short || 0, 10), 0);
+    const ssKidQty = KID_SIZES.reduce((sum, s) => sum + (item.cutting === 'Muslimah' ? 0 : parseInt(item.sizes[s]?.short || 0, 10)), 0);
     if (ssKidQty > 0) {
       rows.push({
         prefix: '',
@@ -289,7 +295,10 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     }
 
     // --- 2. LONG SLEEVE ---
-    const lsPrice = (isRepeatOrder && !item.long_sleeve_addon) ? 0 : 5;
+    let lsPrice = (isRepeatOrder && !item.long_sleeve_addon) ? 0 : 5;
+    if (item.cutting === 'Muslimah') {
+      lsPrice = 0;
+    }
     const lsStandardQty = STANDARD_ADULT.reduce((sum, s) => sum + parseInt(item.sizes[s]?.long || 0, 10), 0);
     if (lsStandardQty > 0) {
       rows.push({
