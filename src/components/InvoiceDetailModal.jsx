@@ -257,10 +257,19 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     ];
 
     // --- 1. SHORT SLEEVE ---
+    let isFirstSsRow = true;
+    const getSsPrefix = () => {
+      if (isFirstSsRow) {
+        isFirstSsRow = false;
+        return hasSleeveRib ? '• Short Sleeve (Rib):' : '• Short Sleeve:';
+      }
+      return '';
+    };
+
     const ssStandardQty = STANDARD_ADULT.reduce((sum, s) => sum + (item.cutting === 'Muslimah' ? 0 : parseInt(item.sizes[s]?.short || 0, 10)), 0);
     if (ssStandardQty > 0) {
       rows.push({
-        prefix: hasSleeveRib ? '• Short Sleeve (Rib):' : '• Short Sleeve:',
+        prefix: getSsPrefix(),
         value: formatSubsetBreakdown(item.sizes, 'short', STANDARD_ADULT),
         qty: ssStandardQty,
         price: X,
@@ -272,7 +281,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
       const qty = tier.sizes.reduce((sum, s) => sum + (item.cutting === 'Muslimah' ? 0 : parseInt(item.sizes[s]?.short || 0, 10)), 0);
       if (qty > 0) {
         rows.push({
-          prefix: '',
+          prefix: getSsPrefix(),
           value: formatSubsetBreakdown(item.sizes, 'short', tier.sizes),
           indent: true,
           qty: qty,
@@ -285,7 +294,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     const ssKidQty = KID_SIZES.reduce((sum, s) => sum + (item.cutting === 'Muslimah' ? 0 : parseInt(item.sizes[s]?.short || 0, 10)), 0);
     if (ssKidQty > 0) {
       rows.push({
-        prefix: '',
+        prefix: getSsPrefix(),
         value: formatSubsetBreakdown(item.sizes, 'short', KID_SIZES),
         indent: true,
         qty: ssKidQty,
@@ -299,10 +308,20 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     if (item.cutting === 'Muslimah') {
       lsPrice = 0;
     }
+    
+    let isFirstLsRow = true;
+    const getLsPrefix = () => {
+      if (isFirstLsRow) {
+        isFirstLsRow = false;
+        return hasSleeveRib ? '• Long Sleeve (Rib):' : '• Long Sleeve:';
+      }
+      return '';
+    };
+
     const lsStandardQty = STANDARD_ADULT.reduce((sum, s) => sum + parseInt(item.sizes[s]?.long || 0, 10), 0);
     if (lsStandardQty > 0) {
       rows.push({
-        prefix: hasSleeveRib ? '• Long Sleeve (Rib):' : '• Long Sleeve:',
+        prefix: getLsPrefix(),
         value: formatSubsetBreakdown(item.sizes, 'long', STANDARD_ADULT),
         qty: lsStandardQty,
         price: X + lsPrice,
@@ -314,7 +333,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
       const qty = tier.sizes.reduce((sum, s) => sum + parseInt(item.sizes[s]?.long || 0, 10), 0);
       if (qty > 0) {
         rows.push({
-          prefix: '',
+          prefix: getLsPrefix(),
           value: formatSubsetBreakdown(item.sizes, 'long', tier.sizes),
           indent: true,
           qty: qty,
@@ -327,7 +346,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     const lsKidQty = KID_SIZES.reduce((sum, s) => sum + parseInt(item.sizes[s]?.long || 0, 10), 0);
     if (lsKidQty > 0) {
       rows.push({
-        prefix: '',
+        prefix: getLsPrefix(),
         value: formatSubsetBreakdown(item.sizes, 'long', KID_SIZES),
         indent: true,
         qty: lsKidQty,
@@ -609,11 +628,18 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                                   <>Print Method: DTF (Customer's Shirt)</>
                                 ) : (
                                   <>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.1rem 0' }}>
-                                      <span style={{ whiteSpace: 'nowrap' }}>Print Method: {item.print_method || 'Sublimation'}</span>
-                                      {item.material && item.material !== 'Tiada' ? <span style={{ whiteSpace: 'nowrap' }}>&nbsp;|&nbsp;Material: {MATERIALS.find(m => m.id === item.material)?.price > 0 && !(item.is_repeat_order && !item.material_addon) ? `${item.material} (+RM${MATERIALS.find(m => m.id === item.material).price})` : item.material}</span> : null}
-                                      {item.cutting && item.cutting !== 'Tiada' ? <span style={{ whiteSpace: 'nowrap' }}>&nbsp;|&nbsp;Cutting: {CUTTINGS.find(c => c.id === item.cutting)?.price > 0 && !(item.is_repeat_order && !item.cutting_addon) ? `${item.cutting} (+RM${CUTTINGS.find(c => c.id === item.cutting).price})` : item.cutting}</span> : null}
-                                      {item.neck && item.neck !== 'Tiada' ? (() => {
+                                    {(() => {
+                                      const specItems = [];
+                                      specItems.push(`Print Method: ${item.print_method || 'Sublimation'}`);
+                                      if (item.material && item.material !== 'Tiada') {
+                                        const mPrice = MATERIALS.find(m => m.id === item.material)?.price || 0;
+                                        specItems.push(`Material: ${(mPrice > 0 && !(item.is_repeat_order && !item.material_addon)) ? `${item.material} (+RM${mPrice})` : item.material}`);
+                                      }
+                                      if (item.cutting && item.cutting !== 'Tiada') {
+                                        const cPrice = CUTTINGS.find(c => c.id === item.cutting)?.price || 0;
+                                        specItems.push(`Cutting: ${(cPrice > 0 && !(item.is_repeat_order && !item.cutting_addon)) ? `${item.cutting} (+RM${cPrice})` : item.cutting}`);
+                                      }
+                                      if (item.neck && item.neck !== 'Tiada') {
                                         const nPrice = (item.is_repeat_order && !item.neck_addon) ? 0 : (NECKS.find(n => n.id === item.neck)?.price || 0);
                                         const rPrice = (item.is_repeat_order && !item.rib_addon) ? 0 : (RIBS.find(r => r.id === item.rib)?.price || 0);
                                         const hasNeckRib = item.rib === 'Kolar Sahaja' || item.rib === 'Kolar & Tangan';
@@ -623,13 +649,27 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                                            const neckDisplayPrice = nPrice + (hasNeckRib ? (item.rib === 'Kolar & Tangan' ? 2 : rPrice) : 0);
                                            if (neckDisplayPrice > 0) displayText += ` (+RM${neckDisplayPrice})`;
                                         }
-                                        return <span style={{ whiteSpace: 'nowrap' }}>&nbsp;|&nbsp;Neck: {displayText}</span>;
-                                      })() : (
-                                        (item.rib === 'Kolar Sahaja' || item.rib === 'Kolar & Tangan') ? <span style={{ whiteSpace: 'nowrap' }}>&nbsp;|&nbsp;Rib (Kolar): {(item.is_repeat_order && !item.rib_addon) ? 'Yes' : 'Yes (+RM2)'}</span> : null
-                                      )}
-                                      {item.name_set === 'Yes' ? <span style={{ whiteSpace: 'nowrap' }}>&nbsp;|&nbsp;{item.is_repeat_order && !item.name_set_addon ? 'Name Set: Yes' : 'Name Set: Yes (+RM3)'}</span> : null}
-                                      {item.own_brand === 'Yes' ? <span style={{ whiteSpace: 'nowrap' }}>&nbsp;|&nbsp;{item.is_repeat_order && !item.own_brand_addon ? 'Tagging: Yes' : 'Tagging: Yes (+RM1.50)'}</span> : null}
-                                    </div>
+                                        specItems.push(`Neck: ${displayText}`);
+                                      } else if (item.rib === 'Kolar Sahaja' || item.rib === 'Kolar & Tangan') {
+                                        specItems.push(`Rib (Kolar): ${(item.is_repeat_order && !item.rib_addon) ? 'Yes' : 'Yes (+RM2)'}`);
+                                      }
+                                      if (item.name_set === 'Yes') {
+                                        specItems.push(item.is_repeat_order && !item.name_set_addon ? 'Name Set: Yes' : 'Name Set: Yes (+RM3)');
+                                      }
+                                      if (item.own_brand === 'Yes') {
+                                        specItems.push(item.is_repeat_order && !item.own_brand_addon ? 'Tagging: Yes' : 'Tagging: Yes (+RM1.50)');
+                                      }
+
+                                      return (
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: '0.4rem', rowGap: '0.1rem' }}>
+                                          {specItems.map((text, idx) => (
+                                            <span key={idx} style={{ whiteSpace: 'nowrap' }}>
+                                              {text}{idx < specItems.length - 1 ? ' |' : ''}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      );
+                                    })()}
                                   </>
                                 )}
                               </div>

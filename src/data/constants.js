@@ -28,6 +28,7 @@ export const NECKS = [
   { id: 'Mandarin Zip', label: 'Mandarin Zip (+RM6)', price: 6 },
   { id: 'Retro', label: 'Retro (+RM6)', price: 6 },
   { id: 'Retro End', label: 'Retro End (+RM6)', price: 6 },
+  { id: 'Retro Cross', label: 'Retro Cross (+RM6)', price: 6 },
   { id: 'V-Neck', label: 'V-Neck (+RM3)', price: 3 },
   { id: 'V-Neck End', label: 'V-Neck End (+RM3)', price: 3 },
   { id: 'V-Neck Outer', label: 'V-Neck Outer (+RM7)', price: 7 },
