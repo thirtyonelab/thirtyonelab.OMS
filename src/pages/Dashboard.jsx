@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getInvoices, getLedger } from '../services/storage';
-import { Search, Plus, ArrowRight, Eye, RefreshCw, CreditCard, Activity, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Search, Plus, ArrowRight, Eye, RefreshCw, CreditCard, Activity, Clock, AlertCircle, CheckCircle2, Factory, Inbox } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaymentModal, onOpenInvoiceDetail }) {
@@ -68,6 +68,8 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
     let countPending = 0;
     let countProcessing = 0;
     let countCompleted = 0;
+    let countMaintenance = 0;
+    let countNotSubmitted = 0;
 
     // 3. Financial Totals (current month)
     let collectedInvoicesMonth = 0;
@@ -91,6 +93,8 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
       if (opStatus === 'PENDING') countPending++;
       else if (opStatus === 'PROCESSING') countProcessing++;
       else if (opStatus === 'COMPLETED') countCompleted++;
+      else if (opStatus === 'MAINTENANCE') countMaintenance++;
+      else if (opStatus === 'NOT_SUBMITTED') countNotSubmitted++;
 
       // Current month financials
       if (isCurrentMonth) {
@@ -128,6 +132,8 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
       countPending,
       countProcessing,
       countCompleted,
+      countMaintenance,
+      countNotSubmitted,
       totalKutipanJualan,
       totalKosKeluar,
       untungBersih
@@ -251,6 +257,12 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
               <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Inbox size={14} className="text-muted" /> {tr('notSubmitted')}
+              </span>
+              <span style={{ fontWeight: '700' }}>{metrics.countNotSubmitted}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Clock size={14} className="text-muted" /> {tr('pending')}
               </span>
               <span style={{ fontWeight: '700' }}>{metrics.countPending}</span>
@@ -261,11 +273,17 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
               </span>
               <span style={{ fontWeight: '700' }}>{metrics.countProcessing}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
               <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <CheckCircle2 size={14} style={{ color: '#15803D' }} /> {tr('completed')}
               </span>
               <span style={{ fontWeight: '700' }}>{metrics.countCompleted}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0' }}>
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Factory size={14} style={{ color: '#D97706' }} /> {tr('maintenance')}
+              </span>
+              <span style={{ fontWeight: '700' }}>{metrics.countMaintenance}</span>
             </div>
           </div>
         </div>
@@ -308,6 +326,12 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Inbox size={13} className="text-muted" /> {tr('notSubmitted')}
+              </span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countNotSubmitted}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <Clock size={13} className="text-muted" /> {tr('pending')}
               </span>
               <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countPending}</span>
@@ -323,6 +347,12 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
                 <CheckCircle2 size={13} style={{ color: '#15803D' }} /> {tr('completed')}
               </span>
               <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countCompleted}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Factory size={13} style={{ color: '#D97706' }} /> {tr('maintenance')}
+              </span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countMaintenance}</span>
             </div>
           </div>
         </div>
@@ -415,7 +445,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <span className={`badge ${inv.order_status === 'COMPLETED' ? 'badge-paid' : inv.order_status === 'PROCESSING' ? 'badge-deposit' : 'badge-unpaid'}`}>
-                          {inv.order_status || 'PENDING'}
+                          {(inv.order_status || 'PENDING').replace('_', ' ')}
                         </span>
                       </td>
                       <td style={{ textAlign: 'center' }}>
@@ -448,9 +478,9 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
                       RM {parseFloat(inv.grand_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
-                  <div className="mobile-card-row" style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    <span>{tr('statusOperasi')}: {inv.order_status || 'PENDING'}</span>
-                    <span>{new Date(inv.date).toLocaleDateString('en-GB')}</span>
+                  <div className="mobile-card-row" style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--text-muted)', gap: '0.5rem' }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tr('statusOperasi')}: {(inv.order_status || 'PENDING').replace('_', ' ')}</span>
+                    <span style={{ flexShrink: 0 }}>{new Date(inv.date).toLocaleDateString('en-GB')}</span>
                   </div>
                 </div>
               ))}

@@ -345,8 +345,10 @@ export default function Manufacturing() {
                             className="form-control"
                             style={{ padding: '0.25rem 0.5rem', width: '130px', margin: '0 auto', fontSize: '0.85rem' }}
                           >
-                            <option value="PENDING">PENDING</option>
+                            <option value="NOT_SUBMITTED">NOT SUBMIT YET</option>
+                          <option value="PENDING">PENDING</option>
                             <option value="PROCESSING">PROCESSING</option>
+                            <option value="MAINTENANCE">MAINTENANCE</option>
                             <option value="COMPLETED">COMPLETED</option>
                           </select>
                         </td>
@@ -420,8 +422,10 @@ export default function Manufacturing() {
                           className="form-control"
                           style={{ padding: '0.25rem 0.5rem', width: '130px' }}
                         >
+                          <option value="NOT_SUBMITTED">NOT SUBMIT YET</option>
                           <option value="PENDING">PENDING</option>
                           <option value="PROCESSING">PROCESSING</option>
+                          <option value="MAINTENANCE">MAINTENANCE</option>
                           <option value="COMPLETED">COMPLETED</option>
                         </select>
                       </div>

@@ -61,12 +61,26 @@ CREATE TABLE IF NOT EXISTS invoices (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 4. Enable Row Level Security (RLS) on all tables
+-- 4. Create LEDGER Table
+CREATE TABLE IF NOT EXISTS ledger (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    date TEXT NOT NULL,
+    type TEXT NOT NULL, -- 'IN' or 'OUT'
+    category TEXT NOT NULL,
+    description TEXT NOT NULL,
+    payee TEXT,
+    amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    recorded_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 5. Enable Row Level Security (RLS) on all tables
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ledger ENABLE ROW LEVEL SECURITY;
 
--- 5. Create Policies (Allowing Anonymous Read & Write)
+-- 6. Create Policies (Allowing Anonymous Read & Write)
 -- Note: Since this is an internal, client-side tool with no user authentication, 
 -- we authorize any client with the anon key to read, insert, update and delete.
 
@@ -86,3 +100,9 @@ CREATE POLICY "Allow anon read invoices" ON invoices FOR SELECT USING (true);
 CREATE POLICY "Allow anon insert invoices" ON invoices FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow anon update invoices" ON invoices FOR UPDATE USING (true);
 CREATE POLICY "Allow anon delete invoices" ON invoices FOR DELETE USING (true);
+
+-- Ledger Policies
+CREATE POLICY "Allow anon read ledger" ON ledger FOR SELECT USING (true);
+CREATE POLICY "Allow anon insert ledger" ON ledger FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow anon update ledger" ON ledger FOR UPDATE USING (true);
+CREATE POLICY "Allow anon delete ledger" ON ledger FOR DELETE USING (true);

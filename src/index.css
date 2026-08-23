@@ -25,7 +25,7 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  -webkit-tap-highlight-color: rgba(59, 130, 246, 0.35); /* Touch highlight color blue */
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -413,7 +413,7 @@ input[type=number] {
   gap: 1.5rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .grid-2, .grid-3, .grid-4 {
     grid-template-columns: 1fr;
   }
@@ -822,14 +822,14 @@ input[type=number] {
   }
 }
 
-/* Common Mobile Components classes (visible only under 768px) */
-@media (min-width: 769px) {
+/* Common Mobile Components classes (visible only under 1024px) */
+@media (min-width: 1025px) {
   .mobile-only {
     display: none !important;
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .desktop-only {
     display: none !important;
   }

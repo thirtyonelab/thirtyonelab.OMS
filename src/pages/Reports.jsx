@@ -9,6 +9,10 @@ export default function Reports() {
   const [ledger, setLedger] = useState([]);
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   // Scale states for mobile responsiveness
   const [scale, setScale] = useState(1);
@@ -129,14 +133,17 @@ export default function Reports() {
     return parseFloat(val || 0).toFixed(2);
   };
 
-  // Calculations
-  const safeInvoices = Array.isArray(invoices) ? invoices : [];
-  const safeLedger = Array.isArray(ledger) ? ledger : [];
+  // Calculations — scoped to the selected month so the "Statement Month" label matches the numbers
+  const safeInvoices = (Array.isArray(invoices) ? invoices : []).filter(inv => typeof inv?.date === 'string' && inv.date.startsWith(selectedMonth));
+  const safeLedger = (Array.isArray(ledger) ? ledger : []).filter(l => typeof l?.date === 'string' && l.date.startsWith(selectedMonth));
 
   const totalNilaiInvois = safeInvoices.reduce((sum, inv) => sum + parseFloat(inv?.grand_total || 0), 0);
   const totalPengeluaranInvois = safeInvoices.reduce((sum, inv) => sum + parseFloat(inv?.pengeluaran || 0), 0);
 
   const revenueInvoices = totalNilaiInvois;
+  const outstandingBalance = safeInvoices
+    .filter(inv => inv?.status !== 'Paid')
+    .reduce((sum, inv) => sum + Math.max(0, parseFloat(inv?.grand_total || 0) - parseFloat(inv?.deposit || 0)), 0);
 
   // Ledger IN
   // Ledger IN
@@ -163,10 +170,11 @@ export default function Reports() {
   const dateObj = new Date();
   const dateStr = dateObj.toLocaleDateString('en-GB');
   const monthNames = ["JANUARI", "FEBRUARI", "MAC", "APRIL", "MEI", "JUN", "JULAI", "OGOS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DISEMBER"];
-  const monthStr = monthNames[dateObj.getMonth()] + ' ' + dateObj.getFullYear();
+  const [selYearStr, selMonthStr] = selectedMonth.split('-');
+  const monthStr = monthNames[parseInt(selMonthStr, 10) - 1] + ' ' + selYearStr;
 
   return (
-    <div className="main-content">
+    <div className="main-content print-page-target">
       <div className="dashboard-header no-print" style={{ marginBottom: '1.5rem' }}>
         <div>
           <span className="section-tag">{tr('reportsTag')}</span>
@@ -175,7 +183,14 @@ export default function Reports() {
             {tr('reportsSubtitle')}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="form-control"
+            style={{ width: 'auto' }}
+          />
           <button onClick={loadData} className="btn btn-secondary" title="Refresh Data">
             <RefreshCw size={16} />
           </button>
@@ -303,6 +318,12 @@ export default function Reports() {
                         <td style={{ padding: '0.5rem 0 0.5rem 1.5rem' }}>TOTAL REVENUE (A)</td>
                         <td style={{ textAlign: 'right', padding: '0.5rem 0', borderBottom: '1px double #111' }}>{formatRM(totalRevenue)}</td>
                       </tr>
+                      {outstandingBalance > 0 && (
+                        <tr style={{ borderBottom: '1px solid #eee', fontSize: '0.7rem' }}>
+                          <td style={{ padding: '0.3rem 0 0.5rem 1.5rem', color: '#D97706' }}>↳ Termasuk Baki Belum Terima (Outstanding)</td>
+                          <td style={{ textAlign: 'right', padding: '0.3rem 0 0.5rem 0', color: '#D97706' }}>({formatRM(outstandingBalance)})</td>
+                        </tr>
+                      )}
 
                       {/* 2. COGS */}
                       <tr style={{ borderBottom: '1px solid #eee' }}>

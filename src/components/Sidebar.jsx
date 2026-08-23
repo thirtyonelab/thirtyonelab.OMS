@@ -312,7 +312,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
           color: var(--border-color);
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
           .sidebar-backdrop {
             position: fixed;
             top: 0;

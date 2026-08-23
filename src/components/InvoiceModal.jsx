@@ -663,8 +663,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   // 2. Calculations per Design Item
   const calculateItemSummary = (item) => {
     if (item.item_type === 'banner' || (item.print_method === 'DTF' && item.baju_source === 'customer')) {
-      const qty = parseInt(item.item_type === 'banner' ? item.qty : item.dtf_qty || 0, 10);
-      const price = parseFloat(item.item_type === 'banner' ? item.price : item.dtf_price || 0);
+      const qty = parseInt(item.item_type === 'banner' ? (item.qty || 0) : (item.dtf_qty || 0), 10);
+      const price = parseFloat(item.item_type === 'banner' ? (item.price || 0) : (item.dtf_price || 0));
       const subtotal = qty * price;
       return {
         qty,
@@ -772,6 +772,20 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   const totalDiscount = discountType === 'bulk' ? (parseFloat(discountValue) || 0) : ((parseFloat(discountValue) || 0) * totalQty);
   const grandTotal = Math.max(0, grossSubtotal - totalDiscount);
 
+  // Clamp deposit to grandTotal and auto-derive status, mirroring PaymentModal's logic,
+  // so an invoice can't be saved with a negative balance or a status that contradicts its deposit.
+  const handleDepositChange = (value) => {
+    const val = Math.max(0, parseFloat(value) || 0);
+    const clamped = Math.min(val, grandTotal);
+    setDeposit(clamped);
+
+    if (status !== 'Void') {
+      if (clamped === 0) setStatus('Unpaid');
+      else if (clamped >= grandTotal) setStatus('Paid');
+      else setStatus('Deposit');
+    }
+  };
+
   const handleSave = async (e) => {
     if (!clientName.trim()) {
       alert('Sila masukkan nama pelanggan.');
@@ -788,6 +802,16 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
     ].reduce((sum, item) => sum + calculateItemSummary(item).qty, 0);
     if (totalAllQty === 0) {
       alert('Sila masukkan kuantiti baju / seluar / banner (sekurang-kurangnya 1 helai/pcs).');
+      return;
+    }
+    // Every banner item must have a valid qty and price to avoid grand_total becoming NaN
+    const invalidBanner = bannerItems.find(item => {
+      const qty = parseInt(item.qty, 10);
+      const price = parseFloat(item.price);
+      return isNaN(qty) || qty <= 0 || isNaN(price) || price < 0;
+    });
+    if (invalidBanner) {
+      alert('Sila lengkapkan kuantiti & harga untuk setiap item banner sebelum simpan.');
       return;
     }
 
@@ -1000,7 +1024,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                         step="0.01"
                         min="0"
                         value={deposit}
-                        onChange={(e) => setDeposit(e.target.value)}
+                        onChange={(e) => handleDepositChange(e.target.value)}
                         placeholder="Cth: 400.00"
                         className="form-control"
                       />

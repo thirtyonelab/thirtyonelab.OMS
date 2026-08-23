@@ -2,12 +2,12 @@
   /* Hide all siblings of the main path to the modal */
   body > :not(#root),
   #root > :not(.app-layout),
-  .app-layout > :not(.print-modal-overlay) {
+  .app-layout > :not(.print-modal-overlay):not(.print-page-target) {
     display: none !important;
   }
 
   /* Reset the entire ancestor chain to allow natural pagination */
-  html, body, #root, .app-layout, .print-modal-overlay, 
+  html, body, #root, .app-layout, .print-modal-overlay, .print-page-target,
   .A4-modal-container, .A4-scroll-wrapper, .A4-scale-container {
     display: block !important;
     position: static !important;
@@ -23,7 +23,8 @@
   }
 
   /* Hide print controls */
-  .print-controls {
+  .print-controls,
+  .no-print {
     display: none !important;
   }
 
