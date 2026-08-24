@@ -213,6 +213,7 @@ export const getInvoices = async () => {
     let discount_value = invoice.discount_value;
     let client_address = invoice.client_address;
     let pengeluaran = invoice.pengeluaran;
+    let order_status = invoice.order_status;
     let cleanNotes = invoice.notes || '';
     if (invoice.notes && invoice.notes.includes('__METADATA__:')) {
       const parts = invoice.notes.split('__METADATA__:');
@@ -223,9 +224,16 @@ export const getInvoices = async () => {
         discount_value = meta.discount_value;
         client_address = meta.client_address;
         if (meta.pengeluaran !== undefined) pengeluaran = meta.pengeluaran;
-        if (meta.order_status !== undefined) invoice.order_status = meta.order_status;
+        if (!order_status) {
+            if (meta.order_status !== undefined) order_status = meta.order_status;
+        }
       } catch (e) {}
     }
+
+    if (order_status === 'NOT_SUBMITTED' || !order_status) {
+      order_status = 'BELUM_DRAFT';
+    }
+
     return {
       ...invoice,
       notes: cleanNotes,
@@ -233,7 +241,7 @@ export const getInvoices = async () => {
       discount_value: discount_value !== undefined ? discount_value : (parseFloat(invoice.discount_per_pcs || 0) || 0),
       client_address: client_address || '',
       pengeluaran: pengeluaran !== undefined ? (parseFloat(pengeluaran) || 0) : 0,
-      order_status: invoice.order_status || 'PENDING'
+      order_status: order_status
     };
   });
 };
@@ -343,7 +351,6 @@ export const saveInvoice = async (invoiceData) => {
         discount_value: finalInvoiceData.discount_value,
         client_address: finalInvoiceData.client_address,
         pengeluaran: finalInvoiceData.pengeluaran,
-        order_status: finalInvoiceData.order_status,
         discount_per_pcs: finalInvoiceData.discount_per_pcs
       };
       const dbInvoiceData = {
@@ -354,7 +361,6 @@ export const saveInvoice = async (invoiceData) => {
       delete dbInvoiceData.discount_value;
       delete dbInvoiceData.client_address;
       delete dbInvoiceData.pengeluaran;
-      delete dbInvoiceData.order_status;
       delete dbInvoiceData.discount_per_pcs;
 
       const { data, error } = await client

@@ -99,7 +99,7 @@ export default function Manufacturing() {
   const handleSaveInline = async (inv) => {
     const rawKos = editedData[inv.id]?.pengeluaran;
     const kos = rawKos !== undefined ? (parseFloat(rawKos) || 0) : (inv.pengeluaran || 0);
-    const status = editedData[inv.id]?.order_status !== undefined ? editedData[inv.id].order_status : (inv.order_status || 'PENDING');
+    const status = editedData[inv.id]?.order_status !== undefined ? editedData[inv.id].order_status : (inv.order_status || 'BELUM_DRAFT');
     
     setLoading(true);
     try {
@@ -177,9 +177,12 @@ export default function Manufacturing() {
   };
 
   // Summary counts
-  const pendingCount = filteredInvoices.filter(inv => (inv.order_status || 'PENDING') === 'PENDING').length;
+  const belumDraftCount = filteredInvoices.filter(inv => (inv.order_status || 'BELUM_DRAFT') === 'BELUM_DRAFT').length;
+  const draftCount = filteredInvoices.filter(inv => inv.order_status === 'DRAFT').length;
+  const pendingCount = filteredInvoices.filter(inv => inv.order_status === 'PENDING').length;
   const processingCount = filteredInvoices.filter(inv => inv.order_status === 'PROCESSING').length;
   const completedCount = filteredInvoices.filter(inv => inv.order_status === 'COMPLETED').length;
+  const maintenanceCount = filteredInvoices.filter(inv => inv.order_status === 'MAINTENANCE').length;
 
   const totalNilaiInvois = filteredInvoices.reduce((sum, inv) => sum + parseFloat(inv.grand_total || 0), 0);
   const totalDuitDiterima = filteredInvoices.reduce((sum, inv) => {
@@ -214,29 +217,53 @@ export default function Manufacturing() {
       </div>
 
       {/* RINGKASAN STATUS KERJA KILANG */}
-      <div className="mfg-summary-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>
-        <div className="card" style={{ padding: '1.75rem', borderLeft: '4px solid var(--primary-red)' }}>
-          <h3 className="section-title" style={{ fontSize: '0.7rem', fontWeight: '800', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-            {tr('pendingOrders')}
+      <div className="mfg-summary-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div className="card" style={{ padding: '1rem', borderLeft: '4px solid #64748B' }}>
+          <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+            📥 Belum Draft
           </h3>
-          <span className="summary-val" style={{ fontSize: '1.75rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
-            {pendingCount} Orders
+          <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
+            {belumDraftCount}
           </span>
         </div>
-        <div className="card" style={{ padding: '1.75rem', borderLeft: '4px solid #EAB308' }}>
-          <h3 className="section-title" style={{ fontSize: '0.7rem', fontWeight: '800', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-            {tr('processingOrders')}
+        <div className="card" style={{ padding: '1rem', borderLeft: '4px solid #94A3B8' }}>
+          <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+            ✏️ Draft
           </h3>
-          <span className="summary-val" style={{ fontSize: '1.75rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
-            {processingCount} Orders
+          <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
+            {draftCount}
           </span>
         </div>
-        <div className="card" style={{ padding: '1.75rem', borderLeft: '4px solid #15803D' }}>
-          <h3 className="section-title" style={{ fontSize: '0.7rem', fontWeight: '800', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-            {tr('completed')}
+        <div className="card" style={{ padding: '1rem', borderLeft: '4px solid var(--primary-red)' }}>
+          <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+            ⏳ Pending
           </h3>
-          <span className="summary-val" style={{ fontSize: '1.75rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
-            {completedCount} Orders
+          <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
+            {pendingCount}
+          </span>
+        </div>
+        <div className="card" style={{ padding: '1rem', borderLeft: '4px solid #EAB308' }}>
+          <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+            ⚙️ Processing
+          </h3>
+          <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
+            {processingCount}
+          </span>
+        </div>
+        <div className="card" style={{ padding: '1rem', borderLeft: '4px solid #15803D' }}>
+          <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+            ✅ Completed
+          </h3>
+          <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
+            {completedCount}
+          </span>
+        </div>
+        <div className="card" style={{ padding: '1rem', borderLeft: '4px solid #DC2626' }}>
+          <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+            🛠️ Maintenance
+          </h3>
+          <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
+            {maintenanceCount}
           </span>
         </div>
       </div>
@@ -310,7 +337,7 @@ export default function Manufacturing() {
                     
                     const currentStatus = editedData[inv.id]?.order_status !== undefined 
                       ? editedData[inv.id].order_status 
-                      : (inv.order_status || 'PENDING');
+                      : (inv.order_status || 'BELUM_DRAFT');
 
                     return (
                       <tr key={inv.id}>
@@ -345,11 +372,12 @@ export default function Manufacturing() {
                             className="form-control"
                             style={{ padding: '0.25rem 0.5rem', width: '130px', margin: '0 auto', fontSize: '0.85rem' }}
                           >
-                            <option value="NOT_SUBMITTED">NOT SUBMIT YET</option>
-                          <option value="PENDING">PENDING</option>
-                            <option value="PROCESSING">PROCESSING</option>
-                            <option value="MAINTENANCE">MAINTENANCE</option>
-                            <option value="COMPLETED">COMPLETED</option>
+                            <option value="BELUM_DRAFT">📥 Belum Draft</option>
+                            <option value="DRAFT">✏️ Draft</option>
+                            <option value="PENDING">⏳ Pending</option>
+                            <option value="PROCESSING">⚙️ Processing</option>
+                            <option value="COMPLETED">✅ Completed</option>
+                            <option value="MAINTENANCE">🛠️ Maintenance</option>
                           </select>
                         </td>
                         <td style={{ textAlign: 'center' }}>
@@ -385,7 +413,7 @@ export default function Manufacturing() {
                 
                 const currentStatus = editedData[inv.id]?.order_status !== undefined 
                   ? editedData[inv.id].order_status 
-                  : (inv.order_status || 'PENDING');
+                  : (inv.order_status || 'BELUM_DRAFT');
 
                 return (
                   <div key={inv.id} className="mobile-card">
@@ -422,11 +450,12 @@ export default function Manufacturing() {
                           className="form-control"
                           style={{ padding: '0.25rem 0.5rem', width: '130px' }}
                         >
-                          <option value="NOT_SUBMITTED">NOT SUBMIT YET</option>
-                          <option value="PENDING">PENDING</option>
-                          <option value="PROCESSING">PROCESSING</option>
-                          <option value="MAINTENANCE">MAINTENANCE</option>
-                          <option value="COMPLETED">COMPLETED</option>
+                          <option value="BELUM_DRAFT">📥 Belum Draft</option>
+                          <option value="DRAFT">✏️ Draft</option>
+                          <option value="PENDING">⏳ Pending</option>
+                          <option value="PROCESSING">⚙️ Processing</option>
+                          <option value="COMPLETED">✅ Completed</option>
+                          <option value="MAINTENANCE">🛠️ Maintenance</option>
                         </select>
                       </div>
 
