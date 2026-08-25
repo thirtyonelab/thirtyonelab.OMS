@@ -320,7 +320,7 @@ export default function Reports() {
                       </tr>
                       {outstandingBalance > 0 && (
                         <tr style={{ borderBottom: '1px solid #eee', fontSize: '0.7rem' }}>
-                          <td style={{ padding: '0.3rem 0 0.5rem 1.5rem', color: '#D97706' }}>↳ Termasuk Baki Belum Terima (Outstanding)</td>
+                          <td style={{ padding: '0.3rem 0 0.5rem 1.5rem', color: '#D97706' }}>↳ Incl. Unpaid Balance (Outstanding)</td>
                           <td style={{ textAlign: 'right', padding: '0.3rem 0 0.5rem 0', color: '#D97706' }}>({formatRM(outstandingBalance)})</td>
                         </tr>
                       )}
