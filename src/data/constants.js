@@ -26,6 +26,7 @@ export const NECKS = [
   { id: 'Roundneck', label: 'Roundneck (+RM0)', price: 0 },
   { id: 'Collar Button (Polo)', label: 'Collar Button (Polo) (+RM6)', price: 6 },
   { id: 'Mandarin Zip', label: 'Mandarin Zip (+RM6)', price: 6 },
+  { id: 'Collar Zip', label: 'Collar Zip (+RM6)', price: 6 },
   { id: 'Retro', label: 'Retro (+RM6)', price: 6 },
   { id: 'Retro End', label: 'Retro End (+RM6)', price: 6 },
   { id: 'Retro Cross', label: 'Retro Cross (+RM6)', price: 6 },
