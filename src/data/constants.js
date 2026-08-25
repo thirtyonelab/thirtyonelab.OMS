@@ -15,6 +15,7 @@ export const CUTTINGS = [
   { id: 'Normal', label: 'Normal (+RM0)', price: 0 },
   { id: 'Baseball', label: 'Baseball (+RM5)', price: 5 },
   { id: 'Boxy', label: 'Boxy (+RM5)', price: 5 },
+  { id: 'Oversized', label: 'Oversized (+RM5)', price: 5 },
   { id: 'Muslimah', label: 'Muslimah (+RM8)', price: 8 },
   { id: 'Raglan', label: 'Raglan (+RM4)', price: 4 },
   { id: 'Singlet', label: 'Singlet (+RM5)', price: 5 },
