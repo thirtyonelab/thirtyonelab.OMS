@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getInvoices, getLedger, getSettings } from '../services/storage';
 import { Printer, RefreshCw } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
@@ -134,34 +134,63 @@ export default function Reports() {
   };
 
   // Calculations — scoped to the selected month so the "Statement Month" label matches the numbers
-  const safeInvoices = (Array.isArray(invoices) ? invoices : []).filter(inv => typeof inv?.date === 'string' && inv.date.startsWith(selectedMonth));
-  const safeLedger = (Array.isArray(ledger) ? ledger : []).filter(l => typeof l?.date === 'string' && l.date.startsWith(selectedMonth));
+  const reportData = useMemo(() => {
+    const safeInvoices = (Array.isArray(invoices) ? invoices : []).filter(inv => typeof inv?.date === 'string' && inv.date.startsWith(selectedMonth));
+    const safeLedger = (Array.isArray(ledger) ? ledger : []).filter(l => typeof l?.date === 'string' && l.date.startsWith(selectedMonth));
 
-  const totalNilaiInvois = safeInvoices.reduce((sum, inv) => sum + parseFloat(inv?.grand_total || 0), 0);
-  const totalPengeluaranInvois = safeInvoices.reduce((sum, inv) => sum + parseFloat(inv?.pengeluaran || 0), 0);
+    const totalNilaiInvois = safeInvoices.reduce((sum, inv) => sum + parseFloat(inv?.grand_total || 0), 0);
+    const totalPengeluaranInvois = safeInvoices.reduce((sum, inv) => sum + parseFloat(inv?.pengeluaran || 0), 0);
 
-  const revenueInvoices = totalNilaiInvois;
-  const outstandingBalance = safeInvoices
-    .filter(inv => inv?.status !== 'Paid')
-    .reduce((sum, inv) => sum + Math.max(0, parseFloat(inv?.grand_total || 0) - parseFloat(inv?.deposit || 0)), 0);
+    const revenueInvoices = totalNilaiInvois;
+    const outstandingBalance = safeInvoices
+      .filter(inv => inv?.status !== 'Paid')
+      .reduce((sum, inv) => sum + Math.max(0, parseFloat(inv?.grand_total || 0) - parseFloat(inv?.deposit || 0)), 0);
 
-  // Ledger IN
-  // Ledger IN
-  const jualanLuar = safeLedger.filter(l => l && l.type === 'IN' && l.category === 'Jualan Luar').reduce((s, l) => s + (l.amount || 0), 0);
-  const revenueLain = safeLedger.filter(l => l && l.type === 'IN' && (l.category === 'Modal Tambahan' || l.category === 'Lain-lain Pendapatan')).reduce((s, l) => s + (l.amount || 0), 0);
-  const totalRevenue = totalNilaiInvois + jualanLuar + revenueLain;
-  
-  // Ledger OUT
-  const belanjaOperasi = safeLedger.filter(l => l && l.type === 'OUT' && l.category === 'Belanja Operasi').reduce((s, l) => s + (l.amount || 0), 0);
-  const gajiPekerja = safeLedger.filter(l => l && l.type === 'OUT' && l.category === 'Gaji Pekerja').reduce((s, l) => s + (l.amount || 0), 0);
-  const kosBahan = safeLedger.filter(l => l && l.type === 'OUT' && l.category === 'Kos Bahan Mentah').reduce((s, l) => s + (l.amount || 0), 0);
-  const lainBelanja = safeLedger.filter(l => l && l.type === 'OUT' && l.category === 'Lain-lain Belanja').reduce((s, l) => s + (l.amount || 0), 0);
+    // Ledger IN
+    const jualanLuar = safeLedger.filter(l => l && l.type === 'IN' && l.category === 'Jualan Luar').reduce((s, l) => s + (l.amount || 0), 0);
+    const revenueLain = safeLedger.filter(l => l && l.type === 'IN' && (l.category === 'Modal Tambahan' || l.category === 'Lain-lain Pendapatan')).reduce((s, l) => s + (l.amount || 0), 0);
+    const totalRevenue = totalNilaiInvois + jualanLuar + revenueLain;
+    
+    // Ledger OUT
+    const belanjaOperasi = safeLedger.filter(l => l && l.type === 'OUT' && l.category === 'Belanja Operasi').reduce((s, l) => s + (l.amount || 0), 0);
+    const gajiPekerja = safeLedger.filter(l => l && l.type === 'OUT' && l.category === 'Gaji Pekerja').reduce((s, l) => s + (l.amount || 0), 0);
+    const kosBahan = safeLedger.filter(l => l && l.type === 'OUT' && l.category === 'Kos Bahan Mentah').reduce((s, l) => s + (l.amount || 0), 0);
+    const lainBelanja = safeLedger.filter(l => l && l.type === 'OUT' && l.category === 'Lain-lain Belanja').reduce((s, l) => s + (l.amount || 0), 0);
 
-  const expensesKilang = totalPengeluaranInvois + kosBahan;
-  const grossProfit = totalRevenue - expensesKilang;
+    const expensesKilang = totalPengeluaranInvois + kosBahan;
+    const grossProfit = totalRevenue - expensesKilang;
 
-  const totalOperatingExpenses = belanjaOperasi + gajiPekerja + lainBelanja;
-  const netProfit = grossProfit - totalOperatingExpenses;
+    const totalOperatingExpenses = belanjaOperasi + gajiPekerja + lainBelanja;
+    const netProfit = grossProfit - totalOperatingExpenses;
+
+    return {
+      revenueInvoices,
+      revenueLain,
+      totalRevenue,
+      outstandingBalance,
+      expensesKilang,
+      grossProfit,
+      belanjaOperasi,
+      gajiPekerja,
+      lainBelanja,
+      totalOperatingExpenses,
+      netProfit
+    };
+  }, [invoices, ledger, selectedMonth]);
+
+  const {
+    revenueInvoices,
+    revenueLain,
+    totalRevenue,
+    outstandingBalance,
+    expensesKilang,
+    grossProfit,
+    belanjaOperasi,
+    gajiPekerja,
+    lainBelanja,
+    totalOperatingExpenses,
+    netProfit
+  } = reportData;
 
   const companyNameStr = String(settings?.company_name || 'THIRTYONE LAB');
   const companyAddress = settings?.company_address || 'No 12, Jalan Niaga 1, 43000 Kajang, Selangor';

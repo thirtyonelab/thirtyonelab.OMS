@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getInvoices, getLedger } from '../services/storage';
 import { Search, Plus, ArrowRight, Eye, RefreshCw, CreditCard, Activity, Clock, AlertCircle, CheckCircle2, Factory, Inbox } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
@@ -55,7 +55,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
   };
 
   // --- METRIC CALCULATIONS ---
-  const calculateMetrics = () => {
+  const metrics = useMemo(() => {
     const currentMonth = parseInt(selectedMonth, 10);
     const currentYear = parseInt(selectedYear, 10);
 
@@ -141,9 +141,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
       totalKosKeluar,
       untungBersih
     };
-  };
-
-  const metrics = calculateMetrics();
+  }, [invoices, ledger, selectedMonth, selectedYear]);
 
   // Search & Filter lists
   const filteredInvoices = invoices.filter(inv => {

@@ -3,13 +3,13 @@ import { LayoutDashboard, FileText, Users, Settings as SettingsIcon, Factory, Cl
 import { isCloudMode } from './services/storage';
 import { LanguageProvider } from './context/LanguageContext';
 import Sidebar from './components/Sidebar';
-import Dashboard from './pages/Dashboard';
-import Invoices from './pages/Invoices';
-import Clients from './pages/Clients';
-import Manufacturing from './pages/Manufacturing';
-import Settings from './pages/Settings';
-import Ledger from './pages/Ledger';
-import Reports from './pages/Reports';
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const Invoices = React.lazy(() => import('./pages/Invoices'));
+const Clients = React.lazy(() => import('./pages/Clients'));
+const Manufacturing = React.lazy(() => import('./pages/Manufacturing'));
+const Settings = React.lazy(() => import('./pages/Settings'));
+const Ledger = React.lazy(() => import('./pages/Ledger'));
+const Reports = React.lazy(() => import('./pages/Reports'));
 
 // Modals
 import InvoiceModal from './components/InvoiceModal';
@@ -148,7 +148,9 @@ export default function App() {
       />
 
       {/* Main Pages Content */}
-      {renderPage()}
+      <React.Suspense fallback={<div style={{padding: '2rem', textAlign: 'center'}}>Loading...</div>}>
+        {renderPage()}
+      </React.Suspense>
 
       {/* Modal 1: Create / Edit Invoice */}
       {invoiceModalOpen && (
