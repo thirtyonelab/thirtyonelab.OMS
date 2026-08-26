@@ -100,8 +100,20 @@ export function formatTelegramStatus(invoices) {
         line += ' <i>LM</i>';
       }
       if (statusKey === 'PROCESSING') {
-        const dueDate = inv.due_date ? inv.due_date : '(not set)';
-        line += `\n\t  ↳ Due: ${dueDate}`;
+        let dueDateText = '(not set)';
+        if (inv.due_date) {
+          const t1 = new Date(mytDateStr + 'T00:00:00Z').getTime();
+          const t2 = new Date(inv.due_date + 'T00:00:00Z').getTime();
+          const days = Math.round((t2 - t1) / 86400000);
+          
+          let suffix = '';
+          if (days > 0) suffix = ` (${days} hari lagi)`;
+          else if (days === 0) suffix = ` (hari ini)`;
+          else suffix = ` (lewat ${Math.abs(days)} hari)`;
+          
+          dueDateText = `${inv.due_date}${suffix}`;
+        }
+        line += `\n\t  ↳ Due: ${dueDateText}`;
       }
       block += line;
     });
