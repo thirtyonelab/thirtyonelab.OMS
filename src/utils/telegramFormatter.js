@@ -95,7 +95,7 @@ export function formatTelegramStatus(invoices) {
       else if (paymentStatus === 'Deposit') paymentEmoji = '🟨';
       else if (paymentStatus === 'Paid') paymentEmoji = '🟩';
 
-      let line = `\n${index + 1}. ${clientName} - ${paymentEmoji}`;
+      let line = `\n${index + 1}) ${clientName} - ${paymentEmoji}`;
       if (inv._isLM) {
         line += ' <i>LM</i>';
       }
@@ -113,7 +113,7 @@ export function formatTelegramStatus(invoices) {
           
           dueDateText = `${inv.due_date}${suffix}`;
         }
-        line += `\n\t  ↳ Due: ${dueDateText}`;
+        line += `\n   ↳ Due: ${dueDateText}`;
       }
       block += line;
     });
@@ -153,9 +153,9 @@ Date: ${mytDateStr} (MYT)
 
 <b>💰 Financial Summary</b>
 Total Deposit (Open Orders)
-	  ↳ RM ${formatRM(totalDeposit)}
+   ↳ RM ${formatRM(totalDeposit)}
 Outstanding (This Month + Carryover)
-	  ↳ RM ${formatRM(outstandingBalance)}
+   ↳ RM ${formatRM(outstandingBalance)}
 
 <b>📦 Orders by Status</b>
 
