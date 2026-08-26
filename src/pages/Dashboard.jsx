@@ -1,8 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getInvoices, getLedger } from '../services/storage';
-import { Search, Plus, ArrowRight, Eye, RefreshCw, CreditCard, Activity, Clock, AlertCircle, CheckCircle2, Factory, Inbox, Send } from 'lucide-react';
+import { Search, Plus, ArrowRight, Eye, RefreshCw, CreditCard, Activity, Clock, AlertCircle, CheckCircle2, Factory, Inbox } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { formatTelegramStatus } from '../utils/telegramFormatter.js';
+
+const TelegramIcon = ({ size = 16, className = '' }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="currentColor" 
+    className={className}
+  >
+    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.892-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+  </svg>
+);
 
 export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaymentModal, onOpenInvoiceDetail }) {
   const { tr } = useLanguage();
@@ -226,7 +239,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
             style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', backgroundColor: '#3b82f6', color: 'white', border: 'none', height: '40px', padding: '0 1rem' }}
             title="Hantar Status ke Telegram"
           >
-            <Send size={16} /> Send Status
+            <TelegramIcon size={16} /> Send Status
           </button>
           <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="form-control" style={{ width: '100px', height: '40px', padding: '0 0.5rem' }}>
             {monthsList.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
@@ -258,7 +271,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
               style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', backgroundColor: '#3b82f6', color: 'white', border: 'none' }}
               title="Hantar Status ke Telegram"
             >
-              <Send size={14} /> Send
+              <TelegramIcon size={14} /> Send
             </button>
             <button onClick={() => onOpenInvoiceModal(null)} className="btn btn-primary btn-sm" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <Plus size={14} /> New
