@@ -214,16 +214,20 @@ export const getInvoices = async () => {
     let client_address = invoice.client_address;
     let pengeluaran = invoice.pengeluaran;
     let order_status = invoice.order_status;
+    let due_date = invoice.due_date;
     let cleanNotes = invoice.notes || '';
+    let _raw_meta = {};
     if (invoice.notes && invoice.notes.includes('__METADATA__:')) {
       const parts = invoice.notes.split('__METADATA__:');
       cleanNotes = parts[0].trim();
       try {
         const meta = JSON.parse(parts[1]);
+        _raw_meta = meta;
         discount_type = meta.discount_type;
         discount_value = meta.discount_value;
         client_address = meta.client_address;
         if (meta.pengeluaran !== undefined) pengeluaran = meta.pengeluaran;
+        if (meta.due_date !== undefined) due_date = meta.due_date;
         if (!order_status) {
             if (meta.order_status !== undefined) order_status = meta.order_status;
         }
@@ -237,6 +241,8 @@ export const getInvoices = async () => {
     return {
       ...invoice,
       notes: cleanNotes,
+      _raw_meta,
+      due_date: due_date || '',
       discount_type: discount_type !== undefined ? discount_type : (parseFloat(invoice.discount_per_pcs || 0) > 0 ? 'per_pcs' : 'bulk'),
       discount_value: discount_value !== undefined ? discount_value : (parseFloat(invoice.discount_per_pcs || 0) || 0),
       client_address: client_address || '',
@@ -347,12 +353,16 @@ export const saveInvoice = async (invoiceData) => {
   if (client) {
     try {
       const metadata = {
+        ...(finalInvoiceData._raw_meta || {}),
         discount_type: finalInvoiceData.discount_type,
         discount_value: finalInvoiceData.discount_value,
         client_address: finalInvoiceData.client_address,
         pengeluaran: finalInvoiceData.pengeluaran,
         discount_per_pcs: finalInvoiceData.discount_per_pcs
       };
+      if (finalInvoiceData.due_date !== undefined) {
+        metadata.due_date = finalInvoiceData.due_date;
+      }
       const dbInvoiceData = {
         ...finalInvoiceData,
         notes: (finalInvoiceData.notes || '') + `\n\n__METADATA__:${JSON.stringify(metadata)}`
@@ -362,6 +372,8 @@ export const saveInvoice = async (invoiceData) => {
       delete dbInvoiceData.client_address;
       delete dbInvoiceData.pengeluaran;
       delete dbInvoiceData.discount_per_pcs;
+      delete dbInvoiceData._raw_meta;
+      delete dbInvoiceData.due_date;
 
       const { data, error } = await client
         .from('invoices')
@@ -475,7 +487,7 @@ export const updateInvoicePayment = async (id, depositAmount, status, pengeluara
   return saved !== null;
 };
 
-export const updateManufacturingStatus = async (id, order_status, pengeluaranVal) => {
+export const updateManufacturingStatus = async (id, order_status, pengeluaranVal, dueDateVal) => {
   const invoices = await getInvoices();
   const invoice = invoices.find(inv => inv.id === id);
   if (!invoice) return false;
@@ -486,6 +498,10 @@ export const updateManufacturingStatus = async (id, order_status, pengeluaranVal
     pengeluaran: parseFloat(pengeluaranVal) || 0,
     updated_at: new Date().toISOString()
   };
+  
+  if (dueDateVal !== undefined) {
+    updatedInvoice.due_date = dueDateVal;
+  }
 
   const saved = await saveInvoice(updatedInvoice);
   return saved !== null;

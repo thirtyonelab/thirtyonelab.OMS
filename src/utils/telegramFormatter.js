@@ -94,6 +94,10 @@ export function formatTelegramStatus(invoices) {
       if (inv._isLM) {
         line += ' <i>LM</i>';
       }
+      if (statusKey === 'PROCESSING') {
+        const dueDate = inv.due_date ? inv.due_date : '(not set)';
+        line += ` — Due: ${dueDate}`;
+      }
       block += line;
     });
     return block;

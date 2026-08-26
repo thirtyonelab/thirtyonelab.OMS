@@ -100,10 +100,11 @@ export default function Manufacturing() {
     const rawKos = editedData[inv.id]?.pengeluaran;
     const kos = rawKos !== undefined ? (parseFloat(rawKos) || 0) : (inv.pengeluaran || 0);
     const status = editedData[inv.id]?.order_status !== undefined ? editedData[inv.id].order_status : (inv.order_status || 'BELUM_DRAFT');
+    const due = editedData[inv.id]?.due_date !== undefined ? editedData[inv.id].due_date : (inv.due_date || '');
     
     setLoading(true);
     try {
-      const success = await updateManufacturingStatus(inv.id, status, kos);
+      const success = await updateManufacturingStatus(inv.id, status, kos, due);
       if (success) {
         alert('Kemaskini berjaya disimpan!');
         setEditedData(prev => {
@@ -339,6 +340,10 @@ export default function Manufacturing() {
                       ? editedData[inv.id].order_status 
                       : (inv.order_status || 'BELUM_DRAFT');
 
+                    const currentDueDate = editedData[inv.id]?.due_date !== undefined 
+                      ? editedData[inv.id].due_date 
+                      : (inv.due_date || '');
+
                     return (
                       <tr key={inv.id}>
                         <td>
@@ -379,6 +384,17 @@ export default function Manufacturing() {
                             <option value="COMPLETED">✅ Completed</option>
                             <option value="MAINTENANCE">🛠️ Maintenance</option>
                           </select>
+                          {currentStatus === 'PROCESSING' && (
+                            <div style={{ marginTop: '0.5rem' }}>
+                              <input
+                                type="date"
+                                value={currentDueDate}
+                                onChange={e => handleFieldChange(inv.id, 'due_date', e.target.value)}
+                                className="form-control"
+                                style={{ width: '130px', margin: '0 auto', padding: '0.1rem 0.25rem', fontSize: '0.75rem' }}
+                              />
+                            </div>
+                          )}
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
@@ -415,6 +431,10 @@ export default function Manufacturing() {
                   ? editedData[inv.id].order_status 
                   : (inv.order_status || 'BELUM_DRAFT');
 
+                const currentDueDate = editedData[inv.id]?.due_date !== undefined 
+                  ? editedData[inv.id].due_date 
+                  : (inv.due_date || '');
+
                 return (
                   <div key={inv.id} className="mobile-card">
                     <div className="mobile-card-row" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '0.5rem' }}>
@@ -444,19 +464,30 @@ export default function Manufacturing() {
 
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span>Status:</span>
-                        <select
-                          value={currentStatus}
-                          onChange={e => handleFieldChange(inv.id, 'order_status', e.target.value)}
-                          className="form-control"
-                          style={{ padding: '0.25rem 0.5rem', width: '130px' }}
-                        >
-                          <option value="BELUM_DRAFT">📥 Belum Draft</option>
-                          <option value="DRAFT">✏️ Draft</option>
-                          <option value="PENDING">⏳ Pending</option>
-                          <option value="PROCESSING">⚙️ Processing</option>
-                          <option value="COMPLETED">✅ Completed</option>
-                          <option value="MAINTENANCE">🛠️ Maintenance</option>
-                        </select>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                          <select
+                            value={currentStatus}
+                            onChange={e => handleFieldChange(inv.id, 'order_status', e.target.value)}
+                            className="form-control"
+                            style={{ padding: '0.25rem 0.5rem', width: '130px' }}
+                          >
+                            <option value="BELUM_DRAFT">📥 Belum Draft</option>
+                            <option value="DRAFT">✏️ Draft</option>
+                            <option value="PENDING">⏳ Pending</option>
+                            <option value="PROCESSING">⚙️ Processing</option>
+                            <option value="COMPLETED">✅ Completed</option>
+                            <option value="MAINTENANCE">🛠️ Maintenance</option>
+                          </select>
+                          {currentStatus === 'PROCESSING' && (
+                            <input
+                              type="date"
+                              value={currentDueDate}
+                              onChange={e => handleFieldChange(inv.id, 'due_date', e.target.value)}
+                              className="form-control"
+                              style={{ width: '130px', padding: '0.1rem 0.25rem', fontSize: '0.75rem' }}
+                            />
+                          )}
+                        </div>
                       </div>
 
                       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
