@@ -89,14 +89,19 @@ export function formatTelegramStatus(invoices) {
     let block = `${emoji} <b>${statusLabel}</b> : ${groupInvoices.length}`;
     groupInvoices.forEach((inv, index) => {
       const clientName = escapeHtml(inv.client_name || 'UNKNOWN');
-      const paymentTag = String(inv.status || 'Unpaid').toUpperCase();
-      let line = `\n${index + 1}. ${clientName} [${paymentTag}]`;
+      const paymentStatus = String(inv.status || 'Unpaid');
+      let paymentEmoji = '⬜';
+      if (paymentStatus === 'Unpaid') paymentEmoji = '🟥';
+      else if (paymentStatus === 'Deposit') paymentEmoji = '🟨';
+      else if (paymentStatus === 'Paid') paymentEmoji = '🟩';
+
+      let line = `\n${index + 1}. ${clientName} - ${paymentEmoji}`;
       if (inv._isLM) {
         line += ' <i>LM</i>';
       }
       if (statusKey === 'PROCESSING') {
         const dueDate = inv.due_date ? inv.due_date : '(not set)';
-        line += ` — Due: ${dueDate}`;
+        line += ` - Due: ${dueDate}`;
       }
       block += line;
     });
@@ -132,6 +137,7 @@ export function formatTelegramStatus(invoices) {
 
   const message = `<b>🧾 ThirtyOne Lab Status</b>
 Date: ${mytDateStr} (MYT)
+🟥 Unpaid  🟨 Deposit  🟩 Paid
 
 <b>💰 Financial Summary</b>
 Total Deposit (open orders): RM ${formatRM(totalDeposit)}
