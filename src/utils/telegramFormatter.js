@@ -86,7 +86,7 @@ export function formatTelegramStatus(invoices) {
     const emoji = emojis[statusKey] || '📦';
     const statusLabel = statusKey.replace(/_/g, ' ');
     
-    let block = `${emoji} <b>${statusLabel}</b> : ${groupInvoices.length}`;
+    let block = `${emoji} *${statusLabel}* : ${groupInvoices.length}`;
     groupInvoices.forEach((inv, index) => {
       const clientName = escapeHtml(inv.client_name || 'UNKNOWN');
       const paymentStatus = String(inv.status || 'Unpaid');
@@ -97,7 +97,7 @@ export function formatTelegramStatus(invoices) {
 
       let line = `\n${index + 1}) ${clientName} - ${paymentEmoji}`;
       if (inv._isLM) {
-        line += ' <i>LM</i>';
+        line += ' _LM_';
       }
       if (statusKey === 'PROCESSING') {
         let dueDateText = '(not set)';
@@ -135,7 +135,7 @@ export function formatTelegramStatus(invoices) {
     blocks.push(buildStatusBlock(status));
   }
 
-  statusText = blocks.join('\n\n');
+  statusText = blocks.join('\n\n\n');
 
   // Calculate totals for processed invoices
   const outstandingBalance = processedInvoices
@@ -147,17 +147,20 @@ export function formatTelegramStatus(invoices) {
 
   const formatRM = (val) => parseFloat(val || 0).toFixed(2);
 
-  const message = `<b>🧾 ThirtyOne Lab Status</b>
+  const message = `*🧾 ThirtyOne Lab Status*
 Date: ${mytDateStr} (MYT)
 🟥 Unpaid  🟨 Deposit  🟩 Paid
 
-<b>💰 Financial Summary</b>
+
+*💰 Financial Summary*
 Total Deposit (Open Orders)
    ↳ RM ${formatRM(totalDeposit)}
 Outstanding (This Month + Carryover)
    ↳ RM ${formatRM(outstandingBalance)}
 
-<b>📦 Orders by Status</b>
+
+*📦 Orders by Status*
+
 
 ${statusText}`;
 
