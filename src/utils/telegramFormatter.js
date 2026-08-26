@@ -141,9 +141,9 @@ Date: ${mytDateStr} (MYT)
 
 <b>💰 Financial Summary</b>
 Total Deposit (Open Orders)
-RM ${formatRM(totalDeposit)}
+   ↳ RM ${formatRM(totalDeposit)}
 Outstanding (This Month + Carryover)
-RM ${formatRM(outstandingBalance)}
+   ↳ RM ${formatRM(outstandingBalance)}
 
 <b>📦 Orders by Status</b>
 
