@@ -82,7 +82,17 @@ export function formatTelegramStatus(invoices) {
   let statusText = '';
   
   const buildStatusBlock = (statusKey) => {
-    const groupInvoices = statusGroups[statusKey] || [];
+    let groupInvoices = statusGroups[statusKey] || [];
+    
+    if (statusKey === 'PROCESSING') {
+      groupInvoices = [...groupInvoices].sort((a, b) => {
+        if (!a.due_date && !b.due_date) return 0;
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return String(a.due_date).localeCompare(String(b.due_date));
+      });
+    }
+
     const emoji = emojis[statusKey] || '📦';
     const statusLabel = statusKey.replace(/_/g, ' ');
     
