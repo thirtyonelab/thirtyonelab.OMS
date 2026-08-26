@@ -130,8 +130,8 @@ export function formatTelegramStatus(invoices) {
 Date: ${mytDateStr} (MYT)
 
 <b>💰 Financial Summary</b>
-Total Deposit: RM ${formatRM(totalDeposit)}
-Outstanding Balance: RM ${formatRM(outstandingBalance)}
+Total Deposit (open orders): RM ${formatRM(totalDeposit)}
+Outstanding (this month + carryover): RM ${formatRM(outstandingBalance)}
 
 <b>📦 Orders by Status</b>
 
