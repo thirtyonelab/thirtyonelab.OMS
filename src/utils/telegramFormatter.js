@@ -151,10 +151,10 @@ export function formatTelegramStatus(invoices) {
 Date: ${mytDateStr} (MYT)
 🟥 Unpaid  🟨 Deposit  🟩 Paid
 
-*💰 Financial Summary*
-Total Deposit (Open Orders)
+*💰 Ringkasan Kewangan* _(order aktif)_
+Jumlah Deposit Diterima
    ↳ RM ${formatRM(totalDeposit)}
-Outstanding (This Month + Carryover)
+Baki Belum Dibayar
    ↳ RM ${formatRM(outstandingBalance)}
 
 
