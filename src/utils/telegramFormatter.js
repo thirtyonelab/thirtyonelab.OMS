@@ -135,7 +135,7 @@ export function formatTelegramStatus(invoices) {
     blocks.push(buildStatusBlock(status));
   }
 
-  statusText = blocks.join('\n\n\n');
+  statusText = blocks.join('\n\n');
 
   // Calculate totals for processed invoices
   const outstandingBalance = processedInvoices
@@ -151,7 +151,6 @@ export function formatTelegramStatus(invoices) {
 Date: ${mytDateStr} (MYT)
 🟥 Unpaid  🟨 Deposit  🟩 Paid
 
-
 *💰 Financial Summary*
 Total Deposit (Open Orders)
    ↳ RM ${formatRM(totalDeposit)}
@@ -160,7 +159,6 @@ Outstanding (This Month + Carryover)
 
 
 *📦 Orders by Status*
-
 
 ${statusText}`;
 
