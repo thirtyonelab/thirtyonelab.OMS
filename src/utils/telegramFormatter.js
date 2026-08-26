@@ -101,7 +101,7 @@ export function formatTelegramStatus(invoices) {
       }
       if (statusKey === 'PROCESSING') {
         const dueDate = inv.due_date ? inv.due_date : '(not set)';
-        line += `\n   ↳ Due: ${dueDate}`;
+        line += `\n\t  ↳ Due: ${dueDate}`;
       }
       block += line;
     });
@@ -141,9 +141,9 @@ Date: ${mytDateStr} (MYT)
 
 <b>💰 Financial Summary</b>
 Total Deposit (Open Orders)
-   ↳ RM ${formatRM(totalDeposit)}
+	  ↳ RM ${formatRM(totalDeposit)}
 Outstanding (This Month + Carryover)
-   ↳ RM ${formatRM(outstandingBalance)}
+	  ↳ RM ${formatRM(outstandingBalance)}
 
 <b>📦 Orders by Status</b>
 
