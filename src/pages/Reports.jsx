@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getInvoices, getLedger, getSettings } from '../services/storage';
-import { Printer, RefreshCw, Send } from 'lucide-react';
+import { Printer, RefreshCw } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
-import { formatTelegramStatus } from '../utils/telegramFormatter.js';
 
 export default function Reports() {
   const { tr } = useLanguage();
@@ -23,38 +22,6 @@ export default function Reports() {
   const [zoomMultiplier, setZoomMultiplier] = useState(1);
   const sheetRef = useRef(null);
   const touchStartRef = useRef(null);
-
-  const [tgStatus, setTgStatus] = useState('idle'); // 'idle' | 'sending' | 'sent' | 'error: msg'
-
-  const handleSendTelegram = async () => {
-    setTgStatus('sending');
-    try {
-      const text = formatTelegramStatus(invoices);
-      const url = import.meta.env.VITE_SUPABASE_URL;
-      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      if (!url) throw new Error("Supabase URL tidak dijumpai.");
-      // Fix potential trailing slash in url
-      const baseUrl = url.endsWith('/') ? url.slice(0, -1) : url;
-      const funcUrl = `${baseUrl}/functions/v1/tg-send`;
-      const res = await fetch(funcUrl, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(key ? { 'Authorization': `Bearer ${key}`, 'apikey': key } : {})
-        },
-        body: JSON.stringify({ text })
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `HTTP ${res.status}`);
-      }
-      setTgStatus('sent');
-      setTimeout(() => setTgStatus('idle'), 3000);
-    } catch (error) {
-      setTgStatus(`error: ${error.message}`);
-      setTimeout(() => setTgStatus('idle'), 4000);
-    }
-  };
 
   useEffect(() => {
     loadData();
@@ -246,26 +213,6 @@ export default function Reports() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          {tgStatus !== 'idle' && (
-            <div style={{
-              padding: '0.4rem 0.75rem',
-              borderRadius: '6px',
-              fontSize: '0.85rem',
-              backgroundColor: tgStatus === 'sending' ? '#f59e0b' : tgStatus === 'sent' ? '#10b981' : '#ef4444',
-              color: '#fff',
-              whiteSpace: 'nowrap'
-            }}>
-              {tgStatus === 'sending' ? 'Sending...' : tgStatus === 'sent' ? 'Sent!' : tgStatus.startsWith('error:') ? tgStatus.replace('error: ', 'Gagal: ') : tgStatus}
-            </div>
-          )}
-          <button 
-            onClick={handleSendTelegram} 
-            disabled={tgStatus === 'sending'}
-            className="btn btn-secondary" 
-            style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', backgroundColor: '#3b82f6', color: 'white', border: 'none' }}
-          >
-            <Send size={16} /> Hantar Status ke Telegram
-          </button>
           <input
             type="month"
             value={selectedMonth}

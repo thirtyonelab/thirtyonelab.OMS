@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getInvoices, getLedger } from '../services/storage';
-import { Search, Plus, ArrowRight, Eye, RefreshCw, CreditCard, Activity, Clock, AlertCircle, CheckCircle2, Factory, Inbox } from 'lucide-react';
+import { Search, Plus, ArrowRight, Eye, RefreshCw, CreditCard, Activity, Clock, AlertCircle, CheckCircle2, Factory, Inbox, Send } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { formatTelegramStatus } from '../utils/telegramFormatter.js';
 
 export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaymentModal, onOpenInvoiceDetail }) {
   const { tr } = useLanguage();
@@ -51,6 +52,37 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
       console.error('Error loading data in dashboard:', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const [tgStatus, setTgStatus] = useState('idle'); // 'idle' | 'sending' | 'sent' | 'error: msg'
+
+  const handleSendTelegram = async () => {
+    setTgStatus('sending');
+    try {
+      const text = formatTelegramStatus(invoices);
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      if (!url) throw new Error("Supabase URL tidak dijumpai.");
+      const baseUrl = url.endsWith('/') ? url.slice(0, -1) : url;
+      const funcUrl = `${baseUrl}/functions/v1/tg-send`;
+      const res = await fetch(funcUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(key ? { 'Authorization': `Bearer ${key}`, 'apikey': key } : {})
+        },
+        body: JSON.stringify({ text })
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `HTTP ${res.status}`);
+      }
+      setTgStatus('sent');
+      setTimeout(() => setTgStatus('idle'), 3000);
+    } catch (error) {
+      setTgStatus(`error: ${error.message}`);
+      setTimeout(() => setTgStatus('idle'), 4000);
     }
   };
 
@@ -175,6 +207,27 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
           <h1 style={{ fontSize: '1.75rem', fontWeight: '800', marginTop: '0.5rem' }}>{tr('dashboardTitle')}</h1>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          {tgStatus !== 'idle' && (
+            <div className="desktop-only" style={{
+              padding: '0.4rem 0.75rem',
+              borderRadius: '6px',
+              fontSize: '0.85rem',
+              backgroundColor: tgStatus === 'sending' ? '#f59e0b' : tgStatus === 'sent' ? '#10b981' : '#ef4444',
+              color: '#fff',
+              whiteSpace: 'nowrap'
+            }}>
+              {tgStatus === 'sending' ? 'Sending...' : tgStatus === 'sent' ? 'Sent!' : tgStatus.startsWith('error:') ? tgStatus.replace('error: ', 'Gagal: ') : tgStatus}
+            </div>
+          )}
+          <button 
+            onClick={handleSendTelegram} 
+            disabled={tgStatus === 'sending'}
+            className="btn btn-secondary desktop-only" 
+            style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', backgroundColor: '#3b82f6', color: 'white', border: 'none', height: '40px', padding: '0 1rem' }}
+            title="Hantar Status ke Telegram"
+          >
+            <Send size={16} /> Send Status
+          </button>
           <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="form-control" style={{ width: '100px', height: '40px', padding: '0 0.5rem' }}>
             {monthsList.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
@@ -197,10 +250,34 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
             <span className="section-tag" style={{ fontSize: '0.6rem', letterSpacing: '2px' }}>{tr('dashboardTag')}</span>
             <h1 style={{ fontSize: '1.25rem', fontWeight: '800', marginTop: '0.25rem' }}>{tr('dashboardTitle')}</h1>
           </div>
-          <button onClick={() => onOpenInvoiceModal(null)} className="btn btn-primary btn-sm" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <Plus size={14} /> New
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <button 
+              onClick={handleSendTelegram} 
+              disabled={tgStatus === 'sending'}
+              className="btn btn-secondary btn-sm" 
+              style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', backgroundColor: '#3b82f6', color: 'white', border: 'none' }}
+              title="Hantar Status ke Telegram"
+            >
+              <Send size={14} /> Send
+            </button>
+            <button onClick={() => onOpenInvoiceModal(null)} className="btn btn-primary btn-sm" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <Plus size={14} /> New
+            </button>
+          </div>
         </div>
+        {tgStatus !== 'idle' && (
+          <div style={{
+            padding: '0.4rem 0.75rem',
+            borderRadius: '6px',
+            fontSize: '0.75rem',
+            marginBottom: '1rem',
+            backgroundColor: tgStatus === 'sending' ? '#f59e0b' : tgStatus === 'sent' ? '#10b981' : '#ef4444',
+            color: '#fff',
+            textAlign: 'center'
+          }}>
+            {tgStatus === 'sending' ? 'Sending...' : tgStatus === 'sent' ? 'Sent!' : tgStatus.startsWith('error:') ? tgStatus.replace('error: ', 'Gagal: ') : tgStatus}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="form-control" style={{ flex: 1, fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}>
             {monthsList.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
