@@ -101,7 +101,7 @@ export function formatTelegramStatus(invoices) {
       }
       if (statusKey === 'PROCESSING') {
         const dueDate = inv.due_date ? inv.due_date : '(not set)';
-        line += ` - Due: ${dueDate}`;
+        line += `\n   ↳ Due: ${dueDate}`;
       }
       block += line;
     });
