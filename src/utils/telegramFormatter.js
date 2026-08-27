@@ -149,7 +149,7 @@ export function formatTelegramStatus(invoices) {
 
   // Calculate totals for processed invoices
   const outstandingBalance = processedInvoices
-    .filter(inv => inv.status !== 'Paid')
+    .filter(inv => inv.status === 'Deposit')
     .reduce((sum, inv) => sum + Math.max(0, parseFloat(inv.grand_total || 0) - parseFloat(inv.deposit || 0)), 0);
 
   const totalDeposit = processedInvoices
