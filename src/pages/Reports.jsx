@@ -212,7 +212,7 @@ export default function Reports() {
             {tr('reportsSubtitle')}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <div className="header-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <input
             type="month"
             value={selectedMonth}

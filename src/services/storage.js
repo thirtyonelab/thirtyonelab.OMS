@@ -465,7 +465,7 @@ export const deleteInvoice = async (id) => {
   return true;
 };
 
-export const updateInvoicePayment = async (id, depositAmount, status, pengeluaranVal) => {
+export const updateInvoicePayment = async (id, depositAmount, status, pengeluaranVal, depositDate, paidDate) => {
   const invoices = await getInvoices();
   const invoice = invoices.find(inv => inv.id === id);
   if (!invoice) return false;
@@ -482,6 +482,9 @@ export const updateInvoicePayment = async (id, depositAmount, status, pengeluara
     pengeluaran: pengeluaranVal !== undefined ? (parseFloat(pengeluaranVal) || 0) : invoice.pengeluaran,
     updated_at: new Date().toISOString()
   };
+
+  if (depositDate !== undefined) updatedInvoice.deposit_date = depositDate;
+  if (paidDate !== undefined) updatedInvoice.paid_date = paidDate;
 
   const saved = await saveInvoice(updatedInvoice);
   return saved !== null;

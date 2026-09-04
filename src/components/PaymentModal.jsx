@@ -9,6 +9,10 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
   const [status, setStatus] = useState(invoice.status || 'Unpaid');
   const [loading, setLoading] = useState(false);
 
+  const getToday = () => new Date().toISOString().split('T')[0];
+  const [depositDate, setDepositDate] = useState(invoice.deposit_date || getToday());
+  const [paidDate, setPaidDate] = useState(invoice.paid_date || getToday());
+
   const grandTotal = parseFloat(invoice.grand_total);
   const balance = grandTotal - parseFloat(deposit || 0);
 
@@ -53,7 +57,7 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
     e.preventDefault();
     setLoading(true);
     try {
-      const success = await updateInvoicePayment(invoice.id, deposit, status, invoice.pengeluaran);
+      const success = await updateInvoicePayment(invoice.id, deposit, status, invoice.pengeluaran, depositDate, paidDate);
       if (success) {
         onSaveSuccess();
       } else {
@@ -130,6 +134,32 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
                 required={status === 'Deposit'}
               />
             </div>
+
+            {status === 'Deposit' && (
+              <div className="form-group">
+                <label className="form-label">Tarikh Deposit</label>
+                <input
+                  type="date"
+                  value={depositDate}
+                  onChange={(e) => setDepositDate(e.target.value)}
+                  className="form-control"
+                  required
+                />
+              </div>
+            )}
+            
+            {status === 'Paid' && (
+              <div className="form-group">
+                <label className="form-label">Tarikh Bayaran Penuh</label>
+                <input
+                  type="date"
+                  value={paidDate}
+                  onChange={(e) => setPaidDate(e.target.value)}
+                  className="form-control"
+                  required
+                />
+              </div>
+            )}
 
             {/* Balance & Status Display */}
             <div className="payment-outcome-details">

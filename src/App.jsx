@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, FileText, Users, Settings as SettingsIcon, Factory, Cloud, Database, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, Settings as SettingsIcon, Factory, Cloud, Database, ChevronRight, Menu } from 'lucide-react';
 import { isCloudMode } from './services/storage';
 import { LanguageProvider } from './context/LanguageContext';
 import Sidebar from './components/Sidebar';
@@ -27,6 +27,12 @@ export default function App() {
   useEffect(() => {
     setCloudActive(isCloudMode());
   }, [activeTab]);
+
+  // Lock background scroll while the mobile drawer is open
+  useEffect(() => {
+    document.body.classList.toggle('drawer-open', isMobileMenuOpen);
+    return () => document.body.classList.remove('drawer-open');
+  }, [isMobileMenuOpen]);
 
   useEffect(() => {
     const handleConnectionChange = () => {
@@ -124,20 +130,10 @@ export default function App() {
       {/* Mobile Top Header (Visible only on mobile) */}
       <header className="mobile-top-bar mobile-only">
         <span className="mobile-brand-name">THIRTYONE <span style={{ color: 'var(--primary-red)' }}>LAB</span><sup style={{ color: 'var(--primary-red)', fontSize: '0.5em' }}>&reg;</sup></span>
-        <div className="mobile-status-indicator">
-          {cloudActive ? (
-            <Cloud size={14} color="var(--primary-red)" strokeWidth={2.5} style={{ marginRight: '4px' }} />
-          ) : (
-            <Database size={14} color="var(--primary-red)" strokeWidth={2.5} style={{ marginRight: '4px' }} />
-          )}
-          <span className="mobile-status-text">{cloudActive ? 'CLOUD' : 'LOCAL'}</span>
-        </div>
+        <button className="mobile-menu-btn mobile-only" onClick={() => setIsMobileMenuOpen(true)} aria-label="Menu">
+          <Menu size={22} />
+        </button>
       </header>
-
-      {/* Floating Menu Button for Mobile */}
-      <button className="mobile-menu-btn mobile-only" onClick={() => setIsMobileMenuOpen(true)}>
-        <ChevronRight size={18} />
-      </button>
 
       {/* Sidebar (Navigation) */}
       <Sidebar 

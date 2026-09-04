@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, FileText, Users, Settings, Database, HardDrive, Factory, BookOpen, BarChart2, Globe, Cloud } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, Settings, Database, HardDrive, Factory, BookOpen, BarChart2, Globe, Cloud, Download } from 'lucide-react';
 import { isCloudMode, getSettings } from '../services/storage';
 import { useLanguage } from '../context/LanguageContext';
+import { getInstallPrompt, clearInstallPrompt } from '../pwaInstall';
 
 export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobileMenuOpen }) {
   const [cloudActive, setCloudActive] = useState(isCloudMode());
@@ -56,6 +57,20 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
     if (setIsMobileMenuOpen) {
       setIsMobileMenuOpen(false);
     }
+  };
+
+  const handleInstallClick = () => {
+    const prompt = getInstallPrompt();
+    if (!prompt) {
+      alert("Pemasangan tidak tersedia. Anda mungkin sudah memasang aplikasi ini, atau browser anda (seperti Safari iOS) memerlukan anda menggunakan 'Add to Home Screen' secara manual dari menu perkongsian.");
+      return;
+    }
+    prompt.prompt();
+    prompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === 'accepted') {
+        clearInstallPrompt();
+      }
+    });
   };
 
   return (
@@ -144,6 +159,14 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
       </nav>
 
       <div className="sidebar-footer">
+        <button 
+          onClick={handleInstallClick}
+          className="nav-item" 
+          style={{ marginBottom: '1rem', justifyContent: 'center', backgroundColor: 'var(--off-white-bg)', border: '1px solid var(--border-color)', color: 'var(--text-dark)' }}
+        >
+          <Download size={18} strokeWidth={2} />
+          <span>Install App</span>
+        </button>
         <div className="status-indicator">
           {cloudActive ? (
             <>
@@ -186,9 +209,9 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
           font-family: var(--font-primary);
           font-size: 0.65rem;
           font-weight: 800;
-          letter-spacing: 3px;
+          letter-spacing: 1px;
           color: var(--primary-red);
-          text-transform: uppercase;
+          
           margin-bottom: 0.3rem;
           display: block;
         }
@@ -222,8 +245,8 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
           font-family: var(--font-primary);
           font-size: 0.75rem;
           font-weight: 700;
-          letter-spacing: 2px;
-          text-transform: uppercase;
+          letter-spacing: normal;
+          
           cursor: pointer;
           transition: var(--transition);
           text-align: left;
@@ -291,7 +314,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
           font-family: var(--font-primary);
           font-size: 0.65rem;
           font-weight: 800;
-          letter-spacing: 2px;
+          letter-spacing: normal;
           color: var(--text-muted);
           padding: 1rem 1.25rem 0.25rem;
         }

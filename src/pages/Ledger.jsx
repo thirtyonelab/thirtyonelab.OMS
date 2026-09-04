@@ -117,7 +117,7 @@ export default function Ledger() {
           <h3 className="card-title" style={{ fontSize: '0.85rem' }}>BUKU REKOD TRANSAKSI</h3>
         </div>
         
-        <div className="table-container desktop-only">
+        <div className="table-container desktop-only ledger-table-container">
           <table className="table">
             <thead>
               <tr>
@@ -188,7 +188,7 @@ export default function Ledger() {
         </div>
 
         {/* Mobile Cards List (visible only under 768px) */}
-        <div className="mobile-cards-list mobile-only">
+        <div className="mobile-cards-list mobile-only ledger-mobile-cards">
           {loading ? (
             <div className="loading-state" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>{tr('loadingData')}</div>
           ) : entries.length === 0 ? (
@@ -272,8 +272,8 @@ export default function Ledger() {
           font-family: var(--font-primary);
           font-size: 0.65rem;
           font-weight: 800;
-          letter-spacing: 1px;
-          text-transform: uppercase;
+          letter-spacing: normal;
+          
           color: var(--text-muted);
         }
 

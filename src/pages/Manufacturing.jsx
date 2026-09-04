@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getInvoices, getSettings, updateManufacturingStatus } from '../services/storage';
-import { Search, Printer, X, Save } from 'lucide-react';
+import { Search, Printer, X, Save, Inbox, Pencil, Clock, Factory, CheckCircle2, Wrench } from 'lucide-react';
 import KilangVoucherModal from '../components/KilangVoucherModal';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -221,7 +221,7 @@ export default function Manufacturing() {
       <div className="mfg-summary-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
         <div className="card" style={{ padding: '1rem', borderLeft: '4px solid #64748B' }}>
           <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            📥 Belum Draft
+            <Inbox size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: 'var(--text-muted)' }} /> Belum Draft
           </h3>
           <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
             {belumDraftCount}
@@ -229,7 +229,7 @@ export default function Manufacturing() {
         </div>
         <div className="card" style={{ padding: '1rem', borderLeft: '4px solid #94A3B8' }}>
           <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            ✏️ Draft
+            <Pencil size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: 'var(--text-muted)' }} /> Draft
           </h3>
           <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
             {draftCount}
@@ -237,7 +237,7 @@ export default function Manufacturing() {
         </div>
         <div className="card" style={{ padding: '1rem', borderLeft: '4px solid var(--primary-red)' }}>
           <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            ⏳ Pending
+            <Clock size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: '#D97706' }} /> Pending
           </h3>
           <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
             {pendingCount}
@@ -245,7 +245,7 @@ export default function Manufacturing() {
         </div>
         <div className="card" style={{ padding: '1rem', borderLeft: '4px solid #EAB308' }}>
           <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            ⚙️ Processing
+            <Factory size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: '#2563EB' }} /> Processing
           </h3>
           <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
             {processingCount}
@@ -253,7 +253,7 @@ export default function Manufacturing() {
         </div>
         <div className="card" style={{ padding: '1rem', borderLeft: '4px solid #15803D' }}>
           <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            ✅ Completed
+            <CheckCircle2 size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: '#15803D' }} /> Completed
           </h3>
           <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
             {completedCount}
@@ -261,7 +261,7 @@ export default function Manufacturing() {
         </div>
         <div className="card" style={{ padding: '1rem', borderLeft: '4px solid #DC2626' }}>
           <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            🛠️ Maintenance
+            <Wrench size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: 'var(--primary-red)' }} /> Maintenance
           </h3>
           <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
             {maintenanceCount}
@@ -377,12 +377,12 @@ export default function Manufacturing() {
                             className="form-control"
                             style={{ padding: '0.25rem 0.5rem', width: '130px', margin: '0 auto', fontSize: '0.85rem' }}
                           >
-                            <option value="BELUM_DRAFT">📥 Belum Draft</option>
-                            <option value="DRAFT">✏️ Draft</option>
-                            <option value="PENDING">⏳ Pending</option>
-                            <option value="PROCESSING">⚙️ Processing</option>
-                            <option value="COMPLETED">✅ Completed</option>
-                            <option value="MAINTENANCE">🛠️ Maintenance</option>
+                            <option value="BELUM_DRAFT">Belum Draft</option>
+                            <option value="DRAFT">Draft</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="PROCESSING">Processing</option>
+                            <option value="COMPLETED">Completed</option>
+                            <option value="MAINTENANCE">Maintenance</option>
                           </select>
                           {currentStatus === 'PROCESSING' && (
                             <div style={{ marginTop: '0.5rem' }}>
@@ -471,12 +471,12 @@ export default function Manufacturing() {
                             className="form-control"
                             style={{ padding: '0.25rem 0.5rem', width: '130px' }}
                           >
-                            <option value="BELUM_DRAFT">📥 Belum Draft</option>
-                            <option value="DRAFT">✏️ Draft</option>
-                            <option value="PENDING">⏳ Pending</option>
-                            <option value="PROCESSING">⚙️ Processing</option>
-                            <option value="COMPLETED">✅ Completed</option>
-                            <option value="MAINTENANCE">🛠️ Maintenance</option>
+                            <option value="BELUM_DRAFT">Belum Draft</option>
+                            <option value="DRAFT">Draft</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="PROCESSING">Processing</option>
+                            <option value="COMPLETED">Completed</option>
+                            <option value="MAINTENANCE">Maintenance</option>
                           </select>
                           {currentStatus === 'PROCESSING' && (
                             <input
@@ -1004,7 +1004,8 @@ export default function Manufacturing() {
             flex-wrap: nowrap !important;
           }
           .mfg-summary-row {
-            grid-template-columns: 1fr !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 0.75rem !important;
           }
 
           .search-filters-bar {

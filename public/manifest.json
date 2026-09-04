@@ -3,21 +3,22 @@
   "name": "Order Management System - ThirtyOne Lab",
   "icons": [
     {
-      "src": "/favicon.webp",
+      "src": "./favicon.webp",
       "type": "image/webp",
       "sizes": "512x512",
       "purpose": "any maskable"
     },
     {
-      "src": "/favicon.svg",
+      "src": "./favicon.svg",
       "type": "image/svg+xml",
       "sizes": "any",
       "purpose": "any"
     }
   ],
-  "start_url": "./",
+  "start_url": ".",
+  "scope": ".",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a"
+  "background_color": "#FAF9F6",
+  "theme_color": "#C51B27"
 }

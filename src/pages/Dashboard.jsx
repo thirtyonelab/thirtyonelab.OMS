@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getInvoices, getLedger } from '../services/storage';
-import { Search, Plus, ArrowRight, Eye, RefreshCw, CreditCard, Activity, Clock, AlertCircle, CheckCircle2, Factory, Inbox } from 'lucide-react';
+import { Search, Plus, ArrowRight, Eye, RefreshCw, CreditCard, Activity, Clock, AlertCircle, CheckCircle2, Factory, Inbox, Pencil, Wrench } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { formatTelegramStatus } from '../utils/telegramFormatter.js';
 
@@ -348,37 +348,37 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
               <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                📥 {tr('belumDraft')}
+                <Inbox size={14} style={{ color: 'var(--text-muted)' }} /> {tr('belumDraft')}
               </span>
               <span style={{ fontWeight: '700' }}>{metrics.countBelumDraft}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
               <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                ✏️ {tr('draft')}
+                <Pencil size={14} style={{ color: 'var(--text-muted)' }} /> {tr('draft')}
               </span>
               <span style={{ fontWeight: '700' }}>{metrics.countDraft}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
               <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                ⏳ {tr('pending')}
+                <Clock size={14} style={{ color: '#D97706' }} /> {tr('pending')}
               </span>
               <span style={{ fontWeight: '700' }}>{metrics.countPending}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
               <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                ⚙️ {tr('processing')}
+                <Factory size={14} style={{ color: '#2563EB' }} /> {tr('processing')}
               </span>
               <span style={{ fontWeight: '700' }}>{metrics.countProcessing}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
               <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                ✅ {tr('completed')}
+                <CheckCircle2 size={14} style={{ color: '#15803D' }} /> {tr('completed')}
               </span>
               <span style={{ fontWeight: '700' }}>{metrics.countCompleted}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0' }}>
               <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                🛠️ {tr('maintenance')}
+                <Wrench size={14} style={{ color: 'var(--primary-red)' }} /> {tr('maintenance')}
               </span>
               <span style={{ fontWeight: '700' }}>{metrics.countMaintenance}</span>
             </div>
@@ -423,37 +423,37 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                📥 {tr('belumDraft')}
+                <Inbox size={14} style={{ color: 'var(--text-muted)' }} /> {tr('belumDraft')}
               </span>
               <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countBelumDraft}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                ✏️ {tr('draft')}
+                <Pencil size={14} style={{ color: 'var(--text-muted)' }} /> {tr('draft')}
               </span>
               <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countDraft}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                ⏳ {tr('pending')}
+                <Clock size={14} style={{ color: '#D97706' }} /> {tr('pending')}
               </span>
               <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countPending}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                ⚙️ {tr('processing')}
+                <Factory size={14} style={{ color: '#2563EB' }} /> {tr('processing')}
               </span>
               <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countProcessing}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                ✅ {tr('completed')}
+                <CheckCircle2 size={14} style={{ color: '#15803D' }} /> {tr('completed')}
               </span>
               <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countCompleted}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                🛠️ {tr('maintenance')}
+                <Wrench size={14} style={{ color: 'var(--primary-red)' }} /> {tr('maintenance')}
               </span>
               <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countMaintenance}</span>
             </div>

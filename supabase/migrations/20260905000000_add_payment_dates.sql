@@ -1,0 +1,3 @@
+ALTER TABLE invoices 
+ADD COLUMN IF NOT EXISTS deposit_date DATE,
+ADD COLUMN IF NOT EXISTS paid_date DATE;

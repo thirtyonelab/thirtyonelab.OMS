@@ -769,7 +769,11 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
     ...bannerItems
   ].reduce((sum, item) => sum + calculateItemSummary(item).subtotal, 0);
 
-  const totalDiscount = discountType === 'bulk' ? (parseFloat(discountValue) || 0) : ((parseFloat(discountValue) || 0) * totalQty);
+  const totalDiscount = discountType === 'percent' 
+    ? grossSubtotal * ((parseFloat(discountValue) || 0) / 100) 
+    : discountType === 'bulk' 
+      ? (parseFloat(discountValue) || 0) 
+      : ((parseFloat(discountValue) || 0) * totalQty);
   const grandTotal = Math.max(0, grossSubtotal - totalDiscount);
 
   // Clamp deposit to grandTotal and auto-derive status, mirroring PaymentModal's logic,
@@ -2257,7 +2261,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                         <span style={{ fontWeight: 600, color: 'var(--text-dark)' }}>Diskaun</span>
                         {isDiscountCollapsed && totalDiscount > 0 && (
                            <span className="text-red font-bold" style={{ fontSize: '0.85rem' }}>
-                             - RM {totalDiscount.toFixed(2)}
+                             - RM {totalDiscount.toFixed(2)}{discountType === 'percent' ? ` (${discountValue}%)` : ''}
                            </span>
                         )}
                       </div>
@@ -2288,17 +2292,32 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                 style={{ margin: 0 }}
                               /> Pukal (Bulk)
                             </label>
+                            <label style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                              <input 
+                                type="radio" 
+                                name="discountType" 
+                                value="percent" 
+                                checked={discountType === 'percent'} 
+                                onChange={() => setDiscountType('percent')} 
+                                style={{ margin: 0 }}
+                              /> % (Peratus)
+                            </label>
                           </div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', width: '100%' }}>
                           <div className="discount-input-wrapper" style={{ flex: '1', maxWidth: '150px' }}>
-                            <span className="currency-prefix">RM</span>
+                            <span className="currency-prefix">{discountType === 'percent' ? '%' : 'RM'}</span>
                             <input
                               type="number"
                               step="0.01"
                               min="0"
+                              max={discountType === 'percent' ? "100" : undefined}
                               value={discountValue || ''}
-                              onChange={(e) => setDiscountValue(Math.max(0, parseFloat(e.target.value) || 0))}
+                              onChange={(e) => {
+                                let val = Math.max(0, parseFloat(e.target.value) || 0);
+                                if (discountType === 'percent') val = Math.min(100, val);
+                                setDiscountValue(val);
+                              }}
                               className="form-control discount-input"
                               placeholder="0.00"
                             />
@@ -2576,7 +2595,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
           text-align: center;
           font-family: var(--font-secondary);
           font-size: 0.85rem;
-          border-radius: 0;
+          border-radius: var(--radius-sm);
           background: #fff;
         }
 

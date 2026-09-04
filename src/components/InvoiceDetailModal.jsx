@@ -551,7 +551,13 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                 </div>
                 <div className="meta-row">
                   <span className="meta-lbl">Date:</span>
-                  <span className="meta-val">{invoice.date}</span>
+                  <span className="meta-val">
+                    {printMode === 'DepositReceipt' 
+                      ? (invoice.deposit_date || invoice.date)
+                      : printMode === 'FullReceipt'
+                        ? (invoice.paid_date || invoice.date)
+                        : invoice.date}
+                  </span>
                 </div>
               </div>
             </div>
@@ -719,10 +725,10 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                   <span>SUBTOTAL:</span>
                   <span>RM {parseFloat(invoice.subtotal).toFixed(2)}</span>
                 </div>
-                {((invoice.discount_type === 'bulk' && parseFloat(invoice.discount_value) > 0) || (invoice.discount_type !== 'bulk' && (parseFloat(invoice.discount_value) > 0 || parseFloat(invoice.discount_per_pcs) > 0))) && (
+                {((invoice.discount_type === 'percent' && parseFloat(invoice.discount_value) > 0) || (invoice.discount_type === 'bulk' && parseFloat(invoice.discount_value) > 0) || (invoice.discount_type !== 'bulk' && invoice.discount_type !== 'percent' && (parseFloat(invoice.discount_value) > 0 || parseFloat(invoice.discount_per_pcs) > 0))) && (
                   <div className="summary-print-row">
-                    <span>DISCOUNT:</span>
-                    <span>- RM {(invoice.discount_type === 'bulk' ? parseFloat(invoice.discount_value) : (parseFloat(invoice.discount_value !== undefined ? invoice.discount_value : invoice.discount_per_pcs) * totalQty)).toFixed(2)}</span>
+                    <span>DISCOUNT {invoice.discount_type === 'percent' ? `(${invoice.discount_value}%)` : ''}:</span>
+                    <span>- RM {(invoice.discount_type === 'percent' ? parseFloat(invoice.subtotal) * (parseFloat(invoice.discount_value) / 100) : invoice.discount_type === 'bulk' ? parseFloat(invoice.discount_value) : (parseFloat(invoice.discount_value !== undefined ? invoice.discount_value : invoice.discount_per_pcs) * totalQty)).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="summary-print-row grand-total-row-print">
