@@ -16,6 +16,7 @@ export function formatTelegramStatus(invoices) {
   
   (invoices || []).forEach(inv => {
     let order_status = inv.order_status;
+    let due_date = inv.due_date;
     if (inv.notes && String(inv.notes).includes('__METADATA__:')) {
       try {
         const metaStr = String(inv.notes).split('__METADATA__:')[1];
@@ -23,6 +24,7 @@ export function formatTelegramStatus(invoices) {
         if (!order_status) {
           if (meta.order_status !== undefined) order_status = meta.order_status;
         }
+        if (!due_date && meta.due_date !== undefined) due_date = meta.due_date;
       } catch(e) {}
     }
 
@@ -46,7 +48,7 @@ export function formatTelegramStatus(invoices) {
     }
 
     if (include) {
-      processedInvoices.push({ ...inv, _order_status: order_status, _isLM: isLM });
+      processedInvoices.push({ ...inv, due_date, _order_status: order_status, _isLM: isLM });
     }
   });
   
