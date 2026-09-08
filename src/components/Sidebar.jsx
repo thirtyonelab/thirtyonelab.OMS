@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, FileText, Users, Settings, Database, HardDrive, Factory, BookOpen, BarChart2, Globe, Cloud, Download } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, Settings, Database, HardDrive, Factory, BookOpen, BarChart2, Globe, Cloud, Download, LogOut } from 'lucide-react';
 import { isCloudMode, getSettings } from '../services/storage';
 import { useLanguage } from '../context/LanguageContext';
 import { getInstallPrompt, clearInstallPrompt } from '../pwaInstall';
 
-export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobileMenuOpen }) {
+export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobileMenuOpen, currentUser, onLogout }) {
   const [cloudActive, setCloudActive] = useState(isCloudMode());
   const [logo, setLogo] = useState('');
   const { language, setLanguage, toggleLanguage, tr } = useLanguage();
@@ -159,6 +159,35 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
       </nav>
 
       <div className="sidebar-footer">
+        {currentUser && (
+          <div className="user-profile-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.75rem', backgroundColor: 'var(--off-white-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1, paddingRight: '0.35rem' }}>
+              <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: 'var(--primary-red)', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: 800, flexShrink: 0 }}>
+                {(currentUser.email || 'U').charAt(0).toUpperCase()}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-dark)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {currentUser.email?.split('@')[0]}
+                </span>
+                <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {currentUser.email}
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onLogout}
+              className="logout-btn"
+              title={tr('logout')}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px', transition: 'color 0.2s ease', flexShrink: 0 }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary-red)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        )}
+
         <button 
           onClick={handleInstallClick}
           className="nav-item install-app-btn" 

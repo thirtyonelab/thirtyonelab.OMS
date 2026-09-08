@@ -138,8 +138,18 @@ const translations = {
     backupTitle: '5. Data Backup & Restore',
     backupDesc: 'Use this function to download all your data records to your computer for safekeeping, or restore old data if you change devices or clear your web browser.',
     downloadBackup: 'Download Data (Export JSON)',
-    uploadRestore: 'Upload Data (Import JSON)',
     settingsSaved: 'Settings saved successfully!',
+    // Auth / Login
+    login: 'Log In',
+    logout: 'Log Out',
+    email: 'Email Address',
+    password: 'Password',
+    signIn: 'Sign In',
+    signingIn: 'Signing in...',
+    welcomeBack: 'Welcome Back',
+    loginSubtitle: 'ThirtyOne Lab OMS Management Portal',
+    invalidLogin: 'Invalid email or password. Please try again.',
+    accountRequired: 'Internal staff account required to access this system.',
   },
   BM: {
     // Sidebar
@@ -276,8 +286,18 @@ const translations = {
     backupTitle: '5. Sandaran Data (Backup & Restore)',
     backupDesc: 'Gunakan fungsi ini untuk memuat turun semua rekod data anda ke fail komputer anda bagi keselamatan, atau memulihkan data lama sekiranya anda menukar peranti atau melaraskan pelayar web.',
     downloadBackup: 'Muat Turun Data (Export JSON)',
-    uploadRestore: 'Muat Naik Data (Import JSON)',
     settingsSaved: 'Tetapan berjaya disimpan!',
+    // Auth / Login
+    login: 'Log Masuk',
+    logout: 'Log Keluar',
+    email: 'Alamat Emel',
+    password: 'Kata Laluan',
+    signIn: 'Log Masuk',
+    signingIn: 'Sedang log masuk...',
+    welcomeBack: 'Selamat Kembali',
+    loginSubtitle: 'Portal Pengurusan ThirtyOne Lab OMS',
+    invalidLogin: 'Emel atau kata laluan tidak sah. Sila cuba lagi.',
+    accountRequired: 'Akaun staf dalaman diperlukan untuk mengakses sistem ini.',
   },
 };
 
