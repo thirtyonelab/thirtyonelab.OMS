@@ -10,6 +10,7 @@ export default function Manufacturing() {
   const [settings, setSettings] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [monthFilter, setMonthFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All');
   const [loading, setLoading] = useState(false);
 
   // States for inline editing
@@ -124,7 +125,7 @@ export default function Manufacturing() {
     }
   };
 
-  const filteredInvoices = invoices.filter(inv => {
+  const baseInvoices = invoices.filter(inv => {
     const matchesSearch =
       inv.client_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       inv.invoice_no.toLowerCase().includes(searchQuery.toLowerCase());
@@ -136,6 +137,12 @@ export default function Manufacturing() {
     }
 
     return matchesSearch && matchesMonth;
+  });
+
+  const filteredInvoices = baseInvoices.filter(inv => {
+    if (statusFilter === 'All') return true;
+    const orderStatus = inv.order_status || 'BELUM_DRAFT';
+    return orderStatus === statusFilter;
   });
 
   const getStatusBadgeClass = (status) => {
@@ -179,8 +186,8 @@ export default function Manufacturing() {
     });
   };
 
-  // Summary counts & financials (exclude Void)
-  const nonVoidInvoices = filteredInvoices.filter(inv => inv.status !== 'Void');
+  // Summary counts & financials (exclude Void) based on baseInvoices (all statuses for current search & month)
+  const nonVoidInvoices = baseInvoices.filter(inv => inv.status !== 'Void');
   const belumDraftCount = nonVoidInvoices.filter(inv => (inv.order_status || 'BELUM_DRAFT') === 'BELUM_DRAFT').length;
   const draftCount = nonVoidInvoices.filter(inv => inv.order_status === 'DRAFT').length;
   const pendingCount = nonVoidInvoices.filter(inv => inv.order_status === 'PENDING').length;
@@ -222,49 +229,121 @@ export default function Manufacturing() {
 
       {/* RINGKASAN STATUS KERJA KILANG */}
       <div className="mfg-summary-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
-        <div className="card" style={{ padding: '1rem', borderLeft: '4px solid #64748B' }}>
+        <div 
+          className="card" 
+          onClick={() => setStatusFilter(prev => prev === 'BELUM_DRAFT' ? 'All' : 'BELUM_DRAFT')}
+          style={{ 
+            padding: '1rem', 
+            borderLeft: '4px solid #64748B', 
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            outline: statusFilter === 'BELUM_DRAFT' ? '2px solid #64748B' : 'none',
+            background: statusFilter === 'BELUM_DRAFT' ? 'rgba(100, 116, 139, 0.08)' : undefined
+          }}
+          title={statusFilter === 'BELUM_DRAFT' ? 'Klik untuk set semula (semua)' : 'Tapis: Belum Draft'}
+        >
           <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            <Inbox size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: 'var(--text-muted)' }} /> Belum Draft
+            <Inbox size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: 'var(--text-muted)' }} /> {tr('belumDraft')}
           </h3>
           <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
             {belumDraftCount}
           </span>
         </div>
-        <div className="card" style={{ padding: '1rem', borderLeft: '4px solid #94A3B8' }}>
+        <div 
+          className="card" 
+          onClick={() => setStatusFilter(prev => prev === 'DRAFT' ? 'All' : 'DRAFT')}
+          style={{ 
+            padding: '1rem', 
+            borderLeft: '4px solid #94A3B8', 
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            outline: statusFilter === 'DRAFT' ? '2px solid #94A3B8' : 'none',
+            background: statusFilter === 'DRAFT' ? 'rgba(148, 163, 184, 0.08)' : undefined
+          }}
+          title={statusFilter === 'DRAFT' ? 'Klik untuk set semula (semua)' : 'Tapis: Draft'}
+        >
           <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            <Pencil size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: 'var(--text-muted)' }} /> Draft
+            <Pencil size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: 'var(--text-muted)' }} /> {tr('draft')}
           </h3>
           <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
             {draftCount}
           </span>
         </div>
-        <div className="card" style={{ padding: '1rem', borderLeft: '4px solid var(--primary-red)' }}>
+        <div 
+          className="card" 
+          onClick={() => setStatusFilter(prev => prev === 'PENDING' ? 'All' : 'PENDING')}
+          style={{ 
+            padding: '1rem', 
+            borderLeft: '4px solid #D97706', 
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            outline: statusFilter === 'PENDING' ? '2px solid #D97706' : 'none',
+            background: statusFilter === 'PENDING' ? 'rgba(217, 119, 6, 0.08)' : undefined
+          }}
+          title={statusFilter === 'PENDING' ? 'Klik untuk set semula (semua)' : 'Tapis: Pending'}
+        >
           <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            <Clock size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: '#D97706' }} /> Pending
+            <Clock size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: '#D97706' }} /> {tr('pending')}
           </h3>
           <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
             {pendingCount}
           </span>
         </div>
-        <div className="card" style={{ padding: '1rem', borderLeft: '4px solid #EAB308' }}>
+        <div 
+          className="card" 
+          onClick={() => setStatusFilter(prev => prev === 'PROCESSING' ? 'All' : 'PROCESSING')}
+          style={{ 
+            padding: '1rem', 
+            borderLeft: '4px solid #2563EB', 
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            outline: statusFilter === 'PROCESSING' ? '2px solid #2563EB' : 'none',
+            background: statusFilter === 'PROCESSING' ? 'rgba(37, 99, 235, 0.08)' : undefined
+          }}
+          title={statusFilter === 'PROCESSING' ? 'Klik untuk set semula (semua)' : 'Tapis: Processing'}
+        >
           <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            <Factory size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: '#2563EB' }} /> Processing
+            <Factory size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: '#2563EB' }} /> {tr('processing')}
           </h3>
           <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
             {processingCount}
           </span>
         </div>
-        <div className="card" style={{ padding: '1rem', borderLeft: '4px solid #15803D' }}>
+        <div 
+          className="card" 
+          onClick={() => setStatusFilter(prev => prev === 'COMPLETED' ? 'All' : 'COMPLETED')}
+          style={{ 
+            padding: '1rem', 
+            borderLeft: '4px solid #15803D', 
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            outline: statusFilter === 'COMPLETED' ? '2px solid #15803D' : 'none',
+            background: statusFilter === 'COMPLETED' ? 'rgba(21, 128, 61, 0.08)' : undefined
+          }}
+          title={statusFilter === 'COMPLETED' ? 'Klik untuk set semula (semua)' : 'Tapis: Completed'}
+        >
           <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            <CheckCircle2 size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: '#15803D' }} /> Completed
+            <CheckCircle2 size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: '#15803D' }} /> {tr('completed')}
           </h3>
           <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
             {completedCount}
           </span>
         </div>
-        <div className="card" style={{ padding: '1rem', borderLeft: '4px solid #DC2626' }}>
+        <div 
+          className="card" 
+          onClick={() => setStatusFilter(prev => prev === 'MAINTENANCE' ? 'All' : 'MAINTENANCE')}
+          style={{ 
+            padding: '1rem', 
+            borderLeft: '4px solid #DC2626', 
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            outline: statusFilter === 'MAINTENANCE' ? '2px solid #DC2626' : 'none',
+            background: statusFilter === 'MAINTENANCE' ? 'rgba(220, 38, 38, 0.08)' : undefined
+          }}
+          title={statusFilter === 'MAINTENANCE' ? 'Klik untuk set semula (semua)' : 'Tapis: Maintenance'}
+        >
           <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            <Wrench size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: 'var(--primary-red)' }} /> Maintenance
+            <Wrench size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: '#DC2626' }} /> {tr('maintenance')}
           </h3>
           <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
             {maintenanceCount}
@@ -286,6 +365,23 @@ export default function Manufacturing() {
         </div>
 
         <div className="filter-group-row">
+          <div className="filter-box">
+            <span className="select-label">{tr('status')}</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="form-control filter-select"
+            >
+              <option value="All">{tr('allStatus')}</option>
+              <option value="BELUM_DRAFT">{tr('belumDraft')}</option>
+              <option value="DRAFT">{tr('draft')}</option>
+              <option value="PENDING">{tr('pending')}</option>
+              <option value="PROCESSING">{tr('processing')}</option>
+              <option value="COMPLETED">{tr('completed')}</option>
+              <option value="MAINTENANCE">{tr('maintenance')}</option>
+            </select>
+          </div>
+
           <div className="filter-box">
             <span className="select-label">{tr('month')}</span>
             <select
@@ -636,12 +732,12 @@ export default function Manufacturing() {
                           </tr>
                         </thead>
                         <tbody>
-                          {filteredInvoices.length === 0 ? (
+                          {baseInvoices.length === 0 ? (
                             <tr>
                               <td colSpan="7" style={{ textAlign: 'center', padding: '0.75rem' }}>No production records for this month.</td>
                             </tr>
                           ) : (
-                            [...filteredInvoices]
+                            [...baseInvoices]
                               .sort((a, b) => (a.invoice_no || '').localeCompare(b.invoice_no || ''))
                               .map((inv, idx) => {
                               const isVoid = inv.status === 'Void';
