@@ -132,7 +132,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
 
   // Calculations for display
   const totalQty = invoice.items.reduce((total, item) => {
-    if (item.item_type === 'banner') return total;
+    if (item.item_type === 'banner' || item.item_type === 'seluar') return total;
     return total + SIZES.reduce((itemTotal, size) => {
       let sQty = parseInt(item.sizes[size]?.short || 0, 10);
       if (item.cutting === 'Muslimah') sQty = 0;
@@ -141,24 +141,26 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     }, 0);
   }, 0);
 
-  const firstBajuItem = invoice.items.find(item => item.item_type !== 'banner');
+  const firstBajuItem = invoice.items.find(item => item.item_type !== 'banner' && item.item_type !== 'seluar');
   const basePrice = firstBajuItem?.is_repeat_order 
     ? parseFloat(firstBajuItem.custom_base_price) || 0 
     : getBasePrice(totalQty);
 
   const calculateItemQty = (item) => {
     if (item.item_type === 'banner') return parseInt(item.qty || 0, 10);
+    if (item.item_type === 'seluar') {
+      return Object.values(item.sizes).reduce((sum, s) => sum + parseInt(s.pants || 0, 10), 0);
+    }
     return SIZES.reduce((itemTotal, size) => {
       let sQty = parseInt(item.sizes[size]?.short || 0, 10);
       if (item.cutting === 'Muslimah') sQty = 0;
       const lQty = parseInt(item.sizes[size]?.long || 0, 10);
-      const pQty = parseInt(item.sizes[size]?.pants || 0, 10);
-      return itemTotal + sQty + lQty + pQty;
+      return itemTotal + sQty + lQty;
     }, 0);
   };
 
   const calculateItemSubtotal = (item, basePrice) => {
-    if (item.item_type === 'banner') return parseFloat(item.subtotal || 0);
+    if (item.item_type === 'banner' || item.item_type === 'seluar') return parseFloat(item.subtotal || 0);
     let itemBaseTotal = 0;
     let itemAddonTotal = 0;
 
@@ -211,6 +213,39 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
 
     return itemBaseTotal + itemAddonTotal;
   };
+
+  const totalSeluarQty = invoice.items.reduce((sum, item) => {
+    if (item.item_type !== 'seluar') return sum;
+    return sum + calculateItemQty(item);
+  }, 0);
+
+  const bajuGrossSubtotal = invoice.items
+    .filter(item => item.item_type !== 'banner' && item.item_type !== 'seluar')
+    .reduce((sum, item) => sum + calculateItemSubtotal(item, basePrice), 0);
+
+  const seluarGrossSubtotal = invoice.items
+    .filter(item => item.item_type === 'seluar')
+    .reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
+
+  const discountAppliesBaju = invoice.discount_applies_baju !== undefined ? invoice.discount_applies_baju : true;
+  const discountAppliesSeluar = invoice.discount_applies_seluar !== undefined ? invoice.discount_applies_seluar : false;
+
+  const applicableDiscountQty = (discountAppliesBaju ? totalQty : 0) + (discountAppliesSeluar ? totalSeluarQty : 0);
+  const applicableDiscountSubtotal = (discountAppliesBaju ? bajuGrossSubtotal : 0) + (discountAppliesSeluar ? seluarGrossSubtotal : 0);
+
+  const calculatedDiscountAmount = invoice.discount_type === 'percent'
+    ? applicableDiscountSubtotal * ((parseFloat(invoice.discount_value) || 0) / 100)
+    : invoice.discount_type === 'bulk'
+      ? (parseFloat(invoice.discount_value) || 0)
+      : (parseFloat(invoice.discount_value !== undefined ? invoice.discount_value : invoice.discount_per_pcs) || 0) * applicableDiscountQty;
+
+  const discountTargetLabel = (discountAppliesBaju && discountAppliesSeluar)
+    ? ' (Shirt & Short Pants)'
+    : discountAppliesBaju
+      ? ' (Shirt only)'
+      : discountAppliesSeluar
+        ? ' (Short Pants only)'
+        : '';
 
   const formatSubsetBreakdown = (sizesObj, sleeveType, sizeList) => {
     const list = [];
@@ -608,7 +643,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                           <td style={{ verticalAlign: 'top', textAlign: 'center' }}>{idx + 1}.</td>
                           <td style={{ textAlign: 'left', verticalAlign: 'top' }}>
                             <div className="print-item-desc">
-                              <span className="print-design-name" style={{ fontWeight: '800' }}>Banner: {item.design_name || 'Unnamed'}</span>
+                              <span className="print-design-name" style={{ fontWeight: '800' }}>{item.design_name ? `Banner: ${item.design_name}` : 'Banner'}</span>
                             </div>
                           </td>
                           <td style={{ textAlign: 'center', verticalAlign: 'top' }}>{qty}</td>
@@ -617,6 +652,73 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                         </tr>
                       );
                     }
+                    if (item.item_type === 'seluar') {
+                      const qty = calculateItemQty(item);
+                      const subtotal = parseFloat(item.subtotal || 0);
+                      const isRepeatOrder = item.is_repeat_order || false;
+                      
+                      let adultPantsPrice = 25;
+                      let kidPantsPrice = 23;
+                      if (isRepeatOrder && item.custom_adult_pants_price && !isNaN(parseFloat(item.custom_adult_pants_price))) {
+                        adultPantsPrice = parseFloat(item.custom_adult_pants_price);
+                      }
+                      if (isRepeatOrder && item.custom_kid_pants_price && !isNaN(parseFloat(item.custom_kid_pants_price))) {
+                        kidPantsPrice = parseFloat(item.custom_kid_pants_price);
+                      }
+                      
+                      const ADULT_PANTS = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
+                      const KID_SIZES = ['22', '24', '26', '28', '30', '32', '34'];
+                      const pAdultQty = ADULT_PANTS.reduce((sum, s) => sum + parseInt(item.sizes[s]?.pants || 0, 10), 0);
+                      const pKidQty = KID_SIZES.reduce((sum, s) => sum + parseInt(item.sizes[s]?.pants || 0, 10), 0);
+                      
+                      let rows = [];
+                      if (pAdultQty > 0) {
+                        rows.push({
+                          prefix: 'Adult Pants:',
+                          value: formatSubsetBreakdown(item.sizes, 'pants', ADULT_PANTS),
+                          qty: pAdultQty,
+                          price: adultPantsPrice,
+                          total: pAdultQty * adultPantsPrice
+                        });
+                      }
+                      if (pKidQty > 0) {
+                        rows.push({
+                          prefix: 'Kid Pants:',
+                          value: formatSubsetBreakdown(item.sizes, 'pants', KID_SIZES),
+                          qty: pKidQty,
+                          price: kidPantsPrice,
+                          total: pKidQty * kidPantsPrice
+                        });
+                      }
+                      
+                      return (
+                        <tr key={item.id} className="print-avoid-break">
+                          <td style={{ verticalAlign: 'top', textAlign: 'center' }}>{idx + 1}.</td>
+                          <td style={{ textAlign: 'left', verticalAlign: 'top' }}>
+                            <div className="print-item-desc">
+                              <span className="print-design-name" style={{ fontWeight: '800' }}>{item.design_name ? `Short Pants: ${item.design_name}` : 'Short Pants'}</span>
+                              <div className="print-sub-rows" style={{ fontSize: '0.78rem', marginTop: '4px' }}>
+                                {rows.map((r, i) => (
+                                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', fontWeight: '600', fontSize: '0.78rem', color: '#1E293B', marginBottom: '2px' }}>
+                                    <span style={{ minWidth: '7.8rem', display: 'inline-block', flexShrink: 0 }}>{r.prefix}</span>
+                                    <span>{r.value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ textAlign: 'center', verticalAlign: 'top' }}>{qty}</td>
+                          <td style={{ textAlign: 'center', verticalAlign: 'top' }}>
+                            {rows.map((r, i) => <div key={i}>{r.price.toFixed(2)}</div>)}
+                          </td>
+                          <td style={{ textAlign: 'center', verticalAlign: 'top' }} className="font-bold">
+                            {rows.map((r, i) => <div key={i}>{r.total.toFixed(2)}</div>)}
+                            {rows.length > 1 && <div style={{ borderTop: '1px solid #000', marginTop: '2px' }}>{subtotal.toFixed(2)}</div>}
+                          </td>
+                        </tr>
+                      );
+                    }
+
 
                     const subRows = getItemSubRows(item, basePrice);
                     const firstRow = subRows[0];
@@ -628,7 +730,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                           <td rowSpan={subRows.length} style={{ verticalAlign: 'top', textAlign: 'center' }}>{idx + 1}.</td>
                           <td style={{ textAlign: 'left', verticalAlign: 'top' }}>
                             <div className="print-item-desc">
-                              <span className="print-design-name" style={{ fontWeight: '800' }}>Design: {item.design_name || 'Unnamed'}</span>
+                              <span className="print-design-name" style={{ fontWeight: '800' }}>{item.design_name ? `Shirt: ${item.design_name}` : 'Shirt'}</span>
                               <div className="print-specs-row" style={{ fontSize: '0.78rem', margin: '0.15rem 0 0.4rem 0' }}>
                                 {item.print_method === 'DTF' && item.baju_source === 'customer' ? (
                                   <>Print Method: DTF (Customer's Shirt)</>
@@ -727,8 +829,8 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                 </div>
                 {((invoice.discount_type === 'percent' && parseFloat(invoice.discount_value) > 0) || (invoice.discount_type === 'bulk' && parseFloat(invoice.discount_value) > 0) || (invoice.discount_type !== 'bulk' && invoice.discount_type !== 'percent' && (parseFloat(invoice.discount_value) > 0 || parseFloat(invoice.discount_per_pcs) > 0))) && (
                   <div className="summary-print-row">
-                    <span>DISCOUNT {invoice.discount_type === 'percent' ? `(${invoice.discount_value}%)` : ''}:</span>
-                    <span>- RM {(invoice.discount_type === 'percent' ? parseFloat(invoice.subtotal) * (parseFloat(invoice.discount_value) / 100) : invoice.discount_type === 'bulk' ? parseFloat(invoice.discount_value) : (parseFloat(invoice.discount_value !== undefined ? invoice.discount_value : invoice.discount_per_pcs) * totalQty)).toFixed(2)}</span>
+                    <span>DISCOUNT {invoice.discount_type === 'percent' ? `(${invoice.discount_value}%${discountTargetLabel})` : invoice.discount_type === 'per_pcs' ? discountTargetLabel : ''}:</span>
+                    <span>- RM {calculatedDiscountAmount.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="summary-print-row grand-total-row-print">

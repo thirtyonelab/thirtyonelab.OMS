@@ -370,6 +370,25 @@ export default function Clients({ onCreateInvoiceForClient }) {
                                                   <span className="spec-value" style={{ fontWeight: 700, color: 'var(--primary-red)' }}>: RM {parseFloat(item.subtotal || 0).toFixed(2)}</span>
                                                 </div>
                                               </>
+                                            ) : item.item_type === 'seluar' ? (
+                                              <>
+                                                <div className="spec-row">
+                                                  <span className="spec-label">Item Type</span>
+                                                  <span className="spec-value">: Seluar</span>
+                                                </div>
+                                                <div className="spec-row">
+                                                  <span className="spec-label">Nama/Code</span>
+                                                  <span className="spec-value">: {item.design_name || '-'}</span>
+                                                </div>
+                                                <div className="spec-row">
+                                                  <span className="spec-label">Kuantiti</span>
+                                                  <span className="spec-value">: {item.qty} pcs</span>
+                                                </div>
+                                                <div className="spec-row" style={{ marginTop: '0.3rem', paddingTop: '0.4rem', borderTop: '1px dashed var(--border-color)' }}>
+                                                  <span className="spec-label" style={{ fontWeight: 700, color: 'var(--text-dark)' }}>Subtotal</span>
+                                                  <span className="spec-value" style={{ fontWeight: 700, color: 'var(--primary-red)' }}>: RM {parseFloat(item.subtotal || 0).toFixed(2)}</span>
+                                                </div>
+                                              </>
                                             ) : (
                                               <>
                                                 <div className="spec-row">
@@ -395,7 +414,10 @@ export default function Clients({ onCreateInvoiceForClient }) {
                                                 <div className="spec-row" style={{ marginTop: '0.3rem', paddingTop: '0.4rem', borderTop: '1px dashed var(--border-color)' }}>
                                                   <span className="spec-label" style={{ fontWeight: 700, color: 'var(--text-dark)' }}>Base Price</span>
                                                   <span className="spec-value" style={{ fontWeight: 700, color: 'var(--primary-red)' }}>: RM {(() => {
-                                                    const totalQty = inv.items.reduce((sum, i) => sum + (i.qty || 0), 0);
+                                                    const totalQty = inv.items.reduce((sum, i) => {
+                                                      if (i.item_type === 'banner' || i.item_type === 'seluar') return sum;
+                                                      return sum + (i.qty || 0);
+                                                    }, 0);
                                                     const base = getBasePrice(totalQty);
                                                     const discountType = inv.discount_type || 'per_pcs';
                                                     const discountVal = inv.discount_value !== undefined ? inv.discount_value : (inv.discount_per_pcs || 0);
@@ -488,6 +510,25 @@ export default function Clients({ onCreateInvoiceForClient }) {
                                           <span className="spec-value" style={{ fontWeight: 700, color: 'var(--primary-red)' }}>: RM {parseFloat(item.subtotal || 0).toFixed(2)}</span>
                                         </div>
                                       </>
+                                    ) : item.item_type === 'seluar' ? (
+                                      <>
+                                        <div className="spec-row">
+                                          <span className="spec-label">Item Type</span>
+                                          <span className="spec-value">: Seluar</span>
+                                        </div>
+                                        <div className="spec-row">
+                                          <span className="spec-label">Nama/Code</span>
+                                          <span className="spec-value">: {item.design_name || '-'}</span>
+                                        </div>
+                                        <div className="spec-row">
+                                          <span className="spec-label">Kuantiti</span>
+                                          <span className="spec-value">: {item.qty} pcs</span>
+                                        </div>
+                                        <div className="spec-row" style={{ marginTop: '0.3rem', paddingTop: '0.4rem', borderTop: '1px dashed var(--border-color)' }}>
+                                          <span className="spec-label" style={{ fontWeight: 700, color: 'var(--text-dark)' }}>Subtotal</span>
+                                          <span className="spec-value" style={{ fontWeight: 700, color: 'var(--primary-red)' }}>: RM {parseFloat(item.subtotal || 0).toFixed(2)}</span>
+                                        </div>
+                                      </>
                                     ) : (
                                       <>
                                         <div className="spec-row">
@@ -513,7 +554,10 @@ export default function Clients({ onCreateInvoiceForClient }) {
                                     <div className="spec-row" style={{ marginTop: '0.3rem', paddingTop: '0.4rem', borderTop: '1px dashed var(--border-color)' }}>
                                       <span className="spec-label" style={{ fontWeight: 700, color: 'var(--text-dark)' }}>Base Price</span>
                                       <span className="spec-value" style={{ fontWeight: 700, color: 'var(--primary-red)' }}>: RM {(() => {
-                                        const totalQty = inv.items.reduce((sum, i) => sum + (i.qty || 0), 0);
+                                        const totalQty = inv.items.reduce((sum, i) => {
+                                          if (i.item_type === 'banner' || i.item_type === 'seluar') return sum;
+                                          return sum + (i.qty || 0);
+                                        }, 0);
                                         const base = getBasePrice(totalQty);
                                         const discountType = inv.discount_type || 'per_pcs';
                                         const discountVal = inv.discount_value !== undefined ? inv.discount_value : (inv.discount_per_pcs || 0);

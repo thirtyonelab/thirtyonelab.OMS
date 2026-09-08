@@ -276,6 +276,19 @@ const createEmptyBannerItem = () => ({
   qty: ''
 });
 
+const createEmptySeluarItem = () => ({
+  id: generateUUID(),
+  item_type: 'seluar',
+  design_name: '',
+  design_image: '',
+  custom_adult_pants_price: '',
+  custom_kid_pants_price: '',
+  sizes: SIZES.reduce((acc, size) => {
+    acc[size] = { pants: 0 };
+    return acc;
+  }, {})
+});
+
 export default function InvoiceModal({ invoice, prefilledClient, onClose, onSaveSuccess }) {
   const { tr } = useLanguage();
   const [clients, setClients] = useState([]);
@@ -292,9 +305,12 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [items, setItems] = useState([createEmptyItem()]);
   const [bannerItems, setBannerItems] = useState([]);
+  const [seluarItems, setSeluarItems] = useState([]);
   const [activeTab, setActiveTab] = useState('baju');
   const [discountType, setDiscountType] = useState('per_pcs');
   const [discountValue, setDiscountValue] = useState(0);
+  const [discountAppliesBaju, setDiscountAppliesBaju] = useState(true);
+  const [discountAppliesSeluar, setDiscountAppliesSeluar] = useState(false);
   const [notes, setNotes] = useState('');
   const [isRepeatOrder, setIsRepeatOrder] = useState(false);
   const [customBasePrice, setCustomBasePrice] = useState('');
@@ -408,14 +424,48 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       setDate(invoice.date);
       
       const allItems = JSON.parse(JSON.stringify(invoice.items || []));
-      const bajuList = allItems.filter(item => item.item_type !== 'banner');
+      
       const bannerList = allItems.filter(item => item.item_type === 'banner');
+      let seluarList = allItems.filter(item => item.item_type === 'seluar');
+      const bajuList = allItems.filter(item => item.item_type !== 'banner' && item.item_type !== 'seluar');
+      
+      // Migrate old pants inside Baju to Seluar items
+      bajuList.forEach(baju => {
+        let hasPants = false;
+        const seluar = createEmptySeluarItem();
+        seluar.design_name = baju.design_name;
+        seluar.design_image = baju.design_image;
+        if (baju.repeat_order_prices) {
+            seluar.custom_adult_pants_price = baju.repeat_order_prices.adult_pants || '';
+            seluar.custom_kid_pants_price = baju.repeat_order_prices.kid_pants || '';
+        }
+        
+        Object.keys(baju.sizes || {}).forEach(size => {
+          if (baju.sizes[size] && baju.sizes[size].pants > 0) {
+            hasPants = true;
+            seluar.sizes[size].pants = baju.sizes[size].pants;
+            baju.sizes[size].pants = 0; // Remove from baju
+          }
+        });
+        
+        if (hasPants) {
+            seluarList.push(seluar);
+        }
+      });
+
       setItems(bajuList.length > 0 ? bajuList : [createEmptyItem()]);
+      setSeluarItems(seluarList);
       setBannerItems(bannerList);
-      setActiveTab(bajuList.length === 0 && bannerList.length > 0 ? 'banner' : 'baju');
+      if (bajuList.length === 0 && seluarList.length > 0 && bannerList.length === 0) {
+        setActiveTab('baju');
+      } else {
+        setActiveTab(bajuList.length === 0 && bannerList.length > 0 ? 'banner' : 'baju');
+      }
 
       setDiscountType(invoice.discount_type || 'per_pcs');
       setDiscountValue(invoice.discount_value !== undefined ? invoice.discount_value : (invoice.discount_per_pcs || 0));
+      setDiscountAppliesBaju(invoice.discount_applies_baju !== undefined ? invoice.discount_applies_baju : true);
+      setDiscountAppliesSeluar(invoice.discount_applies_seluar !== undefined ? invoice.discount_applies_seluar : false);
       setNotes(invoice.notes || '');
       setClientAddress(invoice.client_address || '');
       setPengeluaran(invoice.pengeluaran !== undefined ? invoice.pengeluaran.toString() : '');
@@ -478,7 +528,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
               if (bannerPrice === null && parseFloat(item.price) > 0) {
                 bannerPrice = parseFloat(item.price);
               }
-            } else {
+            } else if (item.item_type !== 'seluar') {
               if (bajuPrice === null && parseFloat(item.price) > 0) {
                 bajuPrice = parseFloat(item.price);
               }
@@ -487,14 +537,14 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
         }
 
         // Fallback: if no explicit baju price stored, derive from base price
-        const firstBajuItem = latestInvoice.items.find(i => i.item_type !== 'banner');
+        const firstBajuItem = latestInvoice.items.find(i => i.item_type !== 'banner' && i.item_type !== 'seluar');
         if (firstBajuItem) {
           let prevBase = 0;
           if (firstBajuItem.is_repeat_order && firstBajuItem.custom_base_price) {
             prevBase = firstBajuItem.custom_base_price;
           } else {
             const invoiceTotalQty = latestInvoice.items.reduce((total, item) => {
-              if (item.item_type === 'banner') return total;
+              if (item.item_type === 'banner' || item.item_type === 'seluar') return total;
               return total + SIZES.reduce((itemTotal, size) => {
                 const sQty = parseInt(item.sizes?.[size]?.short || 0, 10);
                 const lQty = parseInt(item.sizes?.[size]?.long || 0, 10);
@@ -586,6 +636,54 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   // Items Management
   const addItem = () => {
     setItems(prev => [...prev, createEmptyItem()]);
+  };
+
+  const addSeluarItem = () => {
+    setSeluarItems(prev => [...prev, createEmptySeluarItem()]);
+  };
+
+  const deleteSeluarItem = (index) => {
+    setSeluarItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateSeluarItem = (index, field, value) => {
+    setSeluarItems(prev => prev.map((item, i) => {
+      if (i === index) {
+        return { ...item, [field]: value };
+      }
+      return item;
+    }));
+  };
+
+  const updateSeluarSize = (index, size, type, val) => {
+    const intVal = val === '' ? 0 : Math.max(0, parseInt(val, 10) || 0);
+    setSeluarItems(prev => prev.map((item, i) => {
+      if (i === index) {
+        const updatedSizes = { ...item.sizes };
+        updatedSizes[size] = {
+          ...updatedSizes[size],
+          [type]: intVal
+        };
+        return { ...item, sizes: updatedSizes };
+      }
+      return item;
+    }));
+  };
+
+  const handleSeluarImageUpload = (e, index) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 300 * 1024) {
+      alert('Had saiz fail imej design adalah 300KB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      updateSeluarItem(index, 'design_image', reader.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const removeItem = (id) => {
@@ -766,14 +864,24 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   // 3. Overall Invoice Summaries
   const grossSubtotal = [
     ...items,
-    ...bannerItems
+    ...bannerItems,
+    ...seluarItems
   ].reduce((sum, item) => sum + calculateItemSummary(item).subtotal, 0);
 
+  const totalShirtQty = calculateTotalQty();
+  const totalSeluarQty = seluarItems.reduce((sum, item) => sum + calculateItemSummary(item).qty, 0);
+
+  const bajuGrossSubtotal = items.reduce((sum, item) => sum + calculateItemSummary(item).subtotal, 0);
+  const seluarGrossSubtotal = seluarItems.reduce((sum, item) => sum + calculateItemSummary(item).subtotal, 0);
+
+  const applicableDiscountQty = (discountAppliesBaju ? totalShirtQty : 0) + (discountAppliesSeluar ? totalSeluarQty : 0);
+  const applicableDiscountSubtotal = (discountAppliesBaju ? bajuGrossSubtotal : 0) + (discountAppliesSeluar ? seluarGrossSubtotal : 0);
+
   const totalDiscount = discountType === 'percent' 
-    ? grossSubtotal * ((parseFloat(discountValue) || 0) / 100) 
+    ? applicableDiscountSubtotal * ((parseFloat(discountValue) || 0) / 100) 
     : discountType === 'bulk' 
       ? (parseFloat(discountValue) || 0) 
-      : ((parseFloat(discountValue) || 0) * totalQty);
+      : ((parseFloat(discountValue) || 0) * applicableDiscountQty);
   const grandTotal = Math.max(0, grossSubtotal - totalDiscount);
 
   // Clamp deposit to grandTotal and auto-derive status, mirroring PaymentModal's logic,
@@ -802,7 +910,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
     // Check if there's at least 1 item (shirt, pants or banner)
     const totalAllQty = [
       ...items,
-      ...bannerItems
+      ...bannerItems,
+      ...seluarItems
     ].reduce((sum, item) => sum + calculateItemSummary(item).qty, 0);
     if (totalAllQty === 0) {
       alert('Sila masukkan kuantiti baju / seluar / banner (sekurang-kurangnya 1 helai/pcs).');
@@ -841,6 +950,16 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       };
     });
 
+    const processedSeluarItems = seluarItems.map(item => {
+      const summary = calculateItemSummary(item);
+      return {
+        ...item,
+        item_type: 'seluar',
+        subtotal: summary.subtotal,
+        qty: summary.qty
+      };
+    });
+
     // Construct database invoice object
     const finalInvoice = {
       id: invoice?.id || undefined,
@@ -851,11 +970,13 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       client_address: clientAddress.trim(),
       job_name: jobName.trim(),
       date: date,
-      items: [...processedBajuItems, ...processedBannerItems],
+      items: [...processedBajuItems, ...processedBannerItems, ...processedSeluarItems],
       subtotal: grossSubtotal,
       discount_type: discountType,
       discount_value: parseFloat(discountValue) || 0,
       discount_per_pcs: discountType === 'per_pcs' ? (parseFloat(discountValue) || 0) : 0,
+      discount_applies_baju: discountAppliesBaju,
+      discount_applies_seluar: discountAppliesSeluar,
       grand_total: grandTotal,
       deposit: parseFloat(deposit) || 0,
       balance: grandTotal - (parseFloat(deposit) || 0),
@@ -996,111 +1117,64 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                         disabled
                       />
                     </div>
-                </div>
-              </div>
 
-              <h4 className="meta-section-title">B. MAKLUMAT BAYARAN & PELANGGAN</h4>
-              
-              <div className="meta-layout-container" style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'stretch' }}>
-                
-                {/* Left side: Payment Inputs (2/3 width on desktop) */}
-                <div className="meta-left-inputs" style={{ flex: '2', minWidth: '320px' }}>
-                  <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.2rem 1rem' }}>
-                    
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">Status Bayaran</label>
-                      <select
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value)}
-                        className="form-control"
-                      >
-                        <option value="Unpaid">Unpaid</option>
-                        <option value="Deposit">Deposit</option>
-                        <option value="Paid">Paid</option>
-                        <option value="Void">Void</option>
-                      </select>
-                    </div>
-
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">RM Deposit</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={deposit}
-                        onChange={(e) => handleDepositChange(e.target.value)}
-                        placeholder="Cth: 400.00"
-                        className="form-control"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right side: Follow Invoice Lama (1/3 width on desktop) */}
-                <div className="meta-right-widget" style={{ 
-                  flex: '1', 
-                  minWidth: '280px', 
-                  backgroundColor: 'var(--off-white-bg)', 
-                  border: '1px solid var(--border-color)', 
-                  borderRadius: '6px', 
-                  padding: '1.25rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '1rem',
-                  justifyContent: 'flex-start'
-                }}>
-                  
-                  {/* Repeat order checkbox and input */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem', color: 'var(--text-dark)', margin: 0 }}>
-                        <input
-                          type="checkbox"
-                          checked={isRepeatOrder}
-                          onChange={(e) => setIsRepeatOrder(e.target.checked)}
-                          style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary-red)' }}
-                        />
-                        Follow Invoice Lama?
-                      </label>
-                    </div>
-
-                    {/* Price Suggestions Box */}
-                    {isRepeatOrder && repeatOrderPrices && (
-                      <div style={{ backgroundColor: '#fff', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text-dark)', marginBottom: '0.25rem' }}>Harga Terakhir:</div>
-                        {repeatOrderPrices.bajuPrice !== null && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>Baju (1pcs):</span> <span>RM {parseFloat(repeatOrderPrices.bajuPrice).toFixed(2)}</span>
-                          </div>
-                        )}
-                        {repeatOrderPrices.bannerPrice !== null && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>Banner (1 unit):</span> <span>RM {parseFloat(repeatOrderPrices.bannerPrice).toFixed(2)}</span>
-                          </div>
-                        )}
+                    {/* Follow Invoice Lama widget */}
+                    <div style={{ 
+                      backgroundColor: 'var(--off-white-bg)', 
+                      border: '1px solid var(--border-color)', 
+                      borderRadius: '6px', 
+                      padding: '1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.75rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem', color: 'var(--text-dark)', margin: 0 }}>
+                          <input
+                            type="checkbox"
+                            checked={isRepeatOrder}
+                            onChange={(e) => setIsRepeatOrder(e.target.checked)}
+                            style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary-red)' }}
+                          />
+                          Follow Invoice Lama?
+                        </label>
                       </div>
-                    )}
 
-                    {isRepeatOrder && (
-                      <div className="form-group" style={{ margin: 0 }}>
-                        <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: '700' }}>Harga 1pcs Invoice Lama (RM) *</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={customBasePrice}
-                          onChange={(e) => setCustomBasePrice(e.target.value)}
-                          placeholder="Cth: 40.00"
-                          className="form-control"
-                          style={{ height: '36px', padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
-                          required={isRepeatOrder}
-                        />
-                      </div>
-                    )}
-                  </div>
+                      {/* Price Suggestions Box */}
+                      {isRepeatOrder && repeatOrderPrices && (
+                        <div style={{ backgroundColor: '#fff', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                          <div style={{ fontWeight: 700, color: 'var(--text-dark)', marginBottom: '0.25rem' }}>Harga Terakhir:</div>
+                          {repeatOrderPrices.bajuPrice !== null && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>Baju (1pcs):</span> <span>RM {parseFloat(repeatOrderPrices.bajuPrice).toFixed(2)}</span>
+                            </div>
+                          )}
+                          {repeatOrderPrices.bannerPrice !== null && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>Banner (1 unit):</span> <span>RM {parseFloat(repeatOrderPrices.bannerPrice).toFixed(2)}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
+                      {isRepeatOrder && (
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: '700' }}>Harga 1pcs Invoice Lama (RM) *</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={customBasePrice}
+                            onChange={(e) => setCustomBasePrice(e.target.value)}
+                            placeholder="Cth: 40.00"
+                            className="form-control"
+                            style={{ height: '36px', padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                            required={isRepeatOrder}
+                          />
+                        </div>
+                      )}
+                    </div>
                 </div>
-
               </div>
             </div>
 
@@ -1118,7 +1192,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                     background: activeTab === 'baju' ? 'var(--primary-red)' : 'transparent',
                     color: activeTab === 'baju' ? '#fff' : 'var(--text-dark)',
                     border: '1px solid ' + (activeTab === 'baju' ? 'var(--primary-red)' : 'var(--border-color)'),
-                    borderRadius: '0',
+                    borderRadius: 'var(--radius-sm)',
                     fontSize: '0.8rem',
                     fontWeight: '700',
                     cursor: 'pointer',
@@ -1129,8 +1203,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                     outline: 'none'
                   }}
                 >
-                  Baju
-                  {items.some(item => SIZES.some(size => parseInt(item.sizes[size]?.short || 0) > 0 || parseInt(item.sizes[size]?.long || 0) > 0 || parseInt(item.sizes[size]?.pants || 0) > 0)) && (
+                  Baju & Seluar
+                    {Boolean(items.some(item => SIZES.some(size => parseInt(item.sizes[size]?.short || 0) > 0 || parseInt(item.sizes[size]?.long || 0) > 0 || parseInt(item.sizes[size]?.pants || 0) > 0)) || seluarItems.length > 0) && (
                     <span style={{ display: 'inline-block', width: '7px', height: '7px', backgroundColor: activeTab === 'baju' ? '#fff' : '#10B981', borderRadius: '50%' }} />
                   )}
                 </button>
@@ -1142,7 +1216,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                     background: activeTab === 'banner' ? 'var(--primary-red)' : 'transparent',
                     color: activeTab === 'banner' ? '#fff' : 'var(--text-dark)',
                     border: '1px solid ' + (activeTab === 'banner' ? 'var(--primary-red)' : 'var(--border-color)'),
-                    borderRadius: '0',
+                    borderRadius: 'var(--radius-sm)',
                     fontSize: '0.8rem',
                     fontWeight: '700',
                     cursor: 'pointer',
@@ -1163,18 +1237,24 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
               {activeTab === 'baju' ? (
                 <>
                   <div className="section-header-row">
-                    <h4 className="meta-section-title" style={{ borderBottom: 'none', marginBottom: 0, paddingBottom: 0 }}>B.1. Butiran Rekaan Baju (Items)</h4>
-                    <button type="button" onClick={addItem} className="btn btn-secondary btn-sm btn-add-design">
-                      <Plus size={14} /> Tambah Design Baru
-                    </button>
+                    <h4 className="meta-section-title" style={{ borderBottom: 'none', marginBottom: 0, paddingBottom: 0 }}>B. Butiran Rekaan Baju & Seluar (Items)</h4>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button type="button" onClick={addItem} className="btn btn-secondary btn-sm btn-add-design">
+                          <Plus size={14} /> Tambah Baju
+                        </button>
+                        <button type="button" onClick={addSeluarItem} className="btn btn-secondary btn-sm btn-add-design">
+                          <Plus size={14} /> Tambah Seluar
+                        </button>
+                      </div>
                   </div>
 
-                  {items.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '2rem 1rem', border: '1px dashed var(--border-color)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                      Tiada baju untuk ditempah. Klik "Tambah Design Baru" untuk mula.
-                    </div>
-                  ) : (
-                    items.map((item, index) => {
+                  {items.length === 0 && seluarItems.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '2rem 1rem', border: '1px dashed var(--border-color)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                        Tiada baju atau seluar untuk ditempah. Klik "Tambah Baju" atau "Tambah Seluar" untuk mula.
+                      </div>
+                    ) : (
+                      <>
+                        {items.map((item, index) => {
                     const summary = calculateItemSummary(item);
                     return (
                       <div key={item.id} className="design-item-card card">
@@ -1680,7 +1760,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                 </div>
 
                                 {/* Desktop Adult Pants Section */}
-                                <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ display: 'none', border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
                                   <div 
                                     onClick={() => toggleAdultPantsCollapse(item.id)}
                                     style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdultPants[item.id] !== false && !hasSelectedAdultPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
@@ -1741,7 +1821,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                 </div>
 
                                 {/* Desktop Kid Pants Section */}
-                                <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ display: 'none', border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
                                   <div 
                                     onClick={() => toggleKidPantsCollapse(item.id)}
                                     style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKidPants[item.id] !== false && !hasSelectedKidPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
@@ -1948,7 +2028,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                 </div>
 
                                 {/* Mobile Adult Pants Section */}
-                                <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ display: 'none', border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
                                   <div 
                                     onClick={() => toggleAdultPantsCollapse(item.id)}
                                     style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdultPants[item.id] !== false && !hasSelectedAdultPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
@@ -2001,7 +2081,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                                 </div>
 
                                 {/* Mobile Kid Pants Section */}
-                                <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ display: 'none', border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
                                   <div 
                                     onClick={() => toggleKidPantsCollapse(item.id)}
                                     style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKidPants[item.id] !== false && !hasSelectedKidPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
@@ -2082,13 +2162,301 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
 
                       </div>
                     );
-                  })
+                  })}
+                  
+                  {seluarItems.map((item, index) => {
+                    const summary = calculateItemSummary(item);
+                    return (
+                      <div key={item.id} className="design-item-card card">
+                        {/* Header */}
+                        <div 
+                          className="design-item-header"
+                          onClick={() => toggleDesignCollapse(item.id)}
+                          style={{ cursor: 'pointer', userSelect: 'none', borderBottom: collapsedDesigns[item.id] !== false ? 'none' : '1px dashed var(--border-color)', marginBottom: collapsedDesigns[item.id] !== false ? '0' : '1.25rem', paddingBottom: collapsedDesigns[item.id] !== false ? '0' : '0.5rem' }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', flex: 1 }}>
+                            <h5 style={{ margin: 0, whiteSpace: 'nowrap' }}>SELUAR #{index + 1} {item.design_name ? `- ${item.design_name}` : ''}</h5>
+                            {collapsedDesigns[item.id] !== false ? <ChevronDown size={16} style={{ flexShrink: 0 }} /> : <ChevronUp size={16} style={{ flexShrink: 0 }} />}
+                            {collapsedDesigns[item.id] !== false && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: '0.25rem' }}>
+                                <span style={{ fontWeight: '600', color: 'var(--text-dark)' }}>{summary.qty} pcs</span> | RM {summary.subtotal.toFixed(2)}
+                              </div>
+                            )}
+                          </div>
+                          
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); deleteSeluarItem(index); }}
+                            className="btn-text text-red"
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}
+                          >
+                            <Trash2 size={14} /> Delete
+                          </button>
+                        </div>
+
+                        {collapsedDesigns[item.id] === false && (
+                          <>
+                            <div className="grid-2 specs-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.2rem 1rem' }}>
+                              <div className="form-group">
+                                <label className="form-label">Nama/Code Design (Optional)</label>
+                                <input
+                                  type="text"
+                                  value={item.design_name}
+                                  onChange={(e) => updateSeluarItem(index, 'design_name', e.target.value)}
+                                  placeholder="Cth: Pants Pro"
+                                  className="form-control"
+                                />
+                              </div>
+
+                              <div className="form-group">
+                                <label className="form-label">Imej Design (Maks 300KB)</label>
+                                <div className="design-upload-row">
+                                  <input
+                                    type="file"
+                                    id={`img_seluar_${item.id}`}
+                                    accept="image/*"
+                                    onChange={(e) => handleSeluarImageUpload(e, index)}
+                                    className="file-input-hidden"
+                                  />
+                                  {!item.design_image ? (
+                                    <label htmlFor={`img_seluar_${item.id}`} className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>
+                                      <Upload size={12} /> Pilih Imej
+                                    </label>
+                                  ) : (
+                                    <div className="design-image-preview-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                      <img src={item.design_image} className="design-img-preview" alt="Design Preview" style={{ height: '50px', width: '50px', borderRadius: '4px' }} />
+                                      <button
+                                        type="button"
+                                        onClick={() => updateSeluarItem(index, 'design_image', '')}
+                                        className="btn btn-secondary btn-sm"
+                                        style={{ borderColor: '#FEE2E2', color: '#B91C1C', padding: '0.4rem 1rem' }}
+                                      >
+                                        Buang Imej
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Adult Pants Section */}
+                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden', marginTop: '1rem' }}>
+                              <div 
+                                onClick={() => toggleAdultPantsCollapse(item.id)}
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdultPants[item.id] !== false && !hasSelectedAdultPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                              >
+                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Adult Pants Sizes (RM25/pcs)</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  {collapsedAdultPants[item.id] !== false && summary.adultPantsQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.adultPantsQty} pcs</span>}
+                                  {collapsedAdultPants[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                </div>
+                              </div>
+                              {collapsedAdultPants[item.id] !== false && getSelectedAdultPantsPills(item)}
+                              {collapsedAdultPants[item.id] === false && (
+                                <>
+                                  {/* Desktop View */}
+                                  <div className="desktop-table" style={{ overflowX: 'auto' }}>
+                                    {isRepeatOrder && (
+                                      <div style={{ padding: '0.8rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--white)' }}>
+                                        <label style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '0.3rem' }}>Harga Custom (RM/pcs)</label>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          value={item.custom_adult_pants_price || ''}
+                                          onChange={(e) => updateSeluarItem(index, 'custom_adult_pants_price', e.target.value)}
+                                          placeholder="Cth: 20"
+                                          className="form-control"
+                                          style={{ maxWidth: '150px' }}
+                                        />
+                                      </div>
+                                    )}
+                                    <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
+                                      <thead>
+                                        <tr>
+                                          {ADULT_PANTS_SIZES.map(s => (
+                                            <th key={s} style={{ borderRight: '1px solid var(--border-color)' }}>{s}</th>
+                                          ))}
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        <tr>
+                                          {ADULT_PANTS_SIZES.map(s => (
+                                            <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                value={displayQty(item.sizes[s]?.pants)}
+                                                onChange={(e) => updateSeluarSize(index, s, 'pants', e.target.value)}
+                                                placeholder="0"
+                                                className="qty-input"
+                                              />
+                                            </td>
+                                          ))}
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </div>
+
+                                  {/* Mobile Cards View */}
+                                  <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
+                                    {isRepeatOrder && (
+                                      <div style={{ gridColumn: '1 / -1', padding: '0.5rem', marginBottom: '0.5rem', backgroundColor: 'var(--white)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                        <label style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '0.3rem' }}>Harga Custom (RM/pcs)</label>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          value={item.custom_adult_pants_price || ''}
+                                          onChange={(e) => updateSeluarItem(index, 'custom_adult_pants_price', e.target.value)}
+                                          placeholder="Cth: 20"
+                                          className="form-control"
+                                        />
+                                      </div>
+                                    )}
+                                    {ADULT_PANTS_SIZES.map(s => (
+                                      <div key={s} className="size-input-card">
+                                        <div className="size-card-title">
+                                          <span>Size {s}</span>
+                                        </div>
+                                        <div className="size-inputs-row">
+                                          <div className="size-qty-group">
+                                            <span className="size-qty-lbl">Short Pants</span>
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              value={displayQty(item.sizes[s]?.pants)}
+                                              onChange={(e) => updateSeluarSize(index, s, 'pants', e.target.value)}
+                                              placeholder="0"
+                                              className={`size-qty-input ${parseInt(item.sizes[s]?.pants || 0) > 0 ? 'has-value' : ''}`}
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            
+                            {/* Kid Pants Section */}
+                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden', marginTop: '1rem' }}>
+                              <div 
+                                onClick={() => toggleKidPantsCollapse(item.id)}
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKidPants[item.id] !== false && !hasSelectedKidPants(item)) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
+                              >
+                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Kid Pants Sizes (RM23/pcs)</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  {collapsedKidPants[item.id] !== false && summary.kidPantsQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.kidPantsQty} pcs</span>}
+                                  {collapsedKidPants[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                </div>
+                              </div>
+                              {collapsedKidPants[item.id] !== false && getSelectedKidPantsPills(item)}
+                              {collapsedKidPants[item.id] === false && (
+                                <>
+                                  {/* Desktop View */}
+                                  <div className="desktop-table" style={{ overflowX: 'auto' }}>
+                                    {isRepeatOrder && (
+                                      <div style={{ padding: '0.8rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--white)' }}>
+                                        <label style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '0.3rem' }}>Harga Custom (RM/pcs)</label>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          value={item.custom_kid_pants_price || ''}
+                                          onChange={(e) => updateSeluarItem(index, 'custom_kid_pants_price', e.target.value)}
+                                          placeholder="Cth: 18"
+                                          className="form-control"
+                                          style={{ maxWidth: '150px' }}
+                                        />
+                                      </div>
+                                    )}
+                                    <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
+                                      <thead>
+                                        <tr>
+                                          {KID_SIZES.map(s => (
+                                            <th key={s} style={{ borderRight: '1px solid var(--border-color)' }}>{s}</th>
+                                          ))}
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        <tr>
+                                          {KID_SIZES.map(s => (
+                                            <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                value={displayQty(item.sizes[s]?.pants)}
+                                                onChange={(e) => updateSeluarSize(index, s, 'pants', e.target.value)}
+                                                placeholder="0"
+                                                className="qty-input"
+                                              />
+                                            </td>
+                                          ))}
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </div>
+
+                                  {/* Mobile Cards View */}
+                                  <div className="size-grid-mobile" style={{ padding: '0.5rem' }}>
+                                    {isRepeatOrder && (
+                                      <div style={{ gridColumn: '1 / -1', padding: '0.5rem', marginBottom: '0.5rem', backgroundColor: 'var(--white)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                        <label style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '0.3rem' }}>Harga Custom (RM/pcs)</label>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          value={item.custom_kid_pants_price || ''}
+                                          onChange={(e) => updateSeluarItem(index, 'custom_kid_pants_price', e.target.value)}
+                                          placeholder="Cth: 18"
+                                          className="form-control"
+                                        />
+                                      </div>
+                                    )}
+                                    {KID_SIZES.map(s => (
+                                      <div key={s} className="size-input-card">
+                                        <div className="size-card-title">
+                                          <span>Size {s}</span>
+                                        </div>
+                                        <div className="size-inputs-row">
+                                          <div className="size-qty-group">
+                                            <span className="size-qty-lbl">Short Pants</span>
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              value={displayQty(item.sizes[s]?.pants)}
+                                              onChange={(e) => updateSeluarSize(index, s, 'pants', e.target.value)}
+                                              placeholder="0"
+                                              className={`size-qty-input ${parseInt(item.sizes[s]?.pants || 0) > 0 ? 'has-value' : ''}`}
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+
+                            <div className="item-summary-card" style={{ marginTop: '1rem' }}>
+                              <div className="calc-pill subtotal-pill">
+                                <span className="calc-pill-label">Subtotal Seluar</span>
+                                <strong className="calc-pill-value">RM {summary.subtotal.toFixed(2)}</strong>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                    </>
                   )}
                 </>
               ) : (
                 <>
                   <div className="section-header-row">
-                    <h4 className="meta-section-title" style={{ borderBottom: 'none', marginBottom: 0, paddingBottom: 0 }}>B.2. Butiran Banner (Items)</h4>
+                    <h4 className="meta-section-title" style={{ borderBottom: 'none', marginBottom: 0, paddingBottom: 0 }}>B. Butiran Banner (Items)</h4>
                     <button type="button" onClick={addBannerItem} className="btn btn-secondary btn-sm btn-add-design">
                       <Plus size={14} /> Tambah Design Baru
                     </button>
@@ -2304,6 +2672,31 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                             </label>
                           </div>
                         </div>
+
+                        {discountType !== 'bulk' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.6rem', padding: '0.5rem 0.75rem', backgroundColor: 'var(--off-white-bg)', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '0.78rem' }}>
+                            <span style={{ fontWeight: '700', color: 'var(--text-dark)', marginBottom: '0.1rem' }}>Sasaran Diskaun:</span>
+                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', userSelect: 'none' }}>
+                              <input
+                                type="checkbox"
+                                checked={discountAppliesBaju}
+                                onChange={(e) => setDiscountAppliesBaju(e.target.checked)}
+                                style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', margin: 0 }}
+                              />
+                              Baju (Shirt)
+                            </label>
+                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', userSelect: 'none' }}>
+                              <input
+                                type="checkbox"
+                                checked={discountAppliesSeluar}
+                                onChange={(e) => setDiscountAppliesSeluar(e.target.checked)}
+                                style={{ accentColor: 'var(--primary-red)', cursor: 'pointer', margin: 0 }}
+                              />
+                              Seluar (Short Pants)
+                            </label>
+                          </div>
+                        )}
+
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', width: '100%' }}>
                           <div className="discount-input-wrapper" style={{ flex: '1', maxWidth: '150px' }}>
                             <span className="currency-prefix">{discountType === 'percent' ? '%' : 'RM'}</span>

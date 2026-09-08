@@ -143,6 +143,7 @@ export default function Manufacturing() {
       case 'Paid': return 'badge-paid';
       case 'Deposit': return 'badge-deposit';
       case 'Unpaid': return 'badge-unpaid';
+      case 'Void': return 'badge-void';
       default: return '';
     }
   };
@@ -152,6 +153,7 @@ export default function Manufacturing() {
       case 'Paid': return 'Paid';
       case 'Deposit': return 'Deposit';
       case 'Unpaid': return 'Unpaid';
+      case 'Void': return 'Void';
       default: return status;
     }
   };
@@ -177,21 +179,22 @@ export default function Manufacturing() {
     });
   };
 
-  // Summary counts
-  const belumDraftCount = filteredInvoices.filter(inv => (inv.order_status || 'BELUM_DRAFT') === 'BELUM_DRAFT').length;
-  const draftCount = filteredInvoices.filter(inv => inv.order_status === 'DRAFT').length;
-  const pendingCount = filteredInvoices.filter(inv => inv.order_status === 'PENDING').length;
-  const processingCount = filteredInvoices.filter(inv => inv.order_status === 'PROCESSING').length;
-  const completedCount = filteredInvoices.filter(inv => inv.order_status === 'COMPLETED').length;
-  const maintenanceCount = filteredInvoices.filter(inv => inv.order_status === 'MAINTENANCE').length;
+  // Summary counts & financials (exclude Void)
+  const nonVoidInvoices = filteredInvoices.filter(inv => inv.status !== 'Void');
+  const belumDraftCount = nonVoidInvoices.filter(inv => (inv.order_status || 'BELUM_DRAFT') === 'BELUM_DRAFT').length;
+  const draftCount = nonVoidInvoices.filter(inv => inv.order_status === 'DRAFT').length;
+  const pendingCount = nonVoidInvoices.filter(inv => inv.order_status === 'PENDING').length;
+  const processingCount = nonVoidInvoices.filter(inv => inv.order_status === 'PROCESSING').length;
+  const completedCount = nonVoidInvoices.filter(inv => inv.order_status === 'COMPLETED').length;
+  const maintenanceCount = nonVoidInvoices.filter(inv => inv.order_status === 'MAINTENANCE').length;
 
-  const totalNilaiInvois = filteredInvoices.reduce((sum, inv) => sum + parseFloat(inv.grand_total || 0), 0);
-  const totalDuitDiterima = filteredInvoices.reduce((sum, inv) => {
+  const totalNilaiInvois = nonVoidInvoices.reduce((sum, inv) => sum + parseFloat(inv.grand_total || 0), 0);
+  const totalDuitDiterima = nonVoidInvoices.reduce((sum, inv) => {
     if (inv.status === 'Paid') return sum + parseFloat(inv.grand_total || 0);
     if (inv.status === 'Deposit') return sum + parseFloat(inv.deposit || 0);
     return sum;
   }, 0);
-  const totalPengeluaran = filteredInvoices.reduce((sum, inv) => {
+  const totalPengeluaran = nonVoidInvoices.reduce((sum, inv) => {
     // Check if there is an unsaved edit first
     const rawKos = editedData[inv.id]?.pengeluaran;
     return sum + (rawKos !== undefined ? (parseFloat(rawKos) || 0) : parseFloat(inv.pengeluaran || 0));
@@ -199,7 +202,7 @@ export default function Manufacturing() {
   const untungSebenar = totalDuitDiterima - totalPengeluaran;
 
   const currentMonthLabel = monthFilter === 'All'
-    ? 'Semua Bulan'
+    ? (tr('allMonths') || 'Semua Bulan')
     : monthsList.find(m => m.value === monthFilter)?.label || '';
 
   const finalScale = scale * zoom;
@@ -638,14 +641,17 @@ export default function Manufacturing() {
                               <td colSpan="7" style={{ textAlign: 'center', padding: '0.75rem' }}>No production records for this month.</td>
                             </tr>
                           ) : (
-                            filteredInvoices.map((inv, idx) => {
+                            [...filteredInvoices]
+                              .sort((a, b) => (a.invoice_no || '').localeCompare(b.invoice_no || ''))
+                              .map((inv, idx) => {
+                              const isVoid = inv.status === 'Void';
                               const total = parseFloat(inv.grand_total || 0);
                               const pengeluaran = parseFloat(inv.pengeluaran || 0);
-                              const paid = inv.status === 'Paid' ? total : parseFloat(inv.deposit || 0);
-                              const untung = paid - pengeluaran;
+                              const paid = isVoid ? 0 : inv.status === 'Paid' ? total : parseFloat(inv.deposit || 0);
+                              const untung = isVoid ? 0 : (paid - pengeluaran);
 
                               return (
-                                <tr key={inv.id} className="print-avoid-break">
+                                <tr key={inv.id} className="print-avoid-break" style={isVoid ? { opacity: 0.6 } : {}}>
                                   <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '0.35rem 0.25rem' }}>{idx + 1}.</td>
                                   <td style={{ textAlign: 'left', verticalAlign: 'middle', padding: '0.35rem 0.25rem' }} className="font-bold">{inv.invoice_no}</td>
                                   <td style={{ textAlign: 'left', verticalAlign: 'middle', padding: '0.35rem 0.25rem' }}>{inv.client_name}</td>
@@ -654,9 +660,15 @@ export default function Manufacturing() {
                                       {getStatusText(inv.status)}
                                     </span>
                                   </td>
-                                  <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '0.35rem 0.25rem' }}>{total.toFixed(2)}</td>
-                                  <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '0.35rem 0.25rem', color: 'var(--primary-red)' }}>{pengeluaran.toFixed(2)}</td>
-                                  <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '0.35rem 0.25rem', color: '#15803D' }} className="font-bold">{untung.toFixed(2)}</td>
+                                  <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '0.35rem 0.25rem' }}>
+                                    {isVoid ? <span style={{ textDecoration: 'line-through', color: '#94a3b8' }}>{total.toFixed(2)}</span> : total.toFixed(2)}
+                                  </td>
+                                  <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '0.35rem 0.25rem', color: isVoid ? '#94a3b8' : 'var(--primary-red)' }}>
+                                    {isVoid ? '-' : pengeluaran.toFixed(2)}
+                                  </td>
+                                  <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '0.35rem 0.25rem', color: isVoid ? '#94a3b8' : '#15803D' }} className="font-bold">
+                                    {isVoid ? '-' : untung.toFixed(2)}
+                                  </td>
                                 </tr>
                               );
                             })

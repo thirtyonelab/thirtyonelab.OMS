@@ -83,8 +83,9 @@ export default function AddTransactionModal({ isOpen, onClose, onSave }) {
                 ) : (
                   <>
                     <option value="Belanja Operasi">Belanja Operasi (Api, Air, Sewa)</option>
+                    <option value="Penghantaran & Kurier">Penghantaran & Kurier (Lalamove, J&T, dsb)</option>
                     <option value="Gaji Pekerja">Gaji Pekerja</option>
-                    <option value="Kos Bahan Mentah">Kos Bahan Mentah</option>
+                    <option value="Kos Meta Ads">Kos Meta Ads (FB & IG)</option>
                     <option value="Lain-lain Belanja">Lain-lain Belanja</option>
                   </>
                 )}

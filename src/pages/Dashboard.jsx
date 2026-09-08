@@ -122,6 +122,8 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
     let kosKilangMonth = 0;
 
     invoices.forEach(inv => {
+      if (inv.status === 'Void') return; // Skip Void invoices completely
+
       const invDate = new Date(inv.date);
       const isCurrentMonth = invDate.getMonth() === currentMonth && invDate.getFullYear() === currentYear;
 
@@ -207,6 +209,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
       case 'Paid': return 'badge-paid';
       case 'Deposit': return 'badge-deposit';
       case 'Unpaid': return 'badge-unpaid';
+      case 'Void': return 'badge-void';
       default: return '';
     }
   };

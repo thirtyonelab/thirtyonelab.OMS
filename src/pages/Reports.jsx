@@ -135,7 +135,7 @@ export default function Reports() {
 
   // Calculations — scoped to the selected month so the "Statement Month" label matches the numbers
   const reportData = useMemo(() => {
-    const safeInvoices = (Array.isArray(invoices) ? invoices : []).filter(inv => typeof inv?.date === 'string' && inv.date.startsWith(selectedMonth));
+    const safeInvoices = (Array.isArray(invoices) ? invoices : []).filter(inv => typeof inv?.date === 'string' && inv.date.startsWith(selectedMonth) && inv?.status !== 'Void');
     const safeLedger = (Array.isArray(ledger) ? ledger : []).filter(l => typeof l?.date === 'string' && l.date.startsWith(selectedMonth));
 
     const totalNilaiInvois = safeInvoices.reduce((sum, inv) => sum + parseFloat(inv?.grand_total || 0), 0);
@@ -153,14 +153,15 @@ export default function Reports() {
     
     // Ledger OUT
     const belanjaOperasi = safeLedger.filter(l => l && l.type === 'OUT' && l.category === 'Belanja Operasi').reduce((s, l) => s + (l.amount || 0), 0);
+    const kosPenghantaran = safeLedger.filter(l => l && l.type === 'OUT' && (l.category === 'Penghantaran & Kurier' || l.category === 'Kos Penghantaran')).reduce((s, l) => s + (l.amount || 0), 0);
+    const kosMetaAds = safeLedger.filter(l => l && l.type === 'OUT' && (l.category === 'Kos Meta Ads' || l.category === 'Meta Ads' || l.category === 'Kos Iklan (Meta Ads)')).reduce((s, l) => s + (l.amount || 0), 0);
     const gajiPekerja = safeLedger.filter(l => l && l.type === 'OUT' && l.category === 'Gaji Pekerja').reduce((s, l) => s + (l.amount || 0), 0);
-    const kosBahan = safeLedger.filter(l => l && l.type === 'OUT' && l.category === 'Kos Bahan Mentah').reduce((s, l) => s + (l.amount || 0), 0);
     const lainBelanja = safeLedger.filter(l => l && l.type === 'OUT' && l.category === 'Lain-lain Belanja').reduce((s, l) => s + (l.amount || 0), 0);
 
-    const expensesKilang = totalPengeluaranInvois + kosBahan;
+    const expensesKilang = totalPengeluaranInvois;
     const grossProfit = totalRevenue - expensesKilang;
 
-    const totalOperatingExpenses = belanjaOperasi + gajiPekerja + lainBelanja;
+    const totalOperatingExpenses = belanjaOperasi + kosPenghantaran + kosMetaAds + gajiPekerja + lainBelanja;
     const netProfit = grossProfit - totalOperatingExpenses;
 
     return {
@@ -171,6 +172,8 @@ export default function Reports() {
       expensesKilang,
       grossProfit,
       belanjaOperasi,
+      kosPenghantaran,
+      kosMetaAds,
       gajiPekerja,
       lainBelanja,
       totalOperatingExpenses,
@@ -186,6 +189,8 @@ export default function Reports() {
     expensesKilang,
     grossProfit,
     belanjaOperasi,
+    kosPenghantaran,
+    kosMetaAds,
     gajiPekerja,
     lainBelanja,
     totalOperatingExpenses,
@@ -376,15 +381,23 @@ export default function Reports() {
                         <td></td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #eee', fontSize: '0.8rem' }}>
-                        <td style={{ padding: '0.4rem 0 0.4rem 1.5rem', color: '#555' }}>Shop Rent</td>
+                        <td style={{ padding: '0.4rem 0 0.4rem 1.5rem', color: '#555' }}>Shop Rent / Utilities</td>
                         <td style={{ textAlign: 'right', padding: '0.4rem 0' }}>{formatRM(belanjaOperasi)}</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #eee', fontSize: '0.8rem' }}>
+                        <td style={{ padding: '0.4rem 0 0.4rem 1.5rem', color: '#555' }}>Meta Ads (FB & IG)</td>
+                        <td style={{ textAlign: 'right', padding: '0.4rem 0' }}>{formatRM(kosMetaAds)}</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #eee', fontSize: '0.8rem' }}>
+                        <td style={{ padding: '0.4rem 0 0.4rem 1.5rem', color: '#555' }}>Delivery & Logistics (Lalamove, etc.)</td>
+                        <td style={{ textAlign: 'right', padding: '0.4rem 0' }}>{formatRM(kosPenghantaran)}</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #eee', fontSize: '0.8rem' }}>
                         <td style={{ padding: '0.4rem 0 0.4rem 1.5rem', color: '#555' }}>Employee Salaries</td>
                         <td style={{ textAlign: 'right', padding: '0.4rem 0' }}>{formatRM(gajiPekerja)}</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #eee', fontSize: '0.8rem' }}>
-                        <td style={{ padding: '0.4rem 0 0.4rem 1.5rem', color: '#555' }}>Bills & Utilities</td>
+                        <td style={{ padding: '0.4rem 0 0.4rem 1.5rem', color: '#555' }}>Bills & Other Expenses</td>
                         <td style={{ textAlign: 'right', padding: '0.4rem 0' }}>{formatRM(lainBelanja)}</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #ddd', fontSize: '0.8rem', fontWeight: 'bold' }}>

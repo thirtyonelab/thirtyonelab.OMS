@@ -161,8 +161,8 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
       <div className="sidebar-footer">
         <button 
           onClick={handleInstallClick}
-          className="nav-item" 
-          style={{ marginBottom: '1rem', justifyContent: 'center', backgroundColor: 'var(--off-white-bg)', border: '1px solid var(--border-color)', color: 'var(--text-dark)' }}
+          className="nav-item install-app-btn" 
+          style={{ justifyContent: 'center', backgroundColor: 'var(--off-white-bg)', border: '1px solid var(--border-color)', color: 'var(--text-dark)' }}
         >
           <Download size={18} strokeWidth={2} />
           <span>Install App</span>
@@ -238,7 +238,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
           display: flex;
           align-items: center;
           gap: 1rem;
-          padding: 1rem 1.25rem;
+          padding: 0.9rem 1.25rem;
           border: none;
           background: none;
           color: var(--text-muted);
@@ -246,7 +246,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
           font-size: 0.75rem;
           font-weight: 700;
           letter-spacing: normal;
-          
+          border-radius: var(--radius-sm);
           cursor: pointer;
           transition: var(--transition);
           text-align: left;
@@ -268,6 +268,10 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
           border-top: 1px solid var(--border-color);
         }
 
+        .install-app-btn {
+          margin-bottom: 1rem;
+        }
+
         .status-indicator {
           display: flex;
           align-items: center;
@@ -275,6 +279,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
           padding: 0.75rem 1rem;
           background-color: var(--off-white-bg);
           border: 1px solid var(--border-color);
+          border-radius: var(--radius-sm);
         }
 
         .status-dot {
@@ -371,6 +376,38 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
 
           .sidebar.mobile-open {
             left: 0;
+          }
+
+          .sidebar-footer {
+            padding: 1rem 1.25rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            align-items: stretch;
+          }
+
+          .sidebar-footer .install-app-btn {
+            margin-bottom: 0 !important;
+            padding: 0.6rem 0.4rem !important;
+            font-size: 0.72rem !important;
+            gap: 0.4rem !important;
+            height: 100%;
+          }
+
+          .sidebar-footer .status-indicator {
+            padding: 0.6rem 0.4rem;
+            gap: 0.4rem;
+            justify-content: center;
+          }
+
+          .sidebar-footer .status-desc {
+            display: none;
+          }
+
+          .sidebar-footer .status-label {
+            font-size: 0.62rem;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
           }
         }
       `}</style>

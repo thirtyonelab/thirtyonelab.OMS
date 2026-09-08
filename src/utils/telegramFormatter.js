@@ -15,6 +15,8 @@ export function formatTelegramStatus(invoices) {
   const processedInvoices = [];
   
   (invoices || []).forEach(inv => {
+    if (inv.status === 'Void') return; // Exclude Void invoices completely
+
     let order_status = inv.order_status;
     let due_date = inv.due_date;
     if (inv.notes && String(inv.notes).includes('__METADATA__:')) {

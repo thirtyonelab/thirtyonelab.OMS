@@ -405,12 +405,12 @@ export const saveInvoice = async (invoiceData) => {
     savedInvoiceObj = finalInvoiceData;
   }
 
-  // 2. Recalculate client statistics (orders count & spent) based on all invoices
+  // 2. Recalculate client statistics (orders count & spent) based on all non-void invoices
   const allInvoices = await getInvoices();
-  const clientInvoices = allInvoices.filter(inv => inv.client_id === customerId);
+  const clientInvoices = allInvoices.filter(inv => inv.client_id === customerId && inv.status !== 'Void');
   
   const orders_count = clientInvoices.length;
-  // total spent is sum of paid + deposit amount (since deposit is already spent, or we can use grand_total if they committed. The PRD says spent is total RM amount spent at store, which is the sum of grand_total of all their invoices)
+  // total spent is sum of grand_total of all non-void invoices
   const total_spent = clientInvoices.reduce((sum, inv) => sum + parseFloat(inv.grand_total || 0), 0);
 
   await saveClient({
@@ -450,7 +450,7 @@ export const deleteInvoice = async (id) => {
     const clientObj = clientsList.find(c => c.id === customerId);
     if (clientObj) {
       const allInvoices = await getInvoices();
-      const clientInvoices = allInvoices.filter(inv => inv.client_id === customerId);
+      const clientInvoices = allInvoices.filter(inv => inv.client_id === customerId && inv.status !== 'Void');
       const orders_count = clientInvoices.length;
       const total_spent = clientInvoices.reduce((sum, inv) => sum + parseFloat(inv.grand_total || 0), 0);
       

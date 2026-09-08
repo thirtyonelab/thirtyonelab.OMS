@@ -28,6 +28,8 @@ const translations = {
     statusOperasi: 'OPERATIONAL STATUS',
     unpaid: 'Unpaid',
     deposit: 'Deposit',
+    paid: 'Paid',
+    void: 'Void',
     paidMonth: 'Paid (This Month)',
     belumDraft: 'Belum Draft',
     draft: 'Draft',
@@ -164,6 +166,8 @@ const translations = {
     statusOperasi: 'STATUS OPERASI',
     unpaid: 'Belum Bayar',
     deposit: 'Deposit',
+    paid: 'Lunas',
+    void: 'Batal (Void)',
     paidMonth: 'Lunas (Bulan ini)',
     belumDraft: 'Belum Draft',
     draft: 'Draft',
@@ -188,7 +192,7 @@ const translations = {
     allMonths: 'Semua Bulan',
     // Orders
     ordersTag: 'SENARAI TEMPAHAN',
-    ordersTitle: 'TAMPAHAN',
+    ordersTitle: 'TEMPAHAN',
     // Manufacturing
     mfgTag: 'MANUFACTURING & OPERASI KILANG',
     mfgTitle: 'KILANG',

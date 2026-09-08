@@ -32,12 +32,14 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
       let unpaid = 0;
       let deposit = 0;
       let paid = 0;
+      let voidCount = 0;
       data.forEach(inv => {
         if (inv.status === 'Unpaid') unpaid++;
         else if (inv.status === 'Deposit') deposit++;
         else if (inv.status === 'Paid') paid++;
+        else if (inv.status === 'Void') voidCount++;
       });
-      setStatusCounts({ unpaid, deposit, paid, total: data.length });
+      setStatusCounts({ unpaid, deposit, paid, void: voidCount, total: data.length });
     } catch (e) {
       console.error('Error loading invoices list:', e);
     } finally {
@@ -85,6 +87,7 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
       case 'Paid': return 'badge-paid';
       case 'Deposit': return 'badge-deposit';
       case 'Unpaid': return 'badge-unpaid';
+      case 'Void': return 'badge-void';
       default: return '';
     }
   };
@@ -108,7 +111,7 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
   return (
     <div className="main-content">
       {/* Header */}
-      <div className="invoices-header" style={{ marginBottom: '1.5rem' }}>
+      <div className="invoices-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <span className="section-tag">{tr('ordersTag')}</span>
           <h1 style={{ fontSize: '1.75rem', fontWeight: '800', marginTop: '0.5rem' }}>{tr('ordersTitle')}</h1>
@@ -154,9 +157,10 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
               className="form-control filter-select"
             >
               <option value="All">{tr('allStatus')}</option>
-              <option value="Paid">Paid</option>
+              <option value="Paid">{tr('paid')}</option>
               <option value="Deposit">{tr('deposit')}</option>
               <option value="Unpaid">{tr('unpaid')}</option>
+              <option value="Void">{tr('void')}</option>
             </select>
           </div>
         </div>
@@ -418,10 +422,22 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
         }
 
         .actions-cell {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 0.35rem 0.4rem;
+          width: fit-content;
+          margin: 0 auto;
+        }
+
+        .actions-cell .btn {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 0.5rem;
+          gap: 0.25rem;
+          padding: 0.3rem 0.55rem;
+          font-size: 0.72rem;
+          white-space: nowrap;
+          min-width: 68px;
         }
 
         .loading-state, .empty-state {

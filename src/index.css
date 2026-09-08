@@ -285,6 +285,11 @@ input[type=number] {
   color: #B91C1C;
 }
 
+.badge-void {
+  background-color: #E2E8F0;
+  color: #475569;
+}
+
 .text-red {
   color: var(--primary-red);
 }
@@ -436,6 +441,10 @@ input[type=number] {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1.5rem;
+}
+
+.size-grid-mobile {
+  display: none;
 }
 
 @media (max-width: 1024px) {
@@ -901,6 +910,7 @@ input[type=number] {
     padding: 0.4rem 0.75rem;
     background-color: var(--off-white-bg);
     border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
   }
 
   .mobile-status-dot {

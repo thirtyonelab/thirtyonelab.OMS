@@ -53,6 +53,11 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
     setStatus('Deposit');
   };
 
+  const markAsVoid = () => {
+    setDeposit(0);
+    setStatus('Void');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -73,7 +78,7 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px' }}>
         <div className="modal-header">
           <h3>UPDATE INVOICE</h3>
           <button className="modal-close" onClick={onClose}>
@@ -117,23 +122,32 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
               >
                 Belum Bayar (Unpaid)
               </button>
+              <button
+                type="button"
+                onClick={markAsVoid}
+                className={`btn btn-secondary btn-sm quick-btn ${status === 'Void' ? 'active-void' : ''}`}
+              >
+                Batal (Void)
+              </button>
             </div>
 
             {/* Custom Input */}
-            <div className="form-group">
-              <label className="form-label">Jumlah Deposit (RM)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                max={grandTotal}
-                value={deposit || ''}
-                onChange={(e) => handleDepositChange(e.target.value)}
-                placeholder="0.00"
-                className="form-control"
-                required={status === 'Deposit'}
-              />
-            </div>
+            {status !== 'Void' && (
+              <div className="form-group">
+                <label className="form-label">Jumlah Deposit (RM)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={grandTotal}
+                  value={deposit || ''}
+                  onChange={(e) => handleDepositChange(e.target.value)}
+                  placeholder="0.00"
+                  className="form-control"
+                  required={status === 'Deposit'}
+                />
+              </div>
+            )}
 
             {status === 'Deposit' && (
               <div className="form-group">
@@ -165,8 +179,8 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
             <div className="payment-outcome-details">
               <div className="outcome-row">
                 <span>Baki Terhutang:</span>
-                <span className={`balance-value ${balance === 0 ? 'paid-text' : 'unpaid-text'}`}>
-                  RM {balance.toFixed(2)}
+                <span className={`balance-value ${status === 'Void' ? 'text-muted' : balance === 0 ? 'paid-text' : 'unpaid-text'}`}>
+                  {status === 'Void' ? 'RM 0.00 (Dibatalkan)' : `RM ${balance.toFixed(2)}`}
                 </span>
               </div>
               <div className="outcome-row">
@@ -233,15 +247,16 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
 
         .quick-actions-row {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(2, 1fr);
           gap: 0.5rem;
         }
 
         .quick-btn {
-          font-size: 0.6rem !important;
-          padding: 0.6rem 0.25rem !important;
+          font-size: 0.7rem !important;
+          padding: 0.6rem 0.4rem !important;
           letter-spacing: 0.5px !important;
           text-align: center;
+          font-weight: 600;
         }
 
         .active-paid {
@@ -260,6 +275,12 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
           background-color: #FEE2E2 !important;
           border-color: #B91C1C !important;
           color: #B91C1C !important;
+        }
+
+        .active-void {
+          background-color: #64748B !important;
+          border-color: #475569 !important;
+          color: #ffffff !important;
         }
 
         .payment-outcome-details {
