@@ -172,14 +172,14 @@ function MainApp() {
   // 1. Sleek loading screen while checking auth session
   if (authLoading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0b0f17' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--off-white-bg, #FAF9F6)' }}>
         <img 
           src={`${import.meta.env.BASE_URL}Logo%20Header.webp`} 
           alt="ThirtyOne Lab" 
-          style={{ height: '44px', marginBottom: '1.5rem', opacity: 0.9 }} 
+          style={{ height: '44px', marginBottom: '1.5rem', opacity: 0.95 }} 
           onError={(e) => { e.target.style.display = 'none'; }}
         />
-        <div style={{ width: '28px', height: '28px', border: '2.5px solid rgba(225, 29, 72, 0.2)', borderTopColor: '#e11d48', borderRadius: '50%', animation: 'authSpin 0.8s linear infinite' }} />
+        <div style={{ width: '28px', height: '28px', border: '2.5px solid rgba(197, 27, 39, 0.15)', borderTopColor: 'var(--primary-red, #C51B27)', borderRadius: '50%', animation: 'authSpin 0.8s linear infinite' }} />
         <style>{`@keyframes authSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       </div>
     );

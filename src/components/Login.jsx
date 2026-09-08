@@ -43,7 +43,7 @@ export default function Login({ onLoginSuccess }) {
 
   return (
     <div className="login-root">
-      {/* Top architectural utility bar */}
+      {/* Top utility bar */}
       <header className="login-topbar">
         <div className="topbar-brand">
           <span className="brand-dot" />
@@ -60,9 +60,9 @@ export default function Login({ onLoginSuccess }) {
         </button>
       </header>
 
-      {/* Main Architectural Container */}
+      {/* Main Container */}
       <main className="login-main">
-        <div className="login-box">
+        <div className="login-box card">
           {/* Header block with Logo and metadata */}
           <div className="login-box-header">
             <div className="logo-wrapper">
@@ -165,15 +165,15 @@ export default function Login({ onLoginSuccess }) {
       </main>
 
       <style>{`
-        /* Minimalist Architectural Design Tokens - Clean, zero AI-slop */
+        /* Authentic ThirtyOne Lab Brand Design Tokens */
         .login-root {
           min-height: 100dvh;
           width: 100%;
-          background-color: #0c0f14;
+          background-color: var(--off-white-bg, #FAF9F6);
           display: flex;
           flex-direction: column;
-          font-family: var(--font-secondary, system-ui, -apple-system, sans-serif);
-          color: #f1f5f9;
+          font-family: var(--font-secondary, 'Inter', sans-serif);
+          color: var(--text-dark, #111111);
           position: relative;
           box-sizing: border-box;
         }
@@ -182,9 +182,9 @@ export default function Login({ onLoginSuccess }) {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 1.25rem 2rem;
-          border-bottom: 1px solid #1e2530;
-          background-color: #0c0f14;
+          padding: 1.25rem 2.5rem;
+          border-bottom: 1px solid var(--border-color, #E6E2DC);
+          background-color: var(--white, #FFFFFF);
         }
 
         .topbar-brand {
@@ -194,40 +194,40 @@ export default function Login({ onLoginSuccess }) {
         }
 
         .brand-dot {
-          width: 7px;
-          height: 7px;
+          width: 8px;
+          height: 8px;
           border-radius: 50%;
-          background-color: var(--primary-red, #dc2626);
+          background-color: var(--primary-red, #C51B27);
         }
 
         .brand-label {
-          font-family: var(--font-primary, monospace);
+          font-family: var(--font-primary, 'Montserrat', sans-serif);
           font-size: 0.7rem;
-          font-weight: 700;
+          font-weight: 800;
           letter-spacing: 1.5px;
-          color: #94a3b8;
+          color: var(--text-muted, #666666);
         }
 
         .lang-pill-btn {
-          background-color: #141a23;
-          border: 1px solid #232b38;
-          color: #94a3b8;
+          background-color: var(--white, #FFFFFF);
+          border: 1px solid var(--border-color, #E6E2DC);
+          color: var(--text-dark, #111111);
+          font-family: var(--font-primary, 'Montserrat', sans-serif);
           font-size: 0.75rem;
           font-weight: 700;
           letter-spacing: 0.5px;
-          padding: 0.35rem 0.75rem;
-          border-radius: 4px;
+          padding: 0.4rem 0.85rem;
+          border-radius: var(--radius-sm, 8px);
           display: flex;
           align-items: center;
           gap: 0.4rem;
           cursor: pointer;
-          transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+          transition: var(--transition, all 0.2s ease);
         }
 
         .lang-pill-btn:hover {
-          background-color: #1b2330;
-          border-color: #334155;
-          color: #f8fafc;
+          border-color: var(--primary-red, #C51B27);
+          color: var(--primary-red, #C51B27);
         }
 
         .login-main {
@@ -235,17 +235,17 @@ export default function Login({ onLoginSuccess }) {
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 2rem 1.25rem;
+          padding: 2.5rem 1.25rem;
         }
 
         .login-box {
           width: 100%;
-          max-width: 400px;
-          background-color: #11161f;
-          border: 1px solid #232b38;
-          border-radius: 8px;
-          padding: 2.25rem;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+          max-width: 420px;
+          background-color: var(--white, #FFFFFF);
+          border: 1px solid var(--border-color, #E6E2DC);
+          border-radius: var(--radius-md, 12px);
+          padding: 2.5rem 2.25rem;
+          box-shadow: var(--shadow-md, 0 12px 30px rgba(0, 0, 0, 0.04));
           box-sizing: border-box;
         }
 
@@ -259,8 +259,8 @@ export default function Login({ onLoginSuccess }) {
         }
 
         .brand-logo {
-          height: 38px;
-          max-width: 180px;
+          height: 42px;
+          max-width: 190px;
           object-fit: contain;
           display: block;
         }
@@ -272,33 +272,33 @@ export default function Login({ onLoginSuccess }) {
         }
 
         .box-title {
-          font-family: var(--font-primary, sans-serif);
+          font-family: var(--font-primary, 'Montserrat', sans-serif);
           font-size: 1.35rem;
           font-weight: 800;
           letter-spacing: -0.02em;
-          color: #ffffff;
+          color: var(--text-dark, #111111);
           margin: 0;
         }
 
         .box-subtitle {
           font-size: 0.78rem;
-          color: #64748b;
+          color: var(--text-muted, #666666);
           margin: 0;
           letter-spacing: 0.2px;
         }
 
         .divider-line {
           height: 1px;
-          background-color: #1e2530;
+          background-color: var(--border-color, #E6E2DC);
           margin-bottom: 1.5rem;
         }
 
         .error-banner {
-          background-color: rgba(220, 38, 38, 0.1);
-          border: 1px solid rgba(220, 38, 38, 0.4);
-          color: #fca5a5;
-          padding: 0.7rem 0.85rem;
-          border-radius: 4px;
+          background-color: var(--primary-red-light, #FDF2F3);
+          border: 1px solid rgba(197, 27, 39, 0.25);
+          color: var(--primary-red, #C51B27);
+          padding: 0.75rem 0.9rem;
+          border-radius: var(--radius-sm, 8px);
           font-size: 0.8rem;
           display: flex;
           align-items: center;
@@ -308,7 +308,7 @@ export default function Login({ onLoginSuccess }) {
         }
 
         .error-icon {
-          color: #ef4444;
+          color: var(--primary-red, #C51B27);
           flex-shrink: 0;
         }
 
@@ -325,11 +325,12 @@ export default function Login({ onLoginSuccess }) {
         }
 
         .field-label {
-          font-size: 0.72rem;
+          font-family: var(--font-primary, 'Montserrat', sans-serif);
+          font-size: 0.7rem;
           font-weight: 700;
           letter-spacing: 0.5px;
           text-transform: uppercase;
-          color: #94a3b8;
+          color: var(--text-dark, #111111);
         }
 
         .field-input-box {
@@ -341,30 +342,31 @@ export default function Login({ onLoginSuccess }) {
         .field-icon {
           position: absolute;
           left: 0.85rem;
-          color: #475569;
+          color: var(--text-light, #8E8B82);
           pointer-events: none;
         }
 
         .clean-input {
           width: 100%;
-          background-color: #0c0f14;
-          border: 1px solid #232b38;
-          border-radius: 4px;
+          background-color: var(--white, #FFFFFF);
+          border: 1px solid var(--border-color, #E6E2DC);
+          border-radius: var(--radius-sm, 8px);
           padding: 0.75rem 0.85rem 0.75rem 2.4rem;
+          font-family: var(--font-secondary, 'Inter', sans-serif);
           font-size: 0.9rem;
-          color: #f8fafc;
+          color: var(--text-dark, #111111);
           outline: none;
-          transition: border-color 0.15s ease, background-color 0.15s ease;
+          transition: var(--transition, all 0.2s ease);
           box-sizing: border-box;
         }
 
         .clean-input:focus {
-          border-color: var(--primary-red, #dc2626);
-          background-color: #0a0d12;
+          border-color: var(--primary-red, #C51B27);
+          box-shadow: 0 0 0 3px rgba(197, 27, 39, 0.1);
         }
 
         .clean-input::placeholder {
-          color: #334155;
+          color: var(--text-light, #8E8B82);
           font-size: 0.825rem;
         }
 
@@ -373,7 +375,7 @@ export default function Login({ onLoginSuccess }) {
           right: 0.75rem;
           background: none;
           border: none;
-          color: #475569;
+          color: var(--text-light, #8E8B82);
           cursor: pointer;
           padding: 0.25rem;
           display: flex;
@@ -382,31 +384,34 @@ export default function Login({ onLoginSuccess }) {
         }
 
         .field-toggle-btn:hover {
-          color: #cbd5e1;
+          color: var(--text-dark, #111111);
         }
 
         .submit-action-btn {
           margin-top: 0.5rem;
-          background-color: var(--primary-red, #dc2626);
-          border: 1px solid #b91c1c;
-          color: #ffffff;
-          font-family: var(--font-primary, sans-serif);
+          background-color: var(--primary-red, #C51B27);
+          border: 1px solid var(--primary-red, #C51B27);
+          color: var(--white, #FFFFFF);
+          font-family: var(--font-primary, 'Montserrat', sans-serif);
           font-size: 0.82rem;
-          font-weight: 700;
+          font-weight: 800;
           letter-spacing: 1px;
           text-transform: uppercase;
-          padding: 0.8rem 1.25rem;
-          border-radius: 4px;
+          padding: 0.85rem 1.25rem;
+          border-radius: var(--radius-sm, 8px);
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 0.5rem;
-          transition: background-color 0.15s ease, transform 0.05s ease;
+          box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.02));
+          transition: var(--transition, all 0.2s ease);
         }
 
         .submit-action-btn:hover:not(:disabled) {
-          background-color: #b91c1c;
+          background-color: var(--primary-red-hover, #A1141E);
+          border-color: var(--primary-red-hover, #A1141E);
+          box-shadow: var(--shadow-md, 0 12px 30px rgba(0, 0, 0, 0.04));
         }
 
         .submit-action-btn:active:not(:disabled) {
@@ -430,19 +435,19 @@ export default function Login({ onLoginSuccess }) {
         .login-box-footer {
           margin-top: 1.75rem;
           padding-top: 1rem;
-          border-top: 1px solid #1e2530;
+          border-top: 1px solid var(--border-color, #E6E2DC);
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 0.4rem;
           font-size: 0.68rem;
-          color: #475569;
+          color: var(--text-light, #8E8B82);
           text-align: center;
           letter-spacing: 0.2px;
         }
 
         .shield-icon {
-          color: #64748b;
+          color: var(--text-muted, #666666);
           flex-shrink: 0;
         }
 
