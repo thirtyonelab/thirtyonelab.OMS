@@ -1046,9 +1046,11 @@ export default function Manufacturing() {
         }
 
         .search-filters-bar {
-          display: flex;
-          gap: 1.25rem;
-          align-items: flex-end;
+          display: flex !important;
+          flex-direction: row !important;
+          align-items: flex-end !important;
+          gap: 1.25rem !important;
+          flex-wrap: nowrap !important;
         }
 
         .search-box {
@@ -1056,6 +1058,7 @@ export default function Manufacturing() {
           display: flex;
           align-items: center;
           flex: 1;
+          min-width: 200px;
           height: 42px;
         }
 
@@ -1072,10 +1075,11 @@ export default function Manufacturing() {
         }
 
         .filter-group-row {
-          display: flex;
-          gap: 1rem;
-          align-items: flex-end;
-          flex-shrink: 0;
+          display: flex !important;
+          flex-direction: row !important;
+          gap: 1rem !important;
+          align-items: flex-end !important;
+          flex-shrink: 0 !important;
         }
 
         .filter-box {
@@ -1117,32 +1121,32 @@ export default function Manufacturing() {
           }
 
           .search-filters-bar {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 1rem;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 1rem !important;
             padding: 1.25rem !important;
           }
 
           .search-box {
-            width: 100%;
+            width: 100% !important;
           }
 
           .filter-group-row {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            gap: 0.75rem;
-            align-items: stretch;
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            gap: 0.75rem !important;
+            align-items: stretch !important;
           }
 
           .filter-box {
-            width: 100%;
+            width: 100% !important;
           }
 
           .print-stmt-btn {
-            width: 100%;
-            justify-content: center;
-            height: 42px;
+            width: 100% !important;
+            justify-content: center !important;
+            height: 42px !important;
           }
         }
 
