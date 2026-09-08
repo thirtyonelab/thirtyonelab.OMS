@@ -415,6 +415,12 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
             align-items: stretch;
           }
 
+          .sidebar-footer .user-profile-card {
+            grid-column: 1 / -1 !important;
+            width: 100% !important;
+            margin-bottom: 0.25rem !important;
+          }
+
           .sidebar-footer .install-app-btn {
             margin-bottom: 0 !important;
             padding: 0.6rem 0.4rem !important;
