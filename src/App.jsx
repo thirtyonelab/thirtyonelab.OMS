@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LayoutDashboard, FileText, Users, Settings as SettingsIcon, Factory, Cloud, Database, ChevronRight, Menu } from 'lucide-react';
 import { isCloudMode } from './services/storage';
 import { getAuthSession, onAuthStateChange, logoutUser } from './services/auth';
@@ -37,6 +37,92 @@ function MainApp() {
   const [activeTab, setActiveTab] = useState('overview');
   const [cloudActive, setCloudActive] = useState(isCloudMode());
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Modals state
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState(null);
+  const [prefilledClient, setPrefilledClient] = useState(null);
+
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentInvoice, setPaymentInvoice] = useState(null);
+
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailInvoice, setDetailInvoice] = useState(null);
+
+  // State ref for browser back-button (popstate) event listener
+  const stateRef = useRef({
+    isMobileMenuOpen: false,
+    invoiceModalOpen: false,
+    paymentModalOpen: false,
+    detailModalOpen: false,
+    activeTab: 'overview',
+    session: null
+  });
+
+  useEffect(() => {
+    stateRef.current = {
+      isMobileMenuOpen,
+      invoiceModalOpen,
+      paymentModalOpen,
+      detailModalOpen,
+      activeTab,
+      session
+    };
+  }, [isMobileMenuOpen, invoiceModalOpen, paymentModalOpen, detailModalOpen, activeTab, session]);
+
+  // Handle mobile gesture/hardware Back button smoothly
+  useEffect(() => {
+    if (session) {
+      window.history.replaceState({ app: true, tab: activeTab }, '', window.location.href);
+      window.history.pushState({ app: true, tab: activeTab }, '', window.location.href);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (!stateRef.current.session) return;
+      const { isMobileMenuOpen, invoiceModalOpen, paymentModalOpen, detailModalOpen, activeTab } = stateRef.current;
+
+      // 1. If mobile menu drawer is open, close it
+      if (isMobileMenuOpen) {
+        setIsMobileMenuOpen(false);
+        return;
+      }
+
+      // 2. If any modal is active, close it
+      if (invoiceModalOpen || paymentModalOpen || detailModalOpen) {
+        setInvoiceModalOpen(false);
+        setPaymentModalOpen(false);
+        setDetailModalOpen(false);
+        return;
+      }
+
+      // 3. If navigated to a subtab, back button returns to overview
+      if (activeTab !== 'overview') {
+        setActiveTab('overview');
+        return;
+      }
+
+      // 4. If already on overview with no overlays, keep the session locked in app instead of exiting to login
+      window.history.pushState({ app: true, tab: 'overview' }, '', window.location.href);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  const pushModalHistory = (name) => {
+    window.history.pushState({ app: true, modal: name }, '', window.location.href);
+  };
+
+  const handleSelectTab = (newTab) => {
+    if (newTab !== activeTab) {
+      window.history.pushState({ app: true, tab: newTab }, '', window.location.href);
+      setActiveTab(newTab);
+    }
+  };
 
   useEffect(() => {
     // Check initial auth session
@@ -88,40 +174,33 @@ function MainApp() {
     }
   };
 
-  // Modals state
-  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
-  const [editingInvoice, setEditingInvoice] = useState(null);
-  const [prefilledClient, setPrefilledClient] = useState(null);
-
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [paymentInvoice, setPaymentInvoice] = useState(null);
-
-  const [detailModalOpen, setDetailModalOpen] = useState(false);
-  const [detailInvoice, setDetailInvoice] = useState(null);
-
   // Trigger page refreshes on successful saves
   const [refreshKey, setRefreshKey] = useState(0);
   const triggerRefresh = () => setRefreshKey(prev => prev + 1);
 
   // --- MODAL TRIGGERS ---
   const handleOpenInvoiceModal = (inv = null) => {
+    pushModalHistory('invoice');
     setEditingInvoice(inv);
     setPrefilledClient(null);
     setInvoiceModalOpen(true);
   };
 
   const handleOpenInvoiceForClient = (client) => {
+    pushModalHistory('invoice');
     setEditingInvoice(null);
     setPrefilledClient(client);
     setInvoiceModalOpen(true);
   };
 
   const handleOpenPaymentModal = (inv) => {
+    pushModalHistory('payment');
     setPaymentInvoice(inv);
     setPaymentModalOpen(true);
   };
 
   const handleOpenInvoiceDetail = (inv) => {
+    pushModalHistory('detail');
     setDetailInvoice(inv);
     setDetailModalOpen(true);
   };
@@ -133,7 +212,7 @@ function MainApp() {
         return (
           <Dashboard
             key={`dash_${refreshKey}`}
-            setActiveTab={setActiveTab}
+            setActiveTab={handleSelectTab}
             onOpenInvoiceModal={handleOpenInvoiceModal}
             onOpenPaymentModal={handleOpenPaymentModal}
             onOpenInvoiceDetail={handleOpenInvoiceDetail}
@@ -165,7 +244,7 @@ function MainApp() {
       case 'settings':
         return <Settings key={`settings_${refreshKey}`} />;
       default:
-        return <Dashboard setActiveTab={setActiveTab} />;
+        return <Dashboard setActiveTab={handleSelectTab} />;
     }
   };
 
@@ -196,7 +275,14 @@ function MainApp() {
       {/* Mobile Top Header (Visible only on mobile) */}
       <header className="mobile-top-bar mobile-only">
         <span className="mobile-brand-name">THIRTYONE <span style={{ color: 'var(--primary-red)' }}>LAB</span><sup style={{ color: 'var(--primary-red)', fontSize: '0.5em' }}>&reg;</sup></span>
-        <button className="mobile-menu-btn mobile-only" onClick={() => setIsMobileMenuOpen(true)} aria-label="Menu">
+        <button 
+          className="mobile-menu-btn mobile-only" 
+          onClick={() => {
+            pushModalHistory('menu');
+            setIsMobileMenuOpen(true);
+          }} 
+          aria-label="Menu"
+        >
           <Menu size={22} />
         </button>
       </header>
@@ -204,7 +290,7 @@ function MainApp() {
       {/* Sidebar (Navigation) */}
       <Sidebar 
         activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
+        setActiveTab={handleSelectTab} 
         isMobileMenuOpen={isMobileMenuOpen}
         setIsMobileMenuOpen={setIsMobileMenuOpen}
         currentUser={session?.user}

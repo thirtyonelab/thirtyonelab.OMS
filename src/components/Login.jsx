@@ -30,6 +30,7 @@ export default function Login({ onLoginSuccess }) {
           setErrorMessage(error.message || tr('invalidLogin'));
         }
       } else if (data?.session) {
+        window.history.replaceState({ app: true }, '', window.location.href);
         if (onLoginSuccess) {
           onLoginSuccess(data.session);
         }
