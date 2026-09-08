@@ -163,6 +163,8 @@ export default function Login({ onLoginSuccess }) {
             <span>Authorized personnel only. Sessions are monitored.</span>
           </footer>
         </div>
+
+        <p className="login-watermark">Developed by @amnhmb</p>
       </main>
 
       <style>{`
@@ -234,9 +236,19 @@ export default function Login({ onLoginSuccess }) {
         .login-main {
           flex: 1;
           display: flex;
+          flex-direction: column;
           align-items: center;
           justify-content: center;
           padding: 2.5rem 1.25rem;
+        }
+
+        .login-watermark {
+          margin-top: 1rem;
+          font-size: 0.7rem;
+          color: var(--text-muted, #888888);
+          text-align: center;
+          letter-spacing: 0.2px;
+          user-select: none;
         }
 
         .login-box {
