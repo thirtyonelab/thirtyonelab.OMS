@@ -292,10 +292,14 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     ];
 
     // --- 1. SHORT SLEEVE ---
+    const isSleevelessOrSinglet = item.cutting === 'Sleeveless' || item.cutting === 'Singlet';
     let isFirstSsRow = true;
     const getSsPrefix = () => {
       if (isFirstSsRow) {
         isFirstSsRow = false;
+        if (isSleevelessOrSinglet) {
+          return '• Size:';
+        }
         return hasSleeveRib ? '• Short Sleeve (Rib):' : '• Short Sleeve:';
       }
       return '';
@@ -674,7 +678,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                       let rows = [];
                       if (pAdultQty > 0) {
                         rows.push({
-                          prefix: 'Adult Pants:',
+                          prefix: '• Adult Pants:',
                           value: formatSubsetBreakdown(item.sizes, 'pants', ADULT_PANTS),
                           qty: pAdultQty,
                           price: adultPantsPrice,
@@ -683,39 +687,60 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                       }
                       if (pKidQty > 0) {
                         rows.push({
-                          prefix: 'Kid Pants:',
+                          prefix: '• Kid Pants:',
                           value: formatSubsetBreakdown(item.sizes, 'pants', KID_SIZES),
                           qty: pKidQty,
                           price: kidPantsPrice,
                           total: pKidQty * kidPantsPrice
                         });
                       }
-                      
+                      if (rows.length === 0) {
+                        rows.push({
+                          prefix: '• Adult Pants:',
+                          value: '-',
+                          qty: 0,
+                          price: adultPantsPrice,
+                          total: 0
+                        });
+                      }
+
+                      const firstRow = rows[0];
+                      const remainingRows = rows.slice(1);
+
                       return (
-                        <tr key={item.id} className="print-avoid-break">
-                          <td style={{ verticalAlign: 'top', textAlign: 'center' }}>{idx + 1}.</td>
-                          <td style={{ textAlign: 'left', verticalAlign: 'top' }}>
-                            <div className="print-item-desc">
-                              <span className="print-design-name" style={{ fontWeight: '800' }}>{item.design_name ? `Short Pants: ${item.design_name}` : 'Short Pants'}</span>
-                              <div className="print-sub-rows" style={{ fontSize: '0.78rem', marginTop: '4px' }}>
-                                {rows.map((r, i) => (
-                                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', fontWeight: '600', fontSize: '0.78rem', color: '#1E293B', marginBottom: '2px' }}>
-                                    <span style={{ minWidth: '7.8rem', display: 'inline-block', flexShrink: 0 }}>{r.prefix}</span>
-                                    <span>{r.value}</span>
-                                  </div>
-                                ))}
+                        <React.Fragment key={item.id}>
+                          <tr className="print-avoid-break">
+                            <td rowSpan={rows.length} style={{ verticalAlign: 'top', textAlign: 'center' }}>{idx + 1}.</td>
+                            <td style={{ textAlign: 'left', verticalAlign: 'top' }}>
+                              <div className="print-item-desc">
+                                <span className="print-design-name" style={{ fontWeight: '800' }}>{item.design_name ? `Short Pants: ${item.design_name}` : 'Short Pants'}</span>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', fontWeight: '600', fontSize: '0.78rem', color: '#1E293B', marginTop: '0.25rem' }}>
+                                  <span style={{ minWidth: '7.8rem', display: 'inline-block', flexShrink: 0 }}>{firstRow.prefix}</span>
+                                  <span>{firstRow.value}</span>
+                                </div>
                               </div>
-                            </div>
-                          </td>
-                          <td style={{ textAlign: 'center', verticalAlign: 'top' }}>{qty}</td>
-                          <td style={{ textAlign: 'center', verticalAlign: 'top' }}>
-                            {rows.map((r, i) => <div key={i}>{r.price.toFixed(2)}</div>)}
-                          </td>
-                          <td style={{ textAlign: 'center', verticalAlign: 'top' }} className="font-bold">
-                            {rows.map((r, i) => <div key={i}>{r.total.toFixed(2)}</div>)}
-                            {rows.length > 1 && <div style={{ borderTop: '1px solid #000', marginTop: '2px' }}>{subtotal.toFixed(2)}</div>}
-                          </td>
-                        </tr>
+                            </td>
+                            <td style={{ textAlign: 'center', verticalAlign: 'bottom', paddingBottom: '0.4rem' }}>{firstRow.qty}</td>
+                            <td style={{ textAlign: 'center', verticalAlign: 'bottom', paddingBottom: '0.4rem' }}>{firstRow.price.toFixed(2)}</td>
+                            <td style={{ textAlign: 'center', verticalAlign: 'bottom', paddingBottom: '0.4rem' }} className="font-bold">{firstRow.total.toFixed(2)}</td>
+                          </tr>
+
+                          {remainingRows.map((row, rIdx) => (
+                            <tr key={item.id + '_pants_' + rIdx} className="print-avoid-break">
+                              <td style={{ textAlign: 'left', verticalAlign: 'top' }}>
+                                <div className="print-item-desc">
+                                  <div style={{ display: 'flex', alignItems: 'flex-start', fontWeight: '600', fontSize: '0.78rem', color: '#1E293B' }}>
+                                    <span style={{ minWidth: '7.8rem', display: 'inline-block', flexShrink: 0 }}>{row.prefix}</span>
+                                    <span>{row.value}</span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td style={{ textAlign: 'center', verticalAlign: 'bottom', paddingBottom: '0.4rem' }}>{row.qty}</td>
+                              <td style={{ textAlign: 'center', verticalAlign: 'bottom', paddingBottom: '0.4rem' }}>{row.price.toFixed(2)}</td>
+                              <td style={{ textAlign: 'center', verticalAlign: 'bottom', paddingBottom: '0.4rem' }} className="font-bold">{row.total.toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
                       );
                     }
 
