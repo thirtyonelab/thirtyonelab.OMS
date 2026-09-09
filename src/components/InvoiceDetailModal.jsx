@@ -294,12 +294,20 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     // --- 1. SHORT SLEEVE ---
     const isSleevelessOrSinglet = item.cutting === 'Sleeveless' || item.cutting === 'Singlet';
     let isFirstSsRow = true;
-    const getSsPrefix = () => {
+    const getSsPrefix = (isKid = false) => {
+      if (isSleevelessOrSinglet) {
+        if (isKid) return '• Kid Size:';
+        if (isFirstSsRow) {
+          isFirstSsRow = false;
+          return '• Adult Size:';
+        }
+        return '';
+      }
+      if (isKid) {
+        return '• Kid (Short Sleeve):';
+      }
       if (isFirstSsRow) {
         isFirstSsRow = false;
-        if (isSleevelessOrSinglet) {
-          return '• Size:';
-        }
         return hasSleeveRib ? '• Short Sleeve (Rib):' : '• Short Sleeve:';
       }
       return '';
@@ -308,7 +316,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     const ssStandardQty = STANDARD_ADULT.reduce((sum, s) => sum + (item.cutting === 'Muslimah' ? 0 : parseInt(item.sizes[s]?.short || 0, 10)), 0);
     if (ssStandardQty > 0) {
       rows.push({
-        prefix: getSsPrefix(),
+        prefix: getSsPrefix(false),
         value: formatSubsetBreakdown(item.sizes, 'short', STANDARD_ADULT),
         qty: ssStandardQty,
         price: X,
@@ -320,7 +328,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
       const qty = tier.sizes.reduce((sum, s) => sum + (item.cutting === 'Muslimah' ? 0 : parseInt(item.sizes[s]?.short || 0, 10)), 0);
       if (qty > 0) {
         rows.push({
-          prefix: getSsPrefix(),
+          prefix: getSsPrefix(false),
           value: formatSubsetBreakdown(item.sizes, 'short', tier.sizes),
           indent: true,
           qty: qty,
@@ -333,7 +341,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     const ssKidQty = KID_SIZES.reduce((sum, s) => sum + (item.cutting === 'Muslimah' ? 0 : parseInt(item.sizes[s]?.short || 0, 10)), 0);
     if (ssKidQty > 0) {
       rows.push({
-        prefix: getSsPrefix(),
+        prefix: getSsPrefix(true),
         value: formatSubsetBreakdown(item.sizes, 'short', KID_SIZES),
         indent: true,
         qty: ssKidQty,
@@ -349,7 +357,10 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     }
     
     let isFirstLsRow = true;
-    const getLsPrefix = () => {
+    const getLsPrefix = (isKid = false) => {
+      if (isKid) {
+        return '• Kid (Long Sleeve):';
+      }
       if (isFirstLsRow) {
         isFirstLsRow = false;
         return hasSleeveRib ? '• Long Sleeve (Rib):' : '• Long Sleeve:';
@@ -360,7 +371,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     const lsStandardQty = STANDARD_ADULT.reduce((sum, s) => sum + parseInt(item.sizes[s]?.long || 0, 10), 0);
     if (lsStandardQty > 0) {
       rows.push({
-        prefix: getLsPrefix(),
+        prefix: getLsPrefix(false),
         value: formatSubsetBreakdown(item.sizes, 'long', STANDARD_ADULT),
         qty: lsStandardQty,
         price: X + lsPrice,
@@ -372,7 +383,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
       const qty = tier.sizes.reduce((sum, s) => sum + parseInt(item.sizes[s]?.long || 0, 10), 0);
       if (qty > 0) {
         rows.push({
-          prefix: getLsPrefix(),
+          prefix: getLsPrefix(false),
           value: formatSubsetBreakdown(item.sizes, 'long', tier.sizes),
           indent: true,
           qty: qty,
@@ -385,7 +396,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
     const lsKidQty = KID_SIZES.reduce((sum, s) => sum + parseInt(item.sizes[s]?.long || 0, 10), 0);
     if (lsKidQty > 0) {
       rows.push({
-        prefix: getLsPrefix(),
+        prefix: getLsPrefix(true),
         value: formatSubsetBreakdown(item.sizes, 'long', KID_SIZES),
         indent: true,
         qty: lsKidQty,
@@ -678,7 +689,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                       let rows = [];
                       if (pAdultQty > 0) {
                         rows.push({
-                          prefix: '• Adult Pants:',
+                          prefix: '• Adult Size:',
                           value: formatSubsetBreakdown(item.sizes, 'pants', ADULT_PANTS),
                           qty: pAdultQty,
                           price: adultPantsPrice,
@@ -687,7 +698,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                       }
                       if (pKidQty > 0) {
                         rows.push({
-                          prefix: '• Kid Pants:',
+                          prefix: '• Kid Size:',
                           value: formatSubsetBreakdown(item.sizes, 'pants', KID_SIZES),
                           qty: pKidQty,
                           price: kidPantsPrice,
@@ -696,7 +707,7 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
                       }
                       if (rows.length === 0) {
                         rows.push({
-                          prefix: '• Adult Pants:',
+                          prefix: '• Adult Size:',
                           value: '-',
                           qty: 0,
                           price: adultPantsPrice,
