@@ -198,6 +198,30 @@ export const getInvoices = async () => {
         .order('created_at', { ascending: false });
       if (error) throw error;
       invoicesList = data || [];
+
+      // Auto-sync recovery: Check if local storage has invoices not yet uploaded to Supabase
+      try {
+        const stored = localStorage.getItem(STORAGE_KEYS.INVOICES);
+        const localInvoices = stored ? JSON.parse(stored) : [];
+        const remoteNos = new Set(invoicesList.map(inv => inv.invoice_no));
+        const pendingSync = localInvoices.filter(inv => inv.invoice_no && !remoteNos.has(inv.invoice_no));
+
+        if (pendingSync.length > 0) {
+          for (const pendingInv of pendingSync) {
+            try {
+              const synced = await saveInvoice(pendingInv);
+              if (synced) {
+                invoicesList.unshift(synced);
+                remoteNos.add(synced.invoice_no);
+              }
+            } catch (syncErr) {
+              console.warn('Auto-sync skip for invoice:', pendingInv.invoice_no, syncErr);
+            }
+          }
+        }
+      } catch (syncCheckErr) {
+        console.warn('Local recovery check error:', syncCheckErr);
+      }
     } catch (e) {
       console.error('Error fetching invoices from Supabase:', e);
       const stored = localStorage.getItem(STORAGE_KEYS.INVOICES);
@@ -215,21 +239,26 @@ export const getInvoices = async () => {
     let pengeluaran = invoice.pengeluaran;
     let order_status = invoice.order_status;
     let due_date = invoice.due_date;
+    let discount_applies_baju = invoice.discount_applies_baju;
+    let discount_applies_seluar = invoice.discount_applies_seluar;
     let cleanNotes = invoice.notes || '';
     let _raw_meta = {};
+
     if (invoice.notes && invoice.notes.includes('__METADATA__:')) {
       const parts = invoice.notes.split('__METADATA__:');
       cleanNotes = parts[0].trim();
       try {
         const meta = JSON.parse(parts[1]);
         _raw_meta = meta;
-        discount_type = meta.discount_type;
-        discount_value = meta.discount_value;
-        client_address = meta.client_address;
+        if (meta.discount_type !== undefined) discount_type = meta.discount_type;
+        if (meta.discount_value !== undefined) discount_value = meta.discount_value;
+        if (meta.client_address !== undefined) client_address = meta.client_address;
         if (meta.pengeluaran !== undefined) pengeluaran = meta.pengeluaran;
         if (meta.due_date !== undefined) due_date = meta.due_date;
-        if (!order_status) {
-            if (meta.order_status !== undefined) order_status = meta.order_status;
+        if (meta.discount_applies_baju !== undefined) discount_applies_baju = meta.discount_applies_baju;
+        if (meta.discount_applies_seluar !== undefined) discount_applies_seluar = meta.discount_applies_seluar;
+        if (!order_status && meta.order_status !== undefined) {
+          order_status = meta.order_status;
         }
       } catch (e) {}
     }
@@ -247,7 +276,9 @@ export const getInvoices = async () => {
       discount_value: discount_value !== undefined ? discount_value : (parseFloat(invoice.discount_per_pcs || 0) || 0),
       client_address: client_address || '',
       pengeluaran: pengeluaran !== undefined ? (parseFloat(pengeluaran) || 0) : 0,
-      order_status: order_status
+      order_status: order_status,
+      discount_applies_baju: discount_applies_baju !== undefined ? discount_applies_baju : true,
+      discount_applies_seluar: discount_applies_seluar !== undefined ? discount_applies_seluar : false
     };
   });
 };
@@ -312,6 +343,26 @@ export const getNextInvoiceNo = async () => {
   }
 };
 
+const SUPABASE_INVOICE_COLUMNS = [
+  'id',
+  'invoice_no',
+  'client_id',
+  'client_name',
+  'client_phone',
+  'job_name',
+  'date',
+  'items',
+  'subtotal',
+  'discount_per_pcs',
+  'grand_total',
+  'deposit',
+  'balance',
+  'status',
+  'notes',
+  'created_at',
+  'updated_at'
+];
+
 export const saveInvoice = async (invoiceData) => {
   const client = getSupabaseClient();
   
@@ -344,7 +395,9 @@ export const saveInvoice = async (invoiceData) => {
   };
 
   if (!finalInvoiceData.id) {
-    finalInvoiceData.id = client ? undefined : generateUUID(); // Supabase will auto-gen UUID if undefined
+    finalInvoiceData.id = generateUUID();
+  }
+  if (!finalInvoiceData.created_at) {
     finalInvoiceData.created_at = new Date().toISOString();
   }
 
@@ -358,22 +411,29 @@ export const saveInvoice = async (invoiceData) => {
         discount_value: finalInvoiceData.discount_value,
         client_address: finalInvoiceData.client_address,
         pengeluaran: finalInvoiceData.pengeluaran,
-        discount_per_pcs: finalInvoiceData.discount_per_pcs
+        discount_per_pcs: finalInvoiceData.discount_per_pcs,
+        discount_applies_baju: finalInvoiceData.discount_applies_baju !== undefined ? finalInvoiceData.discount_applies_baju : true,
+        discount_applies_seluar: finalInvoiceData.discount_applies_seluar !== undefined ? finalInvoiceData.discount_applies_seluar : false,
+        order_status: finalInvoiceData.order_status || 'BELUM_DRAFT'
       };
       if (finalInvoiceData.due_date !== undefined) {
         metadata.due_date = finalInvoiceData.due_date;
       }
-      const dbInvoiceData = {
-        ...finalInvoiceData,
-        notes: (finalInvoiceData.notes || '') + `\n\n__METADATA__:${JSON.stringify(metadata)}`
-      };
-      delete dbInvoiceData.discount_type;
-      delete dbInvoiceData.discount_value;
-      delete dbInvoiceData.client_address;
-      delete dbInvoiceData.pengeluaran;
-      delete dbInvoiceData.discount_per_pcs;
-      delete dbInvoiceData._raw_meta;
-      delete dbInvoiceData.due_date;
+
+      let baseNotes = (finalInvoiceData.notes || '');
+      if (baseNotes.includes('__METADATA__:')) {
+        baseNotes = baseNotes.split('__METADATA__:')[0].trim();
+      }
+      const fullNotes = baseNotes ? `${baseNotes}\n\n__METADATA__:${JSON.stringify(metadata)}` : `__METADATA__:${JSON.stringify(metadata)}`;
+
+      const dbInvoiceData = {};
+      SUPABASE_INVOICE_COLUMNS.forEach(col => {
+        if (col === 'notes') {
+          dbInvoiceData.notes = fullNotes;
+        } else if (finalInvoiceData[col] !== undefined) {
+          dbInvoiceData[col] = finalInvoiceData[col];
+        }
+      });
 
       const { data, error } = await client
         .from('invoices')
@@ -384,6 +444,7 @@ export const saveInvoice = async (invoiceData) => {
       savedInvoiceObj = data;
     } catch (e) {
       console.error('Error saving invoice to Supabase:', e);
+      throw e;
     }
   }
 
