@@ -133,10 +133,44 @@ export default function Reports() {
     return parseFloat(val || 0).toFixed(2);
   };
 
+  const getYearMonth = (dateStr) => {
+    if (!dateStr) return null;
+    const str = String(dateStr).trim();
+    // 1. Matches YYYY-MM or YYYY/MM (e.g. 2026-09-10, 2026/09/10, 2026-09)
+    const matchYMD = str.match(/^(\d{4})[-/](\d{1,2})/);
+    if (matchYMD) {
+      return `${matchYMD[1]}-${String(matchYMD[2]).padStart(2, '0')}`;
+    }
+    // 2. Matches DD/MM/YYYY or DD-MM-YYYY (e.g. 10/09/2026, 10-09-2026)
+    const matchDMY = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+    if (matchDMY) {
+      return `${matchDMY[3]}-${String(matchDMY[2]).padStart(2, '0')}`;
+    }
+    // 3. Fallback to Date parser
+    try {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) {
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      }
+    } catch (e) {}
+    return null;
+  };
+
+  const isDateInMonth = (dateStr, targetYM) => {
+    if (!dateStr || !targetYM) return false;
+    return getYearMonth(dateStr) === targetYM;
+  };
+
   // Calculations — scoped to the selected month so the "Statement Month" label matches the numbers
   const reportData = useMemo(() => {
-    const safeInvoices = (Array.isArray(invoices) ? invoices : []).filter(inv => typeof inv?.date === 'string' && inv.date.startsWith(selectedMonth) && inv?.status !== 'Void');
-    const safeLedger = (Array.isArray(ledger) ? ledger : []).filter(l => typeof l?.date === 'string' && l.date.startsWith(selectedMonth));
+    const safeInvoices = (Array.isArray(invoices) ? invoices : []).filter(inv => {
+      if (!inv || String(inv.status).toUpperCase() === 'VOID') return false;
+      return isDateInMonth(inv.date, selectedMonth);
+    });
+    const safeLedger = (Array.isArray(ledger) ? ledger : []).filter(l => {
+      if (!l) return false;
+      return isDateInMonth(l.date, selectedMonth);
+    });
 
     const totalNilaiInvois = safeInvoices.reduce((sum, inv) => sum + parseFloat(inv?.grand_total || 0), 0);
     const totalPengeluaranInvois = safeInvoices.reduce((sum, inv) => sum + parseFloat(inv?.pengeluaran || 0), 0);
@@ -146,17 +180,37 @@ export default function Reports() {
       .filter(inv => inv?.status !== 'Paid')
       .reduce((sum, inv) => sum + Math.max(0, parseFloat(inv?.grand_total || 0) - parseFloat(inv?.deposit || 0)), 0);
 
+    // Delivery / Courier Profit from Invoices for selected month
+    const deliveryProfit = (Array.isArray(invoices) ? invoices : [])
+      .filter(inv => {
+        if (!inv || String(inv.status).toUpperCase() === 'VOID') return false;
+        const hasDelivery = inv.has_delivery === true || parseFloat(inv.delivery_fee || 0) > 0 || parseFloat(inv.postage_cost || 0) > 0;
+        if (!hasDelivery) return false;
+
+        return (
+          isDateInMonth(inv.date, selectedMonth) ||
+          isDateInMonth(inv.delivery_paid_date, selectedMonth) ||
+          isDateInMonth(inv.postage_date, selectedMonth) ||
+          isDateInMonth(inv.created_at, selectedMonth)
+        );
+      })
+      .reduce((sum, inv) => {
+        const fee = parseFloat(inv?.delivery_fee || 0);
+        const cost = parseFloat(inv?.postage_cost || 0);
+        return sum + (fee - cost);
+      }, 0);
+
     // Ledger IN
-    const jualanLuar = safeLedger.filter(l => l && l.type === 'IN' && l.category === 'Jualan Luar').reduce((s, l) => s + (l.amount || 0), 0);
-    const revenueLain = safeLedger.filter(l => l && l.type === 'IN' && (l.category === 'Modal Tambahan' || l.category === 'Lain-lain Pendapatan')).reduce((s, l) => s + (l.amount || 0), 0);
-    const totalRevenue = totalNilaiInvois + jualanLuar + revenueLain;
+    const jualanLuar = safeLedger.filter(l => l && l.type === 'IN' && (l.category === 'Jualan Luar' || l.category === 'External Sales')).reduce((s, l) => s + (l.amount || 0), 0);
+    const revenueLain = safeLedger.filter(l => l && l.type === 'IN' && (l.category === 'Modal Tambahan' || l.category === 'Lain-lain Pendapatan' || l.category === 'Other Income' || l.category === 'Additional Capital')).reduce((s, l) => s + (l.amount || 0), 0);
+    const totalRevenue = totalNilaiInvois + deliveryProfit + jualanLuar + revenueLain;
     
     // Ledger OUT
-    const belanjaOperasi = safeLedger.filter(l => l && l.type === 'OUT' && l.category === 'Belanja Operasi').reduce((s, l) => s + (l.amount || 0), 0);
-    const kosPenghantaran = safeLedger.filter(l => l && l.type === 'OUT' && (l.category === 'Penghantaran & Kurier' || l.category === 'Kos Penghantaran')).reduce((s, l) => s + (l.amount || 0), 0);
+    const belanjaOperasi = safeLedger.filter(l => l && l.type === 'OUT' && (l.category === 'Belanja Operasi' || l.category === 'Operating Expenses' || l.category === 'Shop Rent / Utilities')).reduce((s, l) => s + (l.amount || 0), 0);
+    const kosPenghantaran = safeLedger.filter(l => l && l.type === 'OUT' && (l.category === 'Penghantaran & Kurier' || l.category === 'Kos Penghantaran' || l.category === 'Delivery & Logistics')).reduce((s, l) => s + (l.amount || 0), 0);
     const kosMetaAds = safeLedger.filter(l => l && l.type === 'OUT' && (l.category === 'Kos Meta Ads' || l.category === 'Meta Ads' || l.category === 'Kos Iklan (Meta Ads)')).reduce((s, l) => s + (l.amount || 0), 0);
-    const gajiPekerja = safeLedger.filter(l => l && l.type === 'OUT' && l.category === 'Gaji Pekerja').reduce((s, l) => s + (l.amount || 0), 0);
-    const lainBelanja = safeLedger.filter(l => l && l.type === 'OUT' && l.category === 'Lain-lain Belanja').reduce((s, l) => s + (l.amount || 0), 0);
+    const gajiPekerja = safeLedger.filter(l => l && l.type === 'OUT' && (l.category === 'Gaji Pekerja' || l.category === 'Employee Salaries' || l.category === 'Salaries')).reduce((s, l) => s + (l.amount || 0), 0);
+    const lainBelanja = safeLedger.filter(l => l && l.type === 'OUT' && (l.category === 'Lain-lain Belanja' || l.category === 'Other Expenses' || l.category === 'Bills & Other Expenses')).reduce((s, l) => s + (l.amount || 0), 0);
 
     const expensesKilang = totalPengeluaranInvois;
     const grossProfit = totalRevenue - expensesKilang;
@@ -166,6 +220,7 @@ export default function Reports() {
 
     return {
       revenueInvoices,
+      deliveryProfit,
       revenueLain,
       totalRevenue,
       outstandingBalance,
@@ -183,6 +238,7 @@ export default function Reports() {
 
   const {
     revenueInvoices,
+    deliveryProfit,
     revenueLain,
     totalRevenue,
     outstandingBalance,
@@ -203,7 +259,7 @@ export default function Reports() {
 
   const dateObj = new Date();
   const dateStr = dateObj.toLocaleDateString('en-GB');
-  const monthNames = ["JANUARI", "FEBRUARI", "MAC", "APRIL", "MEI", "JUN", "JULAI", "OGOS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DISEMBER"];
+  const monthNames = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
   const [selYearStr, selMonthStr] = selectedMonth.split('-');
   const monthStr = monthNames[parseInt(selMonthStr, 10) - 1] + ' ' + selYearStr;
 
@@ -218,68 +274,70 @@ export default function Reports() {
           </p>
         </div>
         <div className="header-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <input
-            type="month"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="form-control"
-            style={{ width: 'auto' }}
-          />
-          <button onClick={loadData} className="btn btn-secondary" title="Refresh Data">
-            <RefreshCw size={16} />
-          </button>
-          <button onClick={() => window.print()} className="btn btn-primary" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div className="filter-box" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <label className="select-label" style={{ fontSize: '0.75rem', fontWeight: '700' }}>Statement Month:</label>
+            <input 
+              type="month" 
+              className="form-control" 
+              value={selectedMonth} 
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              style={{ width: 'auto', padding: '0.4rem 0.75rem', fontSize: '0.85rem' }}
+            />
+          </div>
+          <button 
+            onClick={() => window.print()} 
+            className="btn btn-primary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+          >
             <Printer size={16} /> {tr('printReport')}
           </button>
         </div>
       </div>
 
-      <div className="A4-scroll-wrapper" style={{ overflow: 'auto', flex: 1, padding: '0.25rem 0 1rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        {loading ? (
-          <div className="card text-center" style={{ padding: '3rem', width: '100%', maxWidth: '800px' }}>
-            <span style={{ color: 'var(--text-muted)' }}>Menganalisis data...</span>
-          </div>
-        ) : (
+      <div className="report-preview-container" style={{ display: 'flex', justifyContent: 'center', padding: '1rem 0' }}>
+        <div
+          className="print-sheet-wrapper"
+          onWheel={(e) => {
+            if (isMobile) {
+              if (e.deltaY < 0) setZoomMultiplier(prev => Math.min(2.5, prev + 0.15));
+              else setZoomMultiplier(prev => Math.max(1, prev - 0.15));
+            }
+          }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          style={{
+            width: `${794 * totalScale}px`,
+            height: `${sheetHeight * totalScale}px`,
+            overflow: 'visible',
+            flexShrink: 0,
+            display: 'flex',
+            justifyContent: 'flex-start',
+            margin: 'auto',
+            touchAction: 'pan-x pan-y',
+            cursor: isMobile ? 'zoom-in' : 'default'
+          }}
+        >
           <div
-            className="A4-scale-container"
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onDoubleClick={handleDoubleTap}
+            ref={sheetRef}
+            className="A4-sheet"
             style={{
-              width: `${794 * totalScale}px`,
-              height: `${sheetHeight * totalScale}px`,
+              width: '210mm',
+              maxWidth: '210mm',
+              minHeight: '297mm',
+              padding: '15mm 12mm',
+              boxSizing: 'border-box',
+              background: '#fff',
+              border: 'none',
               overflow: 'visible',
-              flexShrink: 0,
+              margin: '0',
               display: 'flex',
-              justifyContent: 'flex-start',
-              margin: 'auto',
-              touchAction: 'pan-x pan-y',
-              cursor: isMobile ? 'zoom-in' : 'default'
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              transform: `scale(${totalScale})`,
+              transformOrigin: 'top left'
             }}
           >
-            <div
-              ref={sheetRef}
-              className="A4-sheet"
-              style={{
-                width: '210mm',
-                maxWidth: '210mm',
-                minHeight: '297mm',
-                padding: '15mm 12mm',
-                boxSizing: 'border-box',
-                background: '#fff',
-                border: 'none',
-                overflow: 'visible',
-                margin: '0',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                transform: `scale(${totalScale})`,
-                transformOrigin: 'top left'
-              }}
-            >
             <div className="invoice-container" style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
-              
               <div>
                 {/* Header: Company Details */}
                 <div className="invoice-header">
@@ -343,6 +401,10 @@ export default function Reports() {
                       <tr style={{ borderBottom: '1px solid #eee', fontSize: '0.8rem' }}>
                         <td style={{ padding: '0.4rem 0 0.4rem 1.5rem', color: '#555' }}>Sales / Customer Invoices</td>
                         <td style={{ textAlign: 'right', padding: '0.4rem 0' }}>{formatRM(revenueInvoices)}</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #eee', fontSize: '0.8rem' }}>
+                        <td style={{ padding: '0.4rem 0 0.4rem 1.5rem', color: '#555' }}>Courier & Delivery Profit</td>
+                        <td style={{ textAlign: 'right', padding: '0.4rem 0' }}>{formatRM(deliveryProfit)}</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #eee', fontSize: '0.8rem' }}>
                         <td style={{ padding: '0.4rem 0 0.4rem 1.5rem', color: '#555' }}>Other Income (Non-Invoice)</td>
@@ -431,8 +493,7 @@ export default function Reports() {
 
             </div>
           </div>
-          </div>
-        )}
+        </div>
       </div>
 
       <style>{`

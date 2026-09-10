@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, FileText, Users, Settings, Database, HardDrive, Factory, BookOpen, BarChart2, Globe, Cloud, Download, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, Settings, Database, HardDrive, Factory, Truck, BookOpen, BarChart2, Globe, Cloud, Download, LogOut } from 'lucide-react';
 import { isCloudMode, getSettings } from '../services/storage';
 import { useLanguage } from '../context/LanguageContext';
 import { getInstallPrompt, clearInstallPrompt } from '../pwaInstall';
@@ -40,6 +40,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
     { id: 'overview', label: tr('overview'), icon: LayoutDashboard },
     { id: 'invoices', label: tr('orders'), icon: FileText },
     { id: 'manufacturing', label: tr('manufacturing'), icon: Factory },
+    { id: 'postage', label: tr('postage'), icon: Truck },
     { id: 'clients', label: tr('clients'), icon: Users },
   ];
 

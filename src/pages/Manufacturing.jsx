@@ -431,6 +431,7 @@ export default function Manufacturing() {
                 </thead>
                 <tbody>
                   {filteredInvoices.map((inv) => {
+                    const isVoid = inv.status === 'Void';
                     const currentKos = editedData[inv.id]?.pengeluaran !== undefined 
                       ? editedData[inv.id].pengeluaran 
                       : (inv.pengeluaran || '');
@@ -444,13 +445,18 @@ export default function Manufacturing() {
                       : (inv.due_date || '');
 
                     return (
-                      <tr key={inv.id}>
+                      <tr 
+                        key={inv.id}
+                        style={isVoid ? { backgroundColor: '#f8fafc' } : {}}
+                      >
                         <td>
-                          <div className="font-bold">#{inv.invoice_no}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <span className="font-bold">#{inv.invoice_no}</span>
+                          </div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{inv.client_name}</div>
                         </td>
                         <td>
-                          <div style={{ fontSize: '0.85rem', whiteSpace: 'normal', maxWidth: '300px' }}>
+                          <div style={{ fontSize: '0.85rem', whiteSpace: 'normal', maxWidth: '300px', textDecoration: isVoid ? 'line-through' : 'none' }}>
                             {getItemSummary(inv)}
                           </div>
                         </td>
@@ -461,46 +467,91 @@ export default function Manufacturing() {
                               type="number"
                               step="0.01"
                               min="0"
+                              disabled={isVoid}
                               value={currentKos}
                               onChange={e => handleFieldChange(inv.id, 'pengeluaran', e.target.value)}
                               className="form-control"
-                              style={{ width: '90px', padding: '0.25rem 0.5rem', textAlign: 'right' }}
+                              style={{ 
+                                width: '90px', 
+                                padding: '0.25rem 0.5rem', 
+                                textAlign: 'right',
+                                cursor: isVoid ? 'not-allowed' : 'text',
+                                backgroundColor: isVoid ? '#f1f5f9' : undefined
+                              }}
                               placeholder="0.00"
                             />
                           </div>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <select
-                            value={currentStatus}
-                            onChange={e => handleFieldChange(inv.id, 'order_status', e.target.value)}
-                            className="form-control"
-                            style={{ padding: '0.25rem 0.5rem', width: '130px', margin: '0 auto', fontSize: '0.85rem' }}
-                          >
-                            <option value="BELUM_DRAFT">Belum Draft</option>
-                            <option value="DRAFT">Draft</option>
-                            <option value="PENDING">Pending</option>
-                            <option value="PROCESSING">Processing</option>
-                            <option value="COMPLETED">Completed</option>
-                            <option value="MAINTENANCE">Maintenance</option>
-                          </select>
-                          {currentStatus === 'PROCESSING' && (
-                            <div style={{ marginTop: '0.5rem' }}>
-                              <input
-                                type="date"
-                                value={currentDueDate}
-                                onChange={e => handleFieldChange(inv.id, 'due_date', e.target.value)}
+                          {isVoid ? (
+                            <span 
+                              className="badge badge-void" 
+                              style={{ 
+                                fontSize: '0.75rem', 
+                                padding: '0.35rem 0.8rem',
+                                fontWeight: '700',
+                                letterSpacing: '0.5px'
+                              }}
+                            >
+                              VOID
+                            </span>
+                          ) : (
+                            <>
+                              <select
+                                value={currentStatus}
+                                onChange={e => handleFieldChange(inv.id, 'order_status', e.target.value)}
                                 className="form-control"
-                                style={{ width: '130px', margin: '0 auto', padding: '0.1rem 0.25rem', fontSize: '0.75rem' }}
-                              />
-                            </div>
+                                style={{ 
+                                  padding: '0.25rem 0.5rem', 
+                                  width: '130px', 
+                                  margin: '0 auto', 
+                                  fontSize: '0.85rem',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <option value="BELUM_DRAFT">Belum Draft</option>
+                                <option value="DRAFT">Draft</option>
+                                <option value="PENDING">Pending</option>
+                                <option value="PROCESSING">Processing</option>
+                                <option value="COMPLETED">Completed</option>
+                                <option value="MAINTENANCE">Maintenance</option>
+                              </select>
+                              {currentStatus === 'PROCESSING' && (
+                                <div style={{ marginTop: '0.5rem' }}>
+                                  <input
+                                    type="date"
+                                    value={currentDueDate}
+                                    onChange={e => handleFieldChange(inv.id, 'due_date', e.target.value)}
+                                    className="form-control"
+                                    style={{ 
+                                      width: '130px', 
+                                      margin: '0 auto', 
+                                      padding: '0.1rem 0.25rem', 
+                                      fontSize: '0.75rem',
+                                      cursor: 'pointer'
+                                    }}
+                                  />
+                                </div>
+                              )}
+                            </>
                           )}
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
                             <button 
+                              disabled={isVoid}
                               onClick={() => handleSaveInline(inv)}
                               className="btn btn-primary btn-sm font-bold"
-                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                              style={{ 
+                                fontSize: '0.75rem', 
+                                padding: '0.25rem 0.5rem', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '0.25rem',
+                                opacity: isVoid ? 0.4 : 1,
+                                cursor: isVoid ? 'not-allowed' : 'pointer'
+                              }}
+                              title={isVoid ? 'Invois ini telah dibatalkan (Void)' : tr('save')}
                             >
                               <Save size={12} /> {tr('save')}
                             </button>
@@ -522,6 +573,7 @@ export default function Manufacturing() {
 
             <div className="mobile-cards-list mobile-only">
               {filteredInvoices.map((inv) => {
+                const isVoid = inv.status === 'Void';
                 const currentKos = editedData[inv.id]?.pengeluaran !== undefined 
                   ? editedData[inv.id].pengeluaran 
                   : (inv.pengeluaran || '');
@@ -535,11 +587,15 @@ export default function Manufacturing() {
                   : (inv.due_date || '');
 
                 return (
-                  <div key={inv.id} className="mobile-card">
-                    <div className="mobile-card-row" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '0.5rem' }}>
+                  <div 
+                    key={inv.id} 
+                    className="mobile-card"
+                    style={isVoid ? { backgroundColor: '#f8fafc' } : {}}
+                  >
+                    <div className="mobile-card-row" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span className="mobile-card-title">#{inv.invoice_no} - {inv.client_name}</span>
                     </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem', textDecoration: isVoid ? 'line-through' : 'none' }}>
                       <strong>Items:</strong> {getItemSummary(inv)}
                     </div>
                     
@@ -552,10 +608,17 @@ export default function Manufacturing() {
                             type="number"
                             step="0.01"
                             min="0"
+                            disabled={isVoid}
                             value={currentKos}
                             onChange={e => handleFieldChange(inv.id, 'pengeluaran', e.target.value)}
                             className="form-control"
-                            style={{ width: '90px', padding: '0.25rem 0.5rem', textAlign: 'right' }}
+                            style={{ 
+                              width: '90px', 
+                              padding: '0.25rem 0.5rem', 
+                              textAlign: 'right',
+                              cursor: isVoid ? 'not-allowed' : 'text',
+                              backgroundColor: isVoid ? '#f1f5f9' : undefined
+                            }}
                             placeholder="0.00"
                           />
                         </div>
@@ -563,37 +626,70 @@ export default function Manufacturing() {
 
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span>Status:</span>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-                          <select
-                            value={currentStatus}
-                            onChange={e => handleFieldChange(inv.id, 'order_status', e.target.value)}
-                            className="form-control"
-                            style={{ padding: '0.25rem 0.5rem', width: '130px' }}
+                        {isVoid ? (
+                          <span 
+                            className="badge badge-void" 
+                            style={{ 
+                              fontSize: '0.75rem', 
+                              padding: '0.35rem 0.8rem',
+                              fontWeight: '700',
+                              letterSpacing: '0.5px'
+                            }}
                           >
-                            <option value="BELUM_DRAFT">Belum Draft</option>
-                            <option value="DRAFT">Draft</option>
-                            <option value="PENDING">Pending</option>
-                            <option value="PROCESSING">Processing</option>
-                            <option value="COMPLETED">Completed</option>
-                            <option value="MAINTENANCE">Maintenance</option>
-                          </select>
-                          {currentStatus === 'PROCESSING' && (
-                            <input
-                              type="date"
-                              value={currentDueDate}
-                              onChange={e => handleFieldChange(inv.id, 'due_date', e.target.value)}
+                            VOID
+                          </span>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                            <select
+                              value={currentStatus}
+                              onChange={e => handleFieldChange(inv.id, 'order_status', e.target.value)}
                               className="form-control"
-                              style={{ width: '130px', padding: '0.1rem 0.25rem', fontSize: '0.75rem' }}
-                            />
-                          )}
-                        </div>
+                              style={{ 
+                                padding: '0.25rem 0.5rem', 
+                                width: '130px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <option value="BELUM_DRAFT">Belum Draft</option>
+                              <option value="DRAFT">Draft</option>
+                              <option value="PENDING">Pending</option>
+                              <option value="PROCESSING">Processing</option>
+                              <option value="COMPLETED">Completed</option>
+                              <option value="MAINTENANCE">Maintenance</option>
+                            </select>
+                            {currentStatus === 'PROCESSING' && (
+                              <input
+                                type="date"
+                                value={currentDueDate}
+                                onChange={e => handleFieldChange(inv.id, 'due_date', e.target.value)}
+                                className="form-control"
+                                style={{ 
+                                  width: '130px', 
+                                  padding: '0.1rem 0.25rem', 
+                                  fontSize: '0.75rem',
+                                  cursor: 'pointer'
+                                }}
+                              />
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                         <button 
+                          disabled={isVoid}
                           onClick={() => handleSaveInline(inv)}
                           className="btn btn-primary btn-sm font-bold"
-                          style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.25rem' }}
+                          style={{ 
+                            flex: 1, 
+                            display: 'flex', 
+                            justifyContent: 'center', 
+                            alignItems: 'center', 
+                            gap: '0.25rem',
+                            opacity: isVoid ? 0.4 : 1,
+                            cursor: isVoid ? 'not-allowed' : 'pointer'
+                          }}
+                          title={isVoid ? 'Invois ini telah dibatalkan (Void)' : tr('save')}
                         >
                           <Save size={12} /> {tr('save')}
                         </button>

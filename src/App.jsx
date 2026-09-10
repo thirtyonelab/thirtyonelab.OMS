@@ -10,6 +10,7 @@ const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Invoices = React.lazy(() => import('./pages/Invoices'));
 const Clients = React.lazy(() => import('./pages/Clients'));
 const Manufacturing = React.lazy(() => import('./pages/Manufacturing'));
+const Postage = React.lazy(() => import('./pages/Postage'));
 const Settings = React.lazy(() => import('./pages/Settings'));
 const Ledger = React.lazy(() => import('./pages/Ledger'));
 const Reports = React.lazy(() => import('./pages/Reports'));
@@ -237,6 +238,8 @@ function MainApp() {
         );
       case 'manufacturing':
         return <Manufacturing key={`mfg_${refreshKey}`} />;
+      case 'postage':
+        return <Postage key={`post_${refreshKey}`} />;
       case 'ledger':
         return <Ledger key={`ledger_${refreshKey}`} />;
       case 'reports':

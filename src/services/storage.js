@@ -130,9 +130,10 @@ export const saveClient = async (clientData) => {
   const client = getSupabaseClient();
   if (client) {
     try {
+      const upsertOptions = clientData.id ? {} : { onConflict: 'phone' };
       const { data, error } = await client
         .from('clients')
-        .upsert(clientData)
+        .upsert(clientData, upsertOptions)
         .select()
         .single();
       if (error) throw error;
@@ -241,6 +242,16 @@ export const getInvoices = async () => {
     let due_date = invoice.due_date;
     let discount_applies_baju = invoice.discount_applies_baju;
     let discount_applies_seluar = invoice.discount_applies_seluar;
+    let postage_courier = invoice.postage_courier;
+    let postage_tracking = invoice.postage_tracking;
+    let postage_status = invoice.postage_status;
+    let postage_date = invoice.postage_date;
+    let postage_cost = invoice.postage_cost;
+    let delivery_fee = invoice.delivery_fee;
+    let delivery_payment_status = invoice.delivery_payment_status;
+    let delivery_paid_date = invoice.delivery_paid_date;
+    let delivery_payment_method = invoice.delivery_payment_method;
+    let has_delivery = invoice.has_delivery;
     let cleanNotes = invoice.notes || '';
     let _raw_meta = {};
 
@@ -257,15 +268,29 @@ export const getInvoices = async () => {
         if (meta.due_date !== undefined) due_date = meta.due_date;
         if (meta.discount_applies_baju !== undefined) discount_applies_baju = meta.discount_applies_baju;
         if (meta.discount_applies_seluar !== undefined) discount_applies_seluar = meta.discount_applies_seluar;
-        if (!order_status && meta.order_status !== undefined) {
+        if (meta.order_status !== undefined) {
           order_status = meta.order_status;
         }
+        if (meta.postage_courier !== undefined) postage_courier = meta.postage_courier;
+        if (meta.postage_tracking !== undefined) postage_tracking = meta.postage_tracking;
+        if (meta.postage_status !== undefined) postage_status = meta.postage_status;
+        if (meta.postage_date !== undefined) postage_date = meta.postage_date;
+        if (meta.postage_cost !== undefined) postage_cost = meta.postage_cost;
+        if (meta.delivery_fee !== undefined) delivery_fee = meta.delivery_fee;
+        if (meta.delivery_payment_status !== undefined) delivery_payment_status = meta.delivery_payment_status;
+        if (meta.delivery_paid_date !== undefined) delivery_paid_date = meta.delivery_paid_date;
+        if (meta.delivery_payment_method !== undefined) delivery_payment_method = meta.delivery_payment_method;
+        if (meta.has_delivery !== undefined) has_delivery = meta.has_delivery;
       } catch (e) {}
     }
 
     if (order_status === 'NOT_SUBMITTED' || !order_status) {
       order_status = 'BELUM_DRAFT';
     }
+
+    // Default existing legacy records: only Syafiq has delivery, all other invoices require explicit addition via "+ Tambah"
+    const isSyafiq = (invoice.client_name || '').toLowerCase().includes('syafiq');
+    const finalHasDelivery = has_delivery !== undefined ? Boolean(has_delivery) : isSyafiq;
 
     return {
       ...invoice,
@@ -278,7 +303,17 @@ export const getInvoices = async () => {
       pengeluaran: pengeluaran !== undefined ? (parseFloat(pengeluaran) || 0) : 0,
       order_status: order_status,
       discount_applies_baju: discount_applies_baju !== undefined ? discount_applies_baju : true,
-      discount_applies_seluar: discount_applies_seluar !== undefined ? discount_applies_seluar : false
+      discount_applies_seluar: discount_applies_seluar !== undefined ? discount_applies_seluar : false,
+      has_delivery: finalHasDelivery,
+      postage_courier: postage_courier || '',
+      postage_tracking: postage_tracking || '',
+      postage_status: postage_status || '',
+      postage_date: postage_date || '',
+      postage_cost: postage_cost !== undefined && postage_cost !== '' && postage_cost !== null ? (parseFloat(postage_cost) || 0) : '',
+      delivery_fee: delivery_fee !== undefined && delivery_fee !== '' && delivery_fee !== null ? (parseFloat(delivery_fee) || 0) : '',
+      delivery_payment_status: delivery_payment_status || '',
+      delivery_paid_date: delivery_paid_date || '',
+      delivery_payment_method: delivery_payment_method || ''
     };
   });
 };
@@ -360,7 +395,10 @@ const SUPABASE_INVOICE_COLUMNS = [
   'status',
   'notes',
   'created_at',
-  'updated_at'
+  'updated_at',
+  'order_status',
+  'deposit_date',
+  'paid_date'
 ];
 
 export const saveInvoice = async (invoiceData) => {
@@ -369,12 +407,22 @@ export const saveInvoice = async (invoiceData) => {
   // 1. CRM Integration: Find or create client first, and update metrics
   let customerId = invoiceData.client_id;
   let clientsList = await getClients();
-  let existingClient = clientsList.find(c => c.id === customerId || (c.name && invoiceData.client_name && c.name.toLowerCase() === invoiceData.client_name.toLowerCase() && c.phone === invoiceData.client_phone));
+  
+  const cleanPhone = (p) => (p || '').replace(/\D/g, '');
+  const targetPhone = cleanPhone(invoiceData.client_phone);
+  const targetName = (invoiceData.client_name || '').trim().toLowerCase();
+
+  let existingClient = clientsList.find(c => {
+    if (customerId && c.id === customerId) return true;
+    const cPhone = cleanPhone(c.phone);
+    if (targetPhone && cPhone && targetPhone === cPhone) return true;
+    if (targetName && c.name && c.name.trim().toLowerCase() === targetName) return true;
+    return false;
+  });
   
   let savedClientObj = null;
   if (existingClient) {
     customerId = existingClient.id;
-    // We will recalculate spent and orders when saving
     savedClientObj = existingClient;
   } else {
     // Create new client
@@ -385,12 +433,15 @@ export const saveInvoice = async (invoiceData) => {
       total_spent: 0
     };
     savedClientObj = await saveClient(newClient);
-    customerId = savedClientObj.id;
+    customerId = savedClientObj ? savedClientObj.id : null;
   }
 
   const finalInvoiceData = {
     ...invoiceData,
     client_id: customerId,
+    order_status: invoiceData.order_status || 'BELUM_DRAFT',
+    deposit_date: invoiceData.deposit_date !== undefined ? invoiceData.deposit_date : (invoiceData.deposit > 0 ? (invoiceData.deposit_date || invoiceData.date) : null),
+    paid_date: invoiceData.paid_date !== undefined ? invoiceData.paid_date : (invoiceData.status === 'Paid' ? (invoiceData.paid_date || invoiceData.date) : null),
     updated_at: new Date().toISOString()
   };
 
@@ -414,7 +465,17 @@ export const saveInvoice = async (invoiceData) => {
         discount_per_pcs: finalInvoiceData.discount_per_pcs,
         discount_applies_baju: finalInvoiceData.discount_applies_baju !== undefined ? finalInvoiceData.discount_applies_baju : true,
         discount_applies_seluar: finalInvoiceData.discount_applies_seluar !== undefined ? finalInvoiceData.discount_applies_seluar : false,
-        order_status: finalInvoiceData.order_status || 'BELUM_DRAFT'
+        order_status: finalInvoiceData.order_status || 'BELUM_DRAFT',
+        has_delivery: finalInvoiceData.has_delivery !== undefined ? Boolean(finalInvoiceData.has_delivery) : false,
+        postage_courier: finalInvoiceData.postage_courier || '',
+        postage_tracking: finalInvoiceData.postage_tracking || '',
+        postage_status: finalInvoiceData.postage_status || '',
+        postage_date: finalInvoiceData.postage_date || '',
+        postage_cost: finalInvoiceData.postage_cost !== undefined && finalInvoiceData.postage_cost !== '' ? (parseFloat(finalInvoiceData.postage_cost) || 0) : '',
+        delivery_fee: finalInvoiceData.delivery_fee !== undefined && finalInvoiceData.delivery_fee !== '' ? (parseFloat(finalInvoiceData.delivery_fee) || 0) : '',
+        delivery_payment_status: finalInvoiceData.delivery_payment_status || '',
+        delivery_paid_date: finalInvoiceData.delivery_paid_date || '',
+        delivery_payment_method: finalInvoiceData.delivery_payment_method || ''
       };
       if (finalInvoiceData.due_date !== undefined) {
         metadata.due_date = finalInvoiceData.due_date;
@@ -435,6 +496,14 @@ export const saveInvoice = async (invoiceData) => {
         }
       });
 
+      // Safety check: Avoid foreign key violation if client_id was generated locally and not in Supabase
+      if (dbInvoiceData.client_id) {
+        const isClientInSupabase = clientsList.some(c => c.id === dbInvoiceData.client_id) || (savedClientObj && savedClientObj.id === dbInvoiceData.client_id);
+        if (!isClientInSupabase) {
+          dbInvoiceData.client_id = null;
+        }
+      }
+
       const { data, error } = await client
         .from('invoices')
         .upsert(dbInvoiceData)
@@ -444,7 +513,7 @@ export const saveInvoice = async (invoiceData) => {
       savedInvoiceObj = data;
     } catch (e) {
       console.error('Error saving invoice to Supabase:', e);
-      throw e;
+      // Fallback to LocalStorage if Supabase encounters an issue
     }
   }
 
@@ -566,6 +635,55 @@ export const updateManufacturingStatus = async (id, order_status, pengeluaranVal
   if (dueDateVal !== undefined) {
     updatedInvoice.due_date = dueDateVal;
   }
+
+  const saved = await saveInvoice(updatedInvoice);
+  return saved !== null;
+};
+
+export const updatePostageDetails = async (id, postageData) => {
+  const invoices = await getInvoices();
+  const invoice = invoices.find(inv => inv.id === id);
+  if (!invoice) return false;
+
+  const updatedInvoice = {
+    ...invoice,
+    has_delivery: true,
+    postage_courier: postageData.postage_courier !== undefined ? postageData.postage_courier : (invoice.postage_courier || ''),
+    postage_tracking: postageData.postage_tracking !== undefined ? postageData.postage_tracking : (invoice.postage_tracking || ''),
+    postage_status: postageData.postage_status !== undefined ? postageData.postage_status : (invoice.postage_status || ''),
+    postage_date: postageData.postage_date !== undefined ? postageData.postage_date : (invoice.postage_date || ''),
+    postage_cost: postageData.postage_cost !== undefined && postageData.postage_cost !== '' ? (parseFloat(postageData.postage_cost) || 0) : (invoice.postage_cost !== undefined ? invoice.postage_cost : ''),
+    delivery_fee: postageData.delivery_fee !== undefined && postageData.delivery_fee !== '' ? (parseFloat(postageData.delivery_fee) || 0) : (invoice.delivery_fee !== undefined ? invoice.delivery_fee : ''),
+    delivery_payment_status: postageData.delivery_payment_status !== undefined ? postageData.delivery_payment_status : (invoice.delivery_payment_status || ''),
+    delivery_paid_date: postageData.delivery_paid_date !== undefined ? postageData.delivery_paid_date : (invoice.delivery_paid_date || ''),
+    delivery_payment_method: postageData.delivery_payment_method !== undefined ? postageData.delivery_payment_method : (invoice.delivery_payment_method || ''),
+    client_address: postageData.client_address !== undefined ? postageData.client_address : (invoice.client_address || ''),
+    updated_at: new Date().toISOString()
+  };
+
+  const saved = await saveInvoice(updatedInvoice);
+  return saved !== null;
+};
+
+export const removeDeliveryFromInvoice = async (id) => {
+  const invoices = await getInvoices();
+  const invoice = invoices.find(inv => inv.id === id);
+  if (!invoice) return false;
+
+  const updatedInvoice = {
+    ...invoice,
+    has_delivery: false,
+    postage_courier: '',
+    postage_tracking: '',
+    postage_status: '',
+    postage_date: '',
+    postage_cost: '',
+    delivery_fee: '',
+    delivery_payment_status: '',
+    delivery_paid_date: '',
+    delivery_payment_method: '',
+    updated_at: new Date().toISOString()
+  };
 
   const saved = await saveInvoice(updatedInvoice);
   return saved !== null;
