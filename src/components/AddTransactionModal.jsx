@@ -2,15 +2,38 @@ import React, { useState } from 'react';
 import { X, Save } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
-export default function AddTransactionModal({ isOpen, onClose, onSave }) {
+export default function AddTransactionModal({ isOpen, onClose, onSave, initialType = 'OUT', editEntry = null }) {
   const { tr } = useLanguage();
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState('');
-  const [type, setType] = useState('OUT');
-  const [category, setCategory] = useState('Belanja Operasi');
+  const [type, setType] = useState(initialType);
+  const [category, setCategory] = useState(initialType === 'IN' ? 'Modal Tambahan' : 'Belanja Operasi');
   const [payee, setPayee] = useState('');
   const [amount, setAmount] = useState('');
+  const [bank, setBank] = useState('CIMB Bank');
   const [loading, setLoading] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      if (editEntry) {
+        setDate(editEntry.date || new Date().toISOString().split('T')[0]);
+        setDescription(editEntry.description || '');
+        setType(editEntry.type || 'OUT');
+        setCategory(editEntry.category || (editEntry.type === 'IN' ? 'Modal Tambahan' : 'Belanja Operasi'));
+        setPayee(editEntry.payee || '');
+        setAmount(editEntry.amount !== undefined ? String(editEntry.amount) : '');
+        setBank(editEntry.bank || 'CIMB Bank');
+      } else {
+        setDate(new Date().toISOString().split('T')[0]);
+        setDescription('');
+        setType(initialType);
+        setCategory(initialType === 'IN' ? 'Modal Tambahan' : 'Belanja Operasi');
+        setPayee('');
+        setAmount('');
+        setBank('CIMB Bank');
+      }
+    }
+  }, [isOpen, initialType, editEntry]);
 
   if (!isOpen) return null;
 
@@ -23,12 +46,14 @@ export default function AddTransactionModal({ isOpen, onClose, onSave }) {
 
     setLoading(true);
     onSave({
+      ...(editEntry || {}),
       date,
       description,
       type,
       category,
       payee: type === 'OUT' ? (payee || 'Tunai') : '',
-      amount: parseFloat(amount)
+      amount: parseFloat(amount),
+      bank
     });
 
     setDescription('');
@@ -50,7 +75,7 @@ export default function AddTransactionModal({ isOpen, onClose, onSave }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
         <div className="modal-header">
-          <h3>TAMBAH REKOD TRANSAKSI</h3>
+          <h3>{editEntry ? 'KEMASKINI TRANSAKSI' : 'TAMBAH REKOD TRANSAKSI'}</h3>
           <button className="modal-close" onClick={onClose}>
             <X size={20} />
           </button>
@@ -68,6 +93,15 @@ export default function AddTransactionModal({ isOpen, onClose, onSave }) {
               <select value={type} onChange={e => handleTypeChange(e.target.value)} className="form-control">
                 <option value="IN">Wang Masuk (IN)</option>
                 <option value="OUT">Wang Keluar (OUT)</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">{type === 'IN' ? 'Masuk ke Akaun Bank' : 'Keluar Dari Akaun Bank'}</label>
+              <select value={bank} onChange={e => setBank(e.target.value)} className="form-control">
+                <option value="CIMB Bank">CIMB Bank (Aiman Hambali - 7656497860)</option>
+                <option value="Bank Islam">Bank Islam (Hidayatul Rizman - 05021020449003)</option>
+                <option value="Tunai">Tunai / Lain-lain</option>
               </select>
             </div>
 

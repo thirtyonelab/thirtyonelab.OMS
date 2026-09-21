@@ -1,29 +1,31 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getInvoices, getLedger, saveLedgerEntry, deleteLedgerEntry, getSettings, saveSettings } from '../services/storage';
-import { Plus, Trash2, Printer, Wallet, Pencil, Building2, AlertTriangle, Edit3, X, Save, Search, User } from 'lucide-react';
-import AddTransactionModal from '../components/AddTransactionModal';
-import PaymentVoucherModal from '../components/PaymentVoucherModal';
-import { useLanguage } from '../context/LanguageContext';
+import { getInvoices, getLedger, getSettings } from '../services/storage';
+import { Building2, Wallet, ArrowDownLeft, ArrowUpRight, AlertTriangle, Edit3, X, Save, Search, Filter, Printer, CheckCircle2 } from 'lucide-react';
 import { money } from '../utils/mobileOrders';
+import { useLanguage } from '../context/LanguageContext';
 
-export default function Ledger() {
+export default function WalletPage() {
   const { tr } = useLanguage();
   const [invoices, setInvoices] = useState([]);
-  const [entries, setEntries] = useState([]);
-  const [settings, setSettings] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [ledger, setLedger] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedBank, setSelectedBank] = useState('cimb'); // 'cimb' | 'islam' | 'all'
-  const [flowFilter, setFlowFilter] = useState('all'); // 'all' | 'in' | 'out'
+  const [bankFlowFilter, setBankFlowFilter] = useState('all'); // 'all' | 'in' | 'out'
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Opening balance state
+  const [openingBalance, setOpeningBalance] = useState(() => {
+    try {
+      const stored = localStorage.getItem('31lab_bank_openings');
+      return stored ? JSON.parse(stored) : { cimb: 0, islam: 0 };
+    } catch {
+      return { cimb: 0, islam: 0 };
+    }
+  });
 
   const [isOpeningModalOpen, setIsOpeningModalOpen] = useState(false);
   const [editingBankKey, setEditingBankKey] = useState('cimb');
   const [openingInput, setOpeningInput] = useState('');
-
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingEntry, setEditingEntry] = useState(null);
-  const [selectedVoucherEntry, setSelectedVoucherEntry] = useState(null);
-  const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -32,27 +34,23 @@ export default function Ledger() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [invs, data, setts] = await Promise.all([getInvoices(), getLedger(), getSettings()]);
+      const [invs, ledg] = await Promise.all([getInvoices(), getLedger()]);
       setInvoices(invs);
-      setEntries(data.sort((a, b) => new Date(b.date) - new Date(a.date)));
-      setSettings(setts);
+      setLedger(ledg);
     } catch (e) {
-      console.error('Error loading data:', e);
+      console.error('Error loading wallet data:', e);
     } finally {
       setLoading(false);
     }
   };
 
-  const cimbOpening = Number(settings?.bank_opening_balance_cimb ?? settings?.bank_opening_balance ?? 2000);
-  const islamOpening = Number(settings?.bank_opening_balance_islam ?? 0);
-
   const bankDetails = {
-    cimb: { name: 'CIMB Bank', account: '7656497860 (Aiman Hambali)', opening: cimbOpening },
-    islam: { name: 'Bank Islam', account: '0502 1020 4490 03 (Hidayatul Rizman)', opening: islamOpening },
-    all: { name: 'Semua Akaun Bank', account: 'Ringkasan Aliran Tunai Gabungan', opening: cimbOpening + islamOpening }
+    cimb: { name: 'CIMB Bank', account: '7656497860 (Aiman Hambali)', opening: openingBalance.cimb || 0 },
+    islam: { name: 'Bank Islam', account: '0502 1020 4490 03 (Hidayatul Rizman)', opening: openingBalance.islam || 0 },
+    all: { name: 'Semua Akaun Bank', account: 'Ringkasan Aliran Tunai Gabungan', opening: (openingBalance.cimb || 0) + (openingBalance.islam || 0) }
   };
 
-  // 1. Duit Masuk (IN): Kutipan Invois Jualan mengikut payment_bank
+  // Build combined live statement feed
   const invoiceInEvents = useMemo(() => {
     return invoices
       .filter(inv => inv.status !== 'Void' && Number(inv.deposit || 0) > 0)
@@ -68,35 +66,13 @@ export default function Ledger() {
           amount: Number(inv.deposit || 0),
           source: 'invoice',
           bank: b,
-          rawInvoice: inv
+          invoice: inv
         };
       });
   }, [invoices]);
 
-  // 2. Duit Keluar (OUT): Kos Pengeluaran Kilang mengikut factory_payment_bank
-  const factoryOutEvents = useMemo(() => {
-    return invoices
-      .filter(inv => inv.status !== 'Void' && Number(inv.pengeluaran || 0) > 0)
-      .map(inv => {
-        const b = inv.factory_payment_bank || 'Bank Islam';
-        return {
-          id: `inv_mfg_${inv.id}`,
-          date: inv.date || '',
-          type: 'OUT',
-          title: `Kos Kilang: ${inv.job_name || `Invois #${inv.invoice_no}`}`,
-          category: 'Pengeluaran Kilang',
-          payee: `Kilang (Tempahan #${inv.invoice_no} - ${inv.client_name || ''})`,
-          amount: Number(inv.pengeluaran || 0),
-          source: 'manufacturing',
-          bank: b,
-          rawInvoice: inv
-        };
-      });
-  }, [invoices]);
-
-  // 3. Transaksi Tambahan Lejar (Meta Ads, Operasi, dll.)
   const ledgerEvents = useMemo(() => {
-    return entries.map(e => {
+    return ledger.map(e => {
       let b = e.bank;
       if (!b) {
         const text = `${e.description || ''} ${e.payee || ''} ${e.category || ''}`.toLowerCase();
@@ -111,7 +87,7 @@ export default function Ledger() {
         }
       }
       return {
-        id: e.id,
+        id: `led_${e.id}`,
         date: e.date || '',
         type: e.type || 'OUT',
         title: e.description || (e.type === 'IN' ? 'Duit Masuk' : 'Duit Keluar'),
@@ -120,15 +96,14 @@ export default function Ledger() {
         amount: Number(e.amount || 0),
         source: 'ledger',
         bank: b,
-        rawEntry: e
+        ledgerEntry: e
       };
     });
-  }, [entries]);
+  }, [ledger]);
 
-  // Combined real-time cashflow feed across Invoices, Factory Costs & Ledger
-  const allFeed = useMemo(() => {
-    return [...invoiceInEvents, ...factoryOutEvents, ...ledgerEvents].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
-  }, [invoiceInEvents, factoryOutEvents, ledgerEvents]);
+  const allBankFeed = useMemo(() => {
+    return [...invoiceInEvents, ...ledgerEvents].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  }, [invoiceInEvents, ledgerEvents]);
 
   const isBankMatch = (itemBank, target) => {
     if (target === 'all') return true;
@@ -138,15 +113,24 @@ export default function Ledger() {
   };
 
   const activeOpening = bankDetails[selectedBank]?.opening || 0;
-  const activeInflow = allFeed.filter(item => item.type === 'IN' && isBankMatch(item.bank, selectedBank)).reduce((sum, item) => sum + item.amount, 0);
-  const activeOutflow = allFeed.filter(item => item.type === 'OUT' && isBankMatch(item.bank, selectedBank)).reduce((sum, item) => sum + item.amount, 0);
+  const activeInflow = allBankFeed.filter(item => item.type === 'IN' && isBankMatch(item.bank, selectedBank)).reduce((sum, item) => sum + item.amount, 0);
+  const activeOutflow = allBankFeed.filter(item => item.type === 'OUT' && isBankMatch(item.bank, selectedBank)).reduce((sum, item) => sum + item.amount, 0);
   const currentBankBalance = activeOpening + activeInflow - activeOutflow;
 
-  const visibleFeed = allFeed
+  const currentMonthStr = new Date().toISOString().slice(0, 7);
+  const curMonthIn = allBankFeed
+    .filter(item => item.type === 'IN' && String(item.date || '').startsWith(currentMonthStr) && isBankMatch(item.bank, selectedBank))
+    .reduce((sum, item) => sum + item.amount, 0);
+  const curMonthOut = allBankFeed
+    .filter(item => item.type === 'OUT' && String(item.date || '').startsWith(currentMonthStr) && isBankMatch(item.bank, selectedBank))
+    .reduce((sum, item) => sum + item.amount, 0);
+  const curMonthNet = curMonthIn - curMonthOut;
+
+  const visibleBankFeed = allBankFeed
     .filter(item => isBankMatch(item.bank, selectedBank))
     .filter(item => {
-      if (flowFilter === 'in') return item.type === 'IN';
-      if (flowFilter === 'out') return item.type === 'OUT';
+      if (bankFlowFilter === 'in') return item.type === 'IN';
+      if (bankFlowFilter === 'out') return item.type === 'OUT';
       return true;
     })
     .filter(item => {
@@ -160,68 +144,32 @@ export default function Ledger() {
       );
     });
 
-  const handleSaveTransaction = async (newTransaction) => {
-    await saveLedgerEntry(newTransaction);
-    setIsAddModalOpen(false);
-    setEditingEntry(null);
-    await loadData();
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm('Padam rekod transaksi ini?')) {
-      await deleteLedgerEntry(id);
-      loadData();
-    }
-  };
-
-  const handleRowClick = (item) => {
-    if (item.source === 'ledger' && item.rawEntry) {
-      setEditingEntry(item.rawEntry);
-      setIsAddModalOpen(true);
-    }
-  };
-
   const openOpeningBalanceModal = (bankKey) => {
-    const key = bankKey === 'all' ? 'cimb' : bankKey;
-    setEditingBankKey(key);
-    const curVal = key === 'cimb' ? cimbOpening : islamOpening;
-    setOpeningInput(String(curVal));
+    setEditingBankKey(bankKey);
+    setOpeningInput(String(openingBalance[bankKey] || ''));
     setIsOpeningModalOpen(true);
   };
 
-  const saveOpeningBalance = async (e) => {
+  const saveOpeningBalance = (e) => {
     e.preventDefault();
     const val = parseFloat(openingInput) || 0;
-    const updated = {
-      ...(settings || {}),
-      ...(editingBankKey === 'cimb'
-        ? { bank_opening_balance_cimb: val, bank_opening_balance: val }
-        : { bank_opening_balance_islam: val })
-    };
-    await saveSettings(updated);
-    setSettings(updated);
+    const next = { ...openingBalance, [editingBankKey]: val };
+    setOpeningBalance(next);
+    localStorage.setItem('31lab_bank_openings', JSON.stringify(next));
     setIsOpeningModalOpen(false);
   };
 
   return (
     <div className="main-content">
-      {/* Desktop Header */}
-      <div className="desktop-only" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Header */}
+      <div className="dashboard-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <span className="section-tag">PENGURUSAN KEWANGAN</span>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: '800', marginTop: '0.5rem' }}>Buku Tunai & Bank</h1>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: '800', marginTop: '0.5rem' }}>Akaun Bank & Aliran Tunai</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
-            Pengurusan baki akaun bank, penyata aliran tunai, dan rekod perbelanjaan operasi.
+            Penyata aliran tunai semasa bank, kutipan jualan, dan bayaran perbelanjaan.
           </p>
         </div>
-
-        <button
-          onClick={() => { setEditingEntry(null); setIsAddModalOpen(true); }}
-          className="btn btn-primary"
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.65rem 1.25rem', borderRadius: '8px', fontWeight: 700 }}
-        >
-          <Plus size={16} /> Tambah Transaksi
-        </button>
       </div>
 
       {/* Bank Filter Tabs */}
@@ -277,13 +225,13 @@ export default function Ledger() {
         </div>
 
         <div style={{ marginTop: '0.75rem', marginBottom: '1rem' }}>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Baki Akaun Semasa</div>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Baki Bank Semasa</div>
           <div style={{ fontSize: '2.4rem', fontWeight: 900, color: currentBankBalance >= 0 ? 'var(--text-dark)' : 'var(--primary-red)', letterSpacing: '-0.5px' }}>
             {money(currentBankBalance)}
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
           <div>
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', fontWeight: 650 }}>Duit Masuk Terkumpul</span>
             <strong style={{ color: '#16a34a', fontSize: '15px', fontWeight: 800 }}>+{money(activeInflow)}</strong>
@@ -292,10 +240,16 @@ export default function Ledger() {
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', fontWeight: 650 }}>Duit Keluar Terkumpul</span>
             <strong style={{ color: 'var(--primary-red)', fontSize: '15px', fontWeight: 800 }}>−{money(activeOutflow)}</strong>
           </div>
+          <div>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', fontWeight: 650 }}>Aliran Bersih Bulan Ini</span>
+            <strong style={{ color: curMonthNet >= 0 ? '#16a34a' : 'var(--primary-red)', fontSize: '15px', fontWeight: 800 }}>
+              {curMonthNet >= 0 ? `+${money(curMonthNet)}` : `−${money(Math.abs(curMonthNet))}`}
+            </strong>
+          </div>
         </div>
       </div>
 
-      {/* Bank Islam Warning Notice */}
+      {/* Bank Islam Warning Banner */}
       {selectedBank === 'islam' && (
         <div
           style={{
@@ -311,7 +265,7 @@ export default function Ledger() {
         >
           <AlertTriangle size={18} color="#d97706" style={{ flexShrink: 0 }} />
           <div style={{ fontSize: '12px', color: '#92400e', lineHeight: 1.4 }}>
-            <strong>Nota Akaun Bank Islam:</strong> Baki di atas dikira berasaskan anggaran transaksi sejarah invois dalam sistem OMS. Sila buat penyelarasan (*reconcile*) mengikut penyata bank fizikal sebenar.
+            <strong>Nota Penting Akaun Bank Islam:</strong> Baki di atas dikira berasaskan anggaran transaksi sejarah invois dalam sistem OMS. Sila buat penyelarasan (*reconcile*) mengikut penyata bank fizikal sebenar.
           </div>
         </div>
       )}
@@ -320,15 +274,15 @@ export default function Ledger() {
       <div className="card" style={{ padding: '1rem 1.25rem', marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', borderRadius: '12px' }}>
         <div style={{ display: 'flex', gap: '6px' }}>
           {[
-            { key: 'all', label: `Semua (${visibleFeed.length})` },
+            { key: 'all', label: `Semua (${visibleBankFeed.length})` },
             { key: 'in', label: 'Duit Masuk (+IN)' },
             { key: 'out', label: 'Duit Keluar (−OUT)' }
           ].map(f => {
-            const isSelected = flowFilter === f.key;
+            const isSelected = bankFlowFilter === f.key;
             return (
               <button
                 key={f.key}
-                onClick={() => setFlowFilter(f.key)}
+                onClick={() => setBankFlowFilter(f.key)}
                 style={{
                   padding: '4px 10px',
                   borderRadius: '6px',
@@ -350,7 +304,7 @@ export default function Ledger() {
           <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             type="text"
-            placeholder="Cari transaksi atau nama..."
+            placeholder="Cari transaksi bank..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="form-control"
@@ -359,50 +313,43 @@ export default function Ledger() {
         </div>
       </div>
 
-      {/* BUKU REKOD TRANSAKSI (Strict 4-line hierarchy) */}
+      {/* Bank Statement Record Cards (4-line format) */}
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-          <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-            PENYATA TRANSAKSI & BUKU TUNAI ({visibleFeed.length})
-          </span>
+        <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '0.75rem' }}>
+          PENYATA TRANSAKSI BANK ({visibleBankFeed.length})
         </div>
 
         {loading ? (
-          <div className="loading-state" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid var(--border-color)' }}>{tr('loadingData')}</div>
-        ) : visibleFeed.length === 0 ? (
-          <div className="empty-state" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid var(--border-color)' }}>{tr('noData')}</div>
+          <div className="loading-state" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid var(--border-color)' }}>Memuatkan penyata bank...</div>
+        ) : visibleBankFeed.length === 0 ? (
+          <div className="empty-state" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid var(--border-color)' }}>Tiada rekod transaksi bagi akaun bank ini.</div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '0.85rem' }}>
-            {visibleFeed.map(item => {
+            {visibleBankFeed.map(item => {
               const isIN = item.type === 'IN';
-              const isLedger = item.source === 'ledger';
-
               return (
-                <div 
-                  key={item.id} 
-                  className="card" 
-                  onClick={() => handleRowClick(item)} 
-                  style={{ 
-                    cursor: isLedger ? 'pointer' : 'default',
+                <div
+                  key={item.id}
+                  className="card"
+                  style={{
+                    padding: '1.15rem',
                     borderRadius: '12px',
-                    border: '1px solid var(--border-color, #E6E2DC)',
-                    padding: '1.25rem',
+                    border: '1px solid var(--border-color)',
                     backgroundColor: '#ffffff',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '0.75rem',
-                    transition: 'border-color 0.15s ease'
+                    gap: '0.65rem'
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       {/* 1. Nota Tujuan Apa */}
-                      <div style={{ fontSize: '14.5px', fontWeight: 800, color: 'var(--text-dark, #18181b)', lineHeight: 1.35, overflowWrap: 'anywhere' }}>
+                      <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-dark)', lineHeight: 1.35, overflowWrap: 'anywhere' }}>
                         {item.title}
                       </div>
 
                       {/* 2. Tarikh · Bank Apa */}
-                      <div style={{ fontSize: '11.5px', color: 'var(--text-muted, #71717a)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <span>{item.date}</span>
                         <span>·</span>
                         <span style={{ fontWeight: 650, color: '#3f3f46' }}>{item.bank}</span>
@@ -411,15 +358,15 @@ export default function Ledger() {
                       {/* 3. Group Apa */}
                       {item.category && (
                         <div style={{ marginTop: '5px' }}>
-                          <span style={{ 
-                            fontSize: '10.5px', 
-                            padding: '1px 6px', 
-                            borderRadius: '4px', 
-                            background: '#f4f4f5', 
-                            color: '#3f3f46', 
+                          <span style={{
+                            fontSize: '10px',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            background: '#f4f4f5',
+                            color: '#3f3f46',
                             border: '1px solid #e4e4e7',
                             fontWeight: 700,
-                            display: 'inline-block' 
+                            display: 'inline-block'
                           }}>
                             {item.category}
                           </span>
@@ -428,90 +375,35 @@ export default function Ledger() {
 
                       {/* 4. Nama */}
                       {item.payee && (
-                        <div style={{ fontSize: '11.5px', color: '#52525b', fontWeight: 600, marginTop: '3px', overflowWrap: 'anywhere', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <User size={12} color="#71717a" style={{ flexShrink: 0 }} />
-                          <span>{item.payee}</span>
+                        <div style={{ fontSize: '11.5px', color: '#52525b', fontWeight: 600, marginTop: '3px', overflowWrap: 'anywhere' }}>
+                          👤 {item.payee}
                         </div>
                       )}
                     </div>
 
                     <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
-                      <span style={{ color: isIN ? '#16a34a' : 'var(--primary-red)', fontSize: '16px', fontWeight: 900 }}>
+                      <span style={{ color: isIN ? '#16a34a' : 'var(--primary-red)', fontSize: '15.5px', fontWeight: 900 }}>
                         {isIN ? '+' : '−'}{money(item.amount)}
                       </span>
-                      <span style={{ 
-                        fontSize: '10px', 
-                        fontWeight: 750, 
+                      <span style={{
+                        fontSize: '9.5px',
+                        fontWeight: 750,
                         color: isIN ? '#16a34a' : '#dc2626',
                         background: isIN ? '#f0fdf4' : '#fee2e2',
-                        padding: '1px 6px',
+                        padding: '1px 5px',
                         borderRadius: '4px',
                         marginTop: '4px'
                       }}>
-                        {isIN ? '● WANG MASUK' : '● WANG KELUAR'}
+                        {isIN ? '● MASUK' : '● KELUAR'}
                       </span>
                     </div>
                   </div>
-
-                  {isLedger && (
-                    <div style={{ display: 'flex', gap: '0.4rem', marginTop: 'auto', paddingTop: '0.35rem', borderTop: '1px dashed var(--border-color)' }} onClick={event => event.stopPropagation()}>
-                      <button 
-                        onClick={() => { setEditingEntry(item.rawEntry); setIsAddModalOpen(true); }}
-                        className="btn btn-secondary btn-sm"
-                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', borderRadius: '8px', fontWeight: 650, fontSize: '0.78rem' }}
-                      >
-                        <Pencil size={12} /> Edit
-                      </button>
-                      {!isIN && (
-                        <button 
-                          onClick={() => { setSelectedVoucherEntry(item.rawEntry); setIsVoucherModalOpen(true); }}
-                          className="btn btn-secondary btn-sm"
-                          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', borderRadius: '8px', fontWeight: 650, fontSize: '0.78rem' }}
-                          title="Print Payment Voucher"
-                        >
-                          <Printer size={12} /> Voucher
-                        </button>
-                      )}
-                      <button 
-                        onClick={() => handleDelete(item.id)} 
-                        className="btn btn-secondary btn-sm" 
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', color: 'var(--primary-red)', borderColor: '#FEE2E2', padding: '0 10px' }}
-                        title="Padam"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  )}
                 </div>
               );
             })}
           </div>
         )}
       </div>
-
-      {/* Add / Edit Transaction Modal */}
-      <AddTransactionModal 
-        isOpen={isAddModalOpen}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          setEditingEntry(null);
-        }}
-        onSave={handleSaveTransaction}
-        editEntry={editingEntry}
-      />
-
-      {/* Payment Voucher Modal */}
-      {isVoucherModalOpen && selectedVoucherEntry && (
-        <PaymentVoucherModal 
-          isOpen={isVoucherModalOpen}
-          onClose={() => {
-            setIsVoucherModalOpen(false);
-            setSelectedVoucherEntry(null);
-          }}
-          entry={selectedVoucherEntry}
-          settings={settings}
-        />
-      )}
 
       {/* Opening Balance Modal */}
       {isOpeningModalOpen && (

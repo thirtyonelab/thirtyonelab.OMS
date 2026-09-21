@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getInvoices, getLedger } from '../services/storage';
-import { Search, Plus, ArrowRight, Eye, RefreshCw, CreditCard, Activity, Clock, AlertCircle, CheckCircle2, Factory, Inbox, Pencil, Wrench } from 'lucide-react';
+import { Search, Plus, ArrowUpRight, Eye, RefreshCw, CreditCard, Clock, AlertTriangle, CheckCircle2, Factory, Truck, Wallet, FileText, ChevronRight, Calendar } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { formatTelegramStatus } from '../utils/telegramFormatter.js';
+import { money, balanceOf, quantityOf, productionStates, deliveryStates, needsAction } from '../utils/mobileOrders';
 
 const TelegramIcon = ({ size = 16, className = '' }) => (
   <svg 
@@ -21,8 +22,6 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
   const { tr } = useLanguage();
   const [invoices, setInvoices] = useState([]);
   const [ledger, setLedger] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
   const [loading, setLoading] = useState(false);
 
   const now = new Date();
@@ -68,7 +67,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
     }
   };
 
-  const [tgStatus, setTgStatus] = useState('idle'); // 'idle' | 'sending' | 'sent' | 'error: msg'
+  const [tgStatus, setTgStatus] = useState('idle');
 
   const handleSendTelegram = async () => {
     setTgStatus('sending');
@@ -99,53 +98,19 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
     }
   };
 
-  // --- METRIC CALCULATIONS ---
+  // Metrics
   const metrics = useMemo(() => {
     const currentMonth = parseInt(selectedMonth, 10);
     const currentYear = parseInt(selectedYear, 10);
 
-    // 1. Status Bayaran Counts
-    let countUnpaid = 0;
-    let countDeposit = 0;
-    let countPaidThisMonth = 0;
-
-    // 2. Status Operasi Counts
-    let countPending = 0;
-    let countProcessing = 0;
-    let countCompleted = 0;
-    let countMaintenance = 0;
-    let countBelumDraft = 0;
-    let countDraft = 0;
-
-    // 3. Financial Totals (current month)
     let collectedInvoicesMonth = 0;
     let kosKilangMonth = 0;
 
     invoices.forEach(inv => {
-      if (inv.status === 'Void') return; // Skip Void invoices completely
-
+      if (inv.status === 'Void') return;
       const invDate = new Date(inv.date);
       const isCurrentMonth = invDate.getMonth() === currentMonth && invDate.getFullYear() === currentYear;
 
-      // Status Bayaran
-      if (inv.status === 'Unpaid') {
-        countUnpaid++;
-      } else if (inv.status === 'Deposit') {
-        countDeposit++;
-      } else if (inv.status === 'Paid' && isCurrentMonth) {
-        countPaidThisMonth++;
-      }
-
-      // Status Operasi
-      const opStatus = inv.order_status || 'BELUM_DRAFT';
-      if (opStatus === 'PENDING') countPending++;
-      else if (opStatus === 'PROCESSING') countProcessing++;
-      else if (opStatus === 'COMPLETED') countCompleted++;
-      else if (opStatus === 'MAINTENANCE') countMaintenance++;
-      else if (opStatus === 'BELUM_DRAFT') countBelumDraft++;
-      else if (opStatus === 'DRAFT') countDraft++;
-
-      // Current month financials
       if (isCurrentMonth) {
         const paidAmount = inv.status === 'Paid' ? parseFloat(inv.grand_total || 0) : parseFloat(inv.deposit || 0);
         collectedInvoicesMonth += paidAmount;
@@ -153,7 +118,6 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
       }
     });
 
-    // Ledger totals for current month
     let ledgerINMonth = 0;
     let ledgerOUTMonth = 0;
 
@@ -174,444 +138,437 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
     const totalKosKeluar = kosKilangMonth + ledgerOUTMonth;
     const untungBersih = totalKutipanJualan - totalKosKeluar;
 
+    const lateCount = invoices.filter(inv => needsAction(inv, 'late')).length;
+    const draftCount = invoices.filter(inv => needsAction(inv, 'draft')).length;
+    const balanceCount = invoices.filter(inv => needsAction(inv, 'balance')).length;
+    const dispatchCount = invoices.filter(inv => needsAction(inv, 'dispatch')).length;
+    const actionableCount = lateCount + draftCount + balanceCount + dispatchCount;
+
     return {
-      countUnpaid,
-      countDeposit,
-      countPaidThisMonth,
-      countPending,
-      countProcessing,
-      countCompleted,
-      countMaintenance,
-      countBelumDraft,
-      countDraft,
       totalKutipanJualan,
       totalKosKeluar,
-      untungBersih
+      untungBersih,
+      collectedInvoicesMonth,
+      kosKilangMonth,
+      ledgerOUTMonth,
+      lateCount,
+      draftCount,
+      balanceCount,
+      dispatchCount,
+      actionableCount
     };
   }, [invoices, ledger, selectedMonth, selectedYear]);
 
-  // Search & Filter lists
-  const filteredInvoices = invoices.filter(inv => {
-    const matchesSearch = 
-      inv.client_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inv.invoice_no.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesFilter = statusFilter === 'All' || inv.status === statusFilter;
-    
-    return matchesSearch && matchesFilter;
-  });
+  const recentOrders = useMemo(() => {
+    return [...invoices].sort((a, b) => b.invoice_no.localeCompare(a.invoice_no)).slice(0, 6);
+  }, [invoices]);
 
-  // Display only recent 5 invoices in the table, sorted latest first
-  const recentInvoices = [...filteredInvoices].sort((a, b) => b.invoice_no.localeCompare(a.invoice_no)).slice(0, 5);
-
-  const getStatusBadgeClass = (status) => {
+  const getStatusDotClass = (status) => {
     switch (status) {
       case 'Paid': return 'badge-paid';
       case 'Deposit': return 'badge-deposit';
       case 'Unpaid': return 'badge-unpaid';
       case 'Void': return 'badge-void';
-      default: return '';
+      default: return 'badge-void';
+    }
+  };
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'Paid': return 'Lunas';
+      case 'Deposit': return 'Deposit';
+      case 'Unpaid': return 'Belum Bayar';
+      case 'Void': return 'Dibatalkan';
+      default: return status;
     }
   };
 
   return (
-    <div className="main-content">
-      {/* Page Header - Desktop View */}
-      <div className="dashboard-header desktop-only" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+    <div className="main-content" style={{ padding: '16px', maxWidth: '1440px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+      {/* Top Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', gap: '10px', flexWrap: 'wrap' }}>
         <div>
-          <span className="section-tag">{tr('dashboardTag')}</span>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: '800', marginTop: '0.5rem' }}>{tr('dashboardTitle')}</h1>
+          <span style={{ fontSize: '11.5px', fontWeight: 750, color: 'var(--primary-red, #c51b27)', letterSpacing: '0.6px', textTransform: 'uppercase' }}>
+            THIRTYONE LAB OMS
+          </span>
+          <h1 style={{ fontSize: '1.65rem', fontWeight: 900, letterSpacing: '-0.3px', margin: '2px 0 0', color: 'var(--text-dark)' }}>
+            Ringkasan Operasi<span style={{ color: 'var(--primary-red)' }}>.</span>
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '3px 0 0' }}>
+            {new Date().toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          {tgStatus !== 'idle' && (
-            <div className="desktop-only" style={{
-              padding: '0.4rem 0.75rem',
-              borderRadius: '6px',
-              fontSize: '0.85rem',
-              backgroundColor: tgStatus === 'sending' ? '#f59e0b' : tgStatus === 'sent' ? '#10b981' : '#ef4444',
-              color: '#fff',
-              whiteSpace: 'nowrap'
-            }}>
-              {tgStatus === 'sending' ? 'Sending...' : tgStatus === 'sent' ? 'Sent!' : tgStatus.startsWith('error:') ? tgStatus.replace('error: ', 'Gagal: ') : tgStatus}
-            </div>
-          )}
-          <button 
-            onClick={handleSendTelegram} 
-            disabled={tgStatus === 'sending'}
-            className="btn btn-secondary desktop-only" 
-            style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', backgroundColor: '#3b82f6', color: 'white', border: 'none', height: '40px', padding: '0 1rem' }}
-            title="Hantar Status ke Telegram"
-          >
-            <TelegramIcon size={16} /> Send Status
-          </button>
-          <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="form-control" style={{ width: '100px', height: '40px', padding: '0 0.5rem' }}>
-            {monthsList.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-          </select>
-          <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="form-control" style={{ width: '80px', height: '40px', padding: '0 0.5rem' }}>
-            {yearsList.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-          <button onClick={loadData} className="btn btn-secondary" style={{ height: '40px', padding: '0 1rem' }} title={tr('refresh')}>
-            <RefreshCw size={16} />
-          </button>
-          <button onClick={() => onOpenInvoiceModal(null)} className="btn btn-primary" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', height: '40px', padding: '0 1rem' }}>
-            <Plus size={16} /> {tr('newOrder')}
-          </button>
-        </div>
-      </div>
 
-      {/* Page Header - Mobile View */}
-      <div className="mobile-only" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <div>
-            <span className="section-tag" style={{ fontSize: '0.6rem', letterSpacing: '2px' }}>{tr('dashboardTag')}</span>
-            <h1 style={{ fontSize: '1.25rem', fontWeight: '800', marginTop: '0.25rem' }}>{tr('dashboardTitle')}</h1>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <button 
-              onClick={handleSendTelegram} 
-              disabled={tgStatus === 'sending'}
-              className="btn btn-secondary btn-sm" 
-              style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', backgroundColor: '#3b82f6', color: 'white', border: 'none' }}
-              title="Hantar Status ke Telegram"
+        {/* Toolbar Controls */}
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', width: '100%', maxWidth: '100%', marginTop: '6px' }}>
+          {/* Month & Year Select */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0 8px', height: '36px', flex: '1 1 auto', minWidth: 0 }}>
+            <Calendar size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              style={{ border: 'none', outline: 'none', background: 'transparent', padding: '0 1px', fontSize: '12px', fontWeight: 700, color: 'var(--text-dark)', cursor: 'pointer', minWidth: 0 }}
             >
-              <TelegramIcon size={14} /> Send
-            </button>
-            <button onClick={() => onOpenInvoiceModal(null)} className="btn btn-primary btn-sm" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <Plus size={14} /> New
-            </button>
+              {monthsList.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              style={{ border: 'none', outline: 'none', background: 'transparent', padding: '0 1px', fontSize: '12px', fontWeight: 700, color: 'var(--text-dark)', cursor: 'pointer', minWidth: 0 }}
+            >
+              {yearsList.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
           </div>
+
+          {/* Telegram Status Button */}
+          <button
+            onClick={handleSendTelegram}
+            disabled={tgStatus === 'sending'}
+            className="btn btn-secondary"
+            style={{ 
+              background: '#ffffff', 
+              border: '1px solid var(--border-color)', 
+              color: '#0088cc', 
+              borderRadius: '8px', 
+              padding: '0 10px', 
+              height: '36px',
+              fontSize: '12px', 
+              fontWeight: 650,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+            title="Hantar ringkasan ke Telegram"
+          >
+            <TelegramIcon size={13} /> {tgStatus === 'sending' ? 'Hantar...' : tgStatus === 'sent' ? 'Dihantar!' : 'Send Status'}
+          </button>
+
+          {/* New Order Button */}
+          <button 
+            onClick={() => onOpenInvoiceModal(null)} 
+            className="btn btn-primary" 
+            style={{ 
+              background: '#18181b', 
+              color: '#ffffff', 
+              border: '1px solid #18181b', 
+              borderRadius: '8px', 
+              padding: '0 11px', 
+              height: '36px',
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '4px', 
+              fontWeight: 700,
+              fontSize: '12px',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+          >
+            <Plus size={15} strokeWidth={2.5} /> Tempahan
+          </button>
         </div>
-        {tgStatus !== 'idle' && (
-          <div style={{
-            padding: '0.4rem 0.75rem',
-            borderRadius: '6px',
-            fontSize: '0.75rem',
-            marginBottom: '1rem',
-            backgroundColor: tgStatus === 'sending' ? '#f59e0b' : tgStatus === 'sent' ? '#10b981' : '#ef4444',
-            color: '#fff',
-            textAlign: 'center'
+      </div>
+
+      {/* Hero Net Profit Card */}
+      <div style={{
+        background: '#ffffff',
+        border: '1px solid var(--border-color)',
+        borderRadius: '14px',
+        padding: '16px 18px',
+        marginBottom: '14px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+      }}>
+        {/* Top Net Profit Header */}
+        <div style={{ paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
+          <span style={{ fontSize: '11px', fontWeight: 750, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            UNTUNG BERSIH (BULAN INI)
+          </span>
+          <div style={{ 
+            fontSize: '1.95rem', 
+            fontWeight: 900, 
+            color: metrics.untungBersih >= 0 ? '#166534' : 'var(--primary-red)', 
+            margin: '4px 0 2px',
+            lineHeight: 1.15
           }}>
-            {tgStatus === 'sending' ? 'Sending...' : tgStatus === 'sent' ? 'Sent!' : tgStatus.startsWith('error:') ? tgStatus.replace('error: ', 'Gagal: ') : tgStatus}
+            {money(metrics.untungBersih)}
           </div>
-        )}
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="form-control" style={{ flex: 1, fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}>
-            {monthsList.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-          </select>
-          <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="form-control" style={{ flex: 1, fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}>
-            {yearsList.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* Net Profit Hero Card (Top Priority Display) */}
-      <div className="card" style={{ padding: '2.5rem', textAlign: 'center', marginBottom: '1.5rem', border: '2px solid #15803D' }}>
-        <span className="summary-label" style={{ fontSize: '0.7rem', letterSpacing: '2px' }}>{tr('netProfit')}</span>
-        <h2 style={{ fontSize: '3rem', fontWeight: '900', margin: '0.75rem 0', color: '#15803D', lineHeight: '1' }}>
-          RM {metrics.untungBersih.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </h2>
-        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>{tr('netProfitDesc')}</span>
-      </div>
-
-      {/* Status Cards Grid (2 Columns Desktop) */}
-      <div className="dashboard-status-grid desktop-only" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-        
-        {/* STATUS BAYARAN */}
-        <div className="card" style={{ padding: '1.75rem' }}>
-          <h3 className="section-title" style={{ fontSize: '0.7rem', fontWeight: '800', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <CreditCard size={16} strokeWidth={2} /> {tr('statusBayaran')}
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <AlertCircle size={14} className="text-red" /> {tr('unpaid')}
-              </span>
-              <span style={{ fontWeight: '700' }}>{metrics.countUnpaid}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Clock size={14} style={{ color: '#D97706' }} /> {tr('deposit')}
-              </span>
-              <span style={{ fontWeight: '700' }}>{metrics.countDeposit}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0' }}>
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <CheckCircle2 size={14} style={{ color: '#15803D' }} /> {tr('paidMonth')}
-              </span>
-              <span style={{ fontWeight: '700' }}>{metrics.countPaidThisMonth}</span>
-            </div>
-          </div>
+          <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+            Kutipan Jualan − (Kos Kilang + Belanja Operasi)
+          </span>
         </div>
 
-        {/* STATUS OPERASI */}
-        <div className="card" style={{ padding: '1.75rem' }}>
-          <h3 className="section-title" style={{ fontSize: '0.7rem', fontWeight: '800', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Activity size={16} strokeWidth={2} /> {tr('statusOperasi')}
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Inbox size={14} style={{ color: 'var(--text-muted)' }} /> {tr('belumDraft')}
-              </span>
-              <span style={{ fontWeight: '700' }}>{metrics.countBelumDraft}</span>
+        {/* 3 Sub-Metrics Rows / Stacks */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            background: '#f8f7f4', 
+            padding: '10px 14px', 
+            borderRadius: '10px', 
+            border: '1px solid #e6e2d8' 
+          }}>
+            <div>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-dark)', display: 'block' }}>Kutipan Jualan Masuk</span>
+              <small style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Invois & Lejar Masuk</small>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Pencil size={14} style={{ color: 'var(--text-muted)' }} /> {tr('draft')}
-              </span>
-              <span style={{ fontWeight: '700' }}>{metrics.countDraft}</span>
+            <strong style={{ fontSize: '15px', fontWeight: 850, color: '#166534' }}>
+              +{money(metrics.totalKutipanJualan)}
+            </strong>
+          </div>
+
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            background: '#f8f7f4', 
+            padding: '10px 14px', 
+            borderRadius: '10px', 
+            border: '1px solid #e6e2d8' 
+          }}>
+            <div>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-dark)', display: 'block' }}>Kos Pengeluaran Kilang</span>
+              <small style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Bahan & Upah Kilang</small>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Clock size={14} style={{ color: '#D97706' }} /> {tr('pending')}
-              </span>
-              <span style={{ fontWeight: '700' }}>{metrics.countPending}</span>
+            <strong style={{ fontSize: '15px', fontWeight: 850, color: 'var(--primary-red)' }}>
+              −{money(metrics.kosKilangMonth)}
+            </strong>
+          </div>
+
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            background: '#f8f7f4', 
+            padding: '10px 14px', 
+            borderRadius: '10px', 
+            border: '1px solid #e6e2d8' 
+          }}>
+            <div>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-dark)', display: 'block' }}>Belanja Buku Tunai (Lejar)</span>
+              <small style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Operasi & Iklan</small>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Factory size={14} style={{ color: '#2563EB' }} /> {tr('processing')}
-              </span>
-              <span style={{ fontWeight: '700' }}>{metrics.countProcessing}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <CheckCircle2 size={14} style={{ color: '#15803D' }} /> {tr('completed')}
-              </span>
-              <span style={{ fontWeight: '700' }}>{metrics.countCompleted}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0' }}>
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Wrench size={14} style={{ color: 'var(--primary-red)' }} /> {tr('maintenance')}
-              </span>
-              <span style={{ fontWeight: '700' }}>{metrics.countMaintenance}</span>
-            </div>
+            <strong style={{ fontSize: '15px', fontWeight: 850, color: '#92400e' }}>
+              −{money(metrics.ledgerOUTMonth)}
+            </strong>
           </div>
         </div>
       </div>
 
-      {/* Status Cards Mobile View (Stacked) */}
-      <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-        {/* STATUS BAYARAN Mobile */}
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <CreditCard size={14} strokeWidth={2} /> {tr('statusBayaran')}
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <AlertCircle size={13} className="text-red" /> {tr('unpaid')}
-              </span>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countUnpaid}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Clock size={13} style={{ color: '#D97706' }} /> {tr('deposit')}
-              </span>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countDeposit}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <CheckCircle2 size={13} style={{ color: '#15803D' }} /> {tr('paidMonth')}
-              </span>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countPaidThisMonth}</span>
-            </div>
+      {/* Focus & Attention Action Staging Section */}
+      <div style={{
+        background: '#ffffff',
+        border: '1px solid var(--border-color)',
+        borderRadius: '14px',
+        padding: '16px 18px',
+        marginBottom: '16px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '6px' }}>
+          <div>
+            <span style={{ fontSize: '11px', fontWeight: 750, color: 'var(--primary-red)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+              FOKUS TINDAKAN OPERASI
+            </span>
+            <h3 style={{ fontSize: '14.5px', fontWeight: 800, margin: '2px 0 0', color: 'var(--text-dark)' }}>
+              {metrics.actionableCount} Tempahan Perlukan Tindakan Segera
+            </h3>
           </div>
-        </div>
-
-        {/* STATUS OPERASI Mobile */}
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Activity size={14} strokeWidth={2} /> {tr('statusOperasi')}
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Inbox size={14} style={{ color: 'var(--text-muted)' }} /> {tr('belumDraft')}
-              </span>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countBelumDraft}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Pencil size={14} style={{ color: 'var(--text-muted)' }} /> {tr('draft')}
-              </span>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countDraft}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Clock size={14} style={{ color: '#D97706' }} /> {tr('pending')}
-              </span>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countPending}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Factory size={14} style={{ color: '#2563EB' }} /> {tr('processing')}
-              </span>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countProcessing}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <CheckCircle2 size={14} style={{ color: '#15803D' }} /> {tr('completed')}
-              </span>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countCompleted}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Wrench size={14} style={{ color: 'var(--primary-red)' }} /> {tr('maintenance')}
-              </span>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{metrics.countMaintenance}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Financial Totals Grid (2 Columns Desktop) */}
-      <div className="dashboard-totals-grid desktop-only" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
-        
-        {/* TOTAL KUTIPAN JUALAN */}
-        <div className="card" style={{ padding: '1.75rem', borderLeft: '4px solid #15803D' }}>
-          <span className="summary-label" style={{ fontSize: '0.65rem', letterSpacing: '1.5px' }}>{tr('totalKutipan')}</span>
-          <h3 style={{ fontSize: '1.75rem', fontWeight: '900', margin: '0.5rem 0', color: '#15803D', lineHeight: '1' }}>
-            RM {metrics.totalKutipanJualan.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </h3>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{tr('thisMonth')}</span>
-        </div>
-
-        {/* TOTAL KOS (KELUAR) */}
-        <div className="card" style={{ padding: '1.75rem', borderLeft: '4px solid var(--primary-red)' }}>
-          <span className="summary-label" style={{ fontSize: '0.65rem', letterSpacing: '1.5px' }}>{tr('totalKos')}</span>
-          <h3 style={{ fontSize: '1.75rem', fontWeight: '900', margin: '0.5rem 0', color: 'var(--primary-red)', lineHeight: '1' }}>
-            RM {metrics.totalKosKeluar.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </h3>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{tr('kilangLejar')}</span>
-        </div>
-      </div>
-
-      {/* Financial Totals Mobile View (Stacked) */}
-      <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-        {/* TOTAL KUTIPAN JUALAN Mobile */}
-        <div className="card" style={{ padding: '1.25rem', borderLeft: '4px solid #15803D' }}>
-          <span className="summary-label" style={{ fontSize: '0.6rem', letterSpacing: '1px' }}>{tr('totalKutipan')}</span>
-          <h3 style={{ fontSize: '1.5rem', fontWeight: '900', margin: '0.25rem 0', color: '#15803D', lineHeight: '1' }}>
-            RM {metrics.totalKutipanJualan.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </h3>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{tr('thisMonth')}</span>
-        </div>
-
-        {/* TOTAL KOS (KELUAR) Mobile */}
-        <div className="card" style={{ padding: '1.25rem', borderLeft: '4px solid var(--primary-red)' }}>
-          <span className="summary-label" style={{ fontSize: '0.6rem', letterSpacing: '1px' }}>{tr('totalKos')}</span>
-          <h3 style={{ fontSize: '1.5rem', fontWeight: '900', margin: '0.25rem 0', color: 'var(--primary-red)', lineHeight: '1' }}>
-            RM {metrics.totalKosKeluar.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </h3>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{tr('kilangLejar')}</span>
-        </div>
-      </div>
-
-      {/* Recent Invoices Table */}
-      <div className="card" style={{ padding: 0 }}>
-        <div className="table-header-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem 1.5rem', alignItems: 'center', borderBottom: '1px solid var(--border-color)' }}>
-          <h3 className="table-title" style={{ fontSize: '0.85rem' }}>{tr('recentInvoices')}</h3>
-          <button onClick={() => setActiveTab('invoices')} className="btn-text view-all-btn" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary-red)' }}>
-            {tr('viewAll')} <ArrowRight size={14} />
+          <button 
+            onClick={() => setActiveTab('invoices')}
+            style={{ background: 'none', border: 0, color: 'var(--text-muted)', fontSize: '12px', fontWeight: 650, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+          >
+            Buka Semua <ArrowUpRight size={13} />
           </button>
         </div>
 
-        {loading && invoices.length === 0 ? (
-          <div className="loading-state" style={{ padding: '2rem', textAlign: 'center' }}>{tr('loadingInvoice')}</div>
-        ) : recentInvoices.length === 0 ? (
-          <div className="empty-state" style={{ padding: '2rem', textAlign: 'center' }}>{tr('noInvoice')}</div>
-        ) : (
-          <>
-            <div className="table-container desktop-only">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: 'center' }}>{tr('invNo')}</th>
-                    <th style={{ textAlign: 'left' }}>{tr('clientName')}</th>
-                    <th style={{ textAlign: 'center' }}>{tr('date')}</th>
-                    <th style={{ textAlign: 'right', paddingRight: '1.5rem' }}>{tr('amount')}</th>
-                    <th style={{ textAlign: 'center' }}>{tr('statusBayaran')}</th>
-                    <th style={{ textAlign: 'center' }}>{tr('statusOperasi')}</th>
-                    <th style={{ textAlign: 'center' }}>{tr('actions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentInvoices.map((inv) => (
-                    <tr key={inv.id}>
-                      <td style={{ textAlign: 'center' }} className="font-bold">{inv.invoice_no}</td>
-                      <td className="font-bold">{inv.client_name}</td>
-                      <td style={{ textAlign: 'center' }}>{new Date(inv.date).toLocaleDateString('en-GB')}</td>
-                      <td style={{ textAlign: 'right', paddingRight: '1.5rem' }}>
-                        {parseFloat(inv.grand_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <span className={`badge ${getStatusBadgeClass(inv.status)}`}>
-                          {inv.status}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <span className={`badge ${inv.order_status === 'COMPLETED' ? 'badge-paid' : inv.order_status === 'PROCESSING' ? 'badge-deposit' : 'badge-unpaid'}`}>
-                          {(inv.order_status || 'BELUM_DRAFT').replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <button 
-                          onClick={() => onOpenInvoiceDetail(inv)} 
-                          className="btn btn-secondary btn-sm"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-                        >
-                          <Eye size={12} /> {tr('view')}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mobile-cards-list mobile-only">
-              {recentInvoices.map((inv) => (
-                <div key={inv.id} className="mobile-card" onClick={() => onOpenInvoiceDetail(inv)} style={{ cursor: 'pointer' }}>
-                  <div className="mobile-card-row">
-                    <span className="mobile-card-title">{inv.invoice_no}</span>
-                    <span className={`badge ${getStatusBadgeClass(inv.status)}`}>
-                      {inv.status}
+        {/* Operational Staging Vertical List */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {[
+            { 
+              id: 'late', 
+              stage: '01', 
+              label: 'Lewat Tarikh Siap', 
+              desc: 'Perlu perhatian & semakan kilang segera', 
+              count: metrics.lateCount, 
+              Icon: Clock, 
+              isAlert: metrics.lateCount > 0, 
+              target: 'manufacturing' 
+            },
+            { 
+              id: 'draft', 
+              stage: '02', 
+              label: 'Belum Masuk Kilang', 
+              desc: 'Draft siap, menunggu giliran production', 
+              count: metrics.draftCount, 
+              Icon: Factory, 
+              isAlert: false, 
+              target: 'manufacturing' 
+            },
+            { 
+              id: 'balance', 
+              stage: '03', 
+              label: 'Siap & Ada Baki', 
+              desc: 'Sedia diserah dan kutip baki bayaran', 
+              count: metrics.balanceCount, 
+              Icon: Wallet, 
+              isAlert: false, 
+              target: 'invoices' 
+            },
+            { 
+              id: 'dispatch', 
+              stage: '04', 
+              label: 'Sedia Dipos / Kurier', 
+              desc: 'Sedia untuk cetak waybill & pos', 
+              count: metrics.dispatchCount, 
+              Icon: Truck, 
+              isAlert: false, 
+              target: 'postage' 
+            },
+          ].map(action => (
+            <button
+              key={action.id}
+              onClick={() => setActiveTab(action.target)}
+              style={{
+                background: action.isAlert ? '#fff5f5' : '#fcfbf9',
+                border: action.isAlert ? '1px solid #fecaca' : '1px solid #e6e2d8',
+                borderRadius: '10px',
+                padding: '11px 14px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                <span style={{ 
+                  width: '32px', 
+                  height: '32px', 
+                  borderRadius: '8px', 
+                  background: action.isAlert ? '#fee2e2' : '#ffffff', 
+                  color: action.isAlert ? 'var(--primary-red)' : 'var(--text-dark)',
+                  border: action.isAlert ? '1px solid #fca5a5' : '1px solid #e6e2d8',
+                  display: 'grid',
+                  placeItems: 'center',
+                  flexShrink: 0
+                }}>
+                  <action.Icon size={15} />
+                </span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', background: '#eceae3', padding: '1px 5px', borderRadius: '4px' }}>
+                      {action.stage}
                     </span>
+                    <strong style={{ fontSize: '13px', fontWeight: 750, color: action.isAlert ? 'var(--primary-red)' : 'var(--text-dark)' }}>
+                      {action.label}
+                    </strong>
                   </div>
-                  <div className="mobile-card-row" style={{ marginTop: '0.5rem' }}>
-                    <span style={{ fontSize: '0.85rem' }}>{inv.client_name}</span>
-                    <span className="font-bold">
-                      RM {parseFloat(inv.grand_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  <div className="mobile-card-row" style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--text-muted)', gap: '0.5rem' }}>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tr('statusOperasi')}: {(inv.order_status || 'BELUM_DRAFT').replace('_', ' ')}</span>
-                    <span style={{ flexShrink: 0 }}>{new Date(inv.date).toLocaleDateString('en-GB')}</span>
-                  </div>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0', whiteSpace: 'normal' }}>
+                    {action.desc}
+                  </p>
                 </div>
-              ))}
-            </div>
-          </>
-        )}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                <span style={{
+                  padding: '3px 9px',
+                  borderRadius: '12px',
+                  background: action.isAlert ? '#fee2e2' : action.count > 0 ? '#18181b' : '#eceae3',
+                  color: action.isAlert ? 'var(--primary-red)' : action.count > 0 ? '#ffffff' : '#71717a',
+                  fontSize: '13px',
+                  fontWeight: 850
+                }}>
+                  {action.count}
+                </span>
+                <ChevronRight size={14} color="var(--text-muted)" />
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
 
-      <style>{`
-        .summary-label {
-          font-family: var(--font-primary);
-          font-size: 0.65rem;
-          font-weight: 800;
-          letter-spacing: 1px;
-          text-transform: uppercase;
-          color: var(--text-muted);
-        }
+      {/* Recent Orders Cards Section */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '6px' }}>
+          <div>
+            <h3 style={{ fontSize: '15px', fontWeight: 800, margin: 0, color: 'var(--text-dark)' }}>
+              Tempahan Terkini
+            </h3>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '1px 0 0' }}>
+              Pilihan tempahan aktif yang baru dimasukkan ke dalam sistem.
+            </p>
+          </div>
+          <button 
+            onClick={() => setActiveTab('invoices')}
+            className="btn btn-secondary"
+            style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 650, borderRadius: '8px', height: '32px' }}
+          >
+            Lihat Semua <ChevronRight size={13} />
+          </button>
+        </div>
 
-        @media (max-width: 768px) {
-          .dashboard-counts-row,
-          .dashboard-totals-row {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '10px' }}>
+          {recentOrders.map(inv => {
+            const isLate = needsAction(inv, 'late');
+            const remaining = balanceOf(inv);
+            const totalQty = quantityOf(inv);
+            const prodState = productionStates[inv.order_status] || inv.order_status || 'Belum Draft';
+
+            return (
+              <div
+                key={inv.id}
+                style={{
+                  background: '#ffffff',
+                  border: isLate ? '1.5px solid #f87171' : '1px solid var(--border-color)',
+                  borderRadius: '12px',
+                  padding: '14px 16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                  cursor: 'pointer'
+                }}
+                onClick={() => onOpenInvoiceDetail(inv)}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11.5px', fontWeight: 800, color: 'var(--text-muted)' }}>#{inv.invoice_no}</span>
+                  <span className={`badge ${getStatusDotClass(inv.status)}`} style={{ fontSize: '11px', padding: '2px 8px' }}>
+                    {getStatusLabel(inv.status)}
+                  </span>
+                </div>
+
+                <div>
+                  <h4 style={{ fontSize: '14px', fontWeight: 800, margin: 0, color: 'var(--text-dark)' }}>
+                    {inv.client_name}
+                  </h4>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '1px 0 0' }}>
+                    {inv.job_name || 'Tempahan Pelanggan'}
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8f7f4', padding: '8px 12px', borderRadius: '8px', border: '1px solid #e6e2d8' }}>
+                  <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-muted)' }}>
+                    {totalQty > 0 ? `${totalQty} pcs` : 'Item Khas'}
+                  </span>
+                  <strong style={{ fontSize: '14px', fontWeight: 850, color: 'var(--text-dark)' }}>
+                    {money(inv.grand_total)}
+                  </strong>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px', color: 'var(--text-muted)', paddingTop: '2px' }}>
+                  <span>{prodState}</span>
+                  <span style={{ fontWeight: 700, color: remaining > 0 ? 'var(--primary-red)' : '#166534' }}>
+                    {remaining > 0 ? `Baki: ${money(remaining)}` : 'Lunas'}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

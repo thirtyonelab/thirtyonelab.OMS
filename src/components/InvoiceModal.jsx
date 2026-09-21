@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getClients, saveInvoice, getNextInvoiceNo, getInvoices } from '../services/storage';
-import { X, Plus, Trash2, Upload, AlertTriangle, Save, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Plus, Trash2, Upload, AlertTriangle, Save, Check, ChevronDown, ChevronUp, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { SIZES, ADULT_SIZES, KID_SIZES, getBasePrice, getSizeCost } from '../data/sizePricing';
 import { generateUUID } from '../utils/uuid.js';
@@ -289,7 +289,7 @@ const createEmptySeluarItem = () => ({
   }, {})
 });
 
-export default function InvoiceModal({ invoice, prefilledClient, onClose, onSaveSuccess }) {
+export default function InvoiceModal({ invoice, prefilledClient, onClose, onSaveSuccess, mobile = false }) {
   const { tr } = useLanguage();
   const [clients, setClients] = useState([]);
   const [clientSearch, setClientSearch] = useState('');
@@ -316,9 +316,16 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   const [customBasePrice, setCustomBasePrice] = useState('');
   const [repeatOrderPrices, setRepeatOrderPrices] = useState(null);
   const [pengeluaran, setPengeluaran] = useState('');
+  const [factoryPaymentBank, setFactoryPaymentBank] = useState('Bank Islam');
   const [status, setStatus] = useState('Unpaid');
   const [deposit, setDeposit] = useState(0);
   
+  const [formStep, setFormStep] = useState(0);
+  const goStep = step => {
+    setFormStep(step);
+    document.querySelector('.invoice-editor .modal-body')?.scrollTo(0, 0);
+  };
+
   // UI States
   const [loading, setLoading] = useState(false);
   const [collapsedSizes, setCollapsedSizes] = useState({});
@@ -330,7 +337,9 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
   const [collapsedDesigns, setCollapsedDesigns] = useState({});
 
   const addBannerItem = () => {
-    setBannerItems(prev => [...prev, createEmptyBannerItem()]);
+    const item = createEmptyBannerItem();
+    setBannerItems(prev => [...prev, item]);
+    setCollapsedDesigns(prev => ({ ...prev, [item.id]: false }));
   };
 
   const removeBannerItem = (id) => {
@@ -469,6 +478,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       setNotes(invoice.notes || '');
       setClientAddress(invoice.client_address || '');
       setPengeluaran(invoice.pengeluaran !== undefined ? invoice.pengeluaran.toString() : '');
+      setFactoryPaymentBank(invoice.factory_payment_bank || 'Bank Islam');
       setStatus(invoice.status || 'Unpaid');
       setDeposit(invoice.deposit !== undefined ? invoice.deposit : 0);
 
@@ -484,6 +494,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       setIsRepeatOrder(false);
       setCustomBasePrice('');
       setPengeluaran('');
+      setFactoryPaymentBank('Bank Islam');
       setStatus('Unpaid');
       setDeposit(0);
       const nextNo = await getNextInvoiceNo();
@@ -635,11 +646,15 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
 
   // Items Management
   const addItem = () => {
-    setItems(prev => [...prev, createEmptyItem()]);
+    const item = createEmptyItem();
+    setItems(prev => [...prev, item]);
+    setCollapsedDesigns(prev => ({ ...prev, [item.id]: false }));
   };
 
   const addSeluarItem = () => {
-    setSeluarItems(prev => [...prev, createEmptySeluarItem()]);
+    const item = createEmptySeluarItem();
+    setSeluarItems(prev => [...prev, item]);
+    setCollapsedDesigns(prev => ({ ...prev, [item.id]: false }));
   };
 
   const deleteSeluarItem = (index) => {
@@ -962,6 +977,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
 
     // Construct database invoice object
     const finalInvoice = {
+      ...invoice,
       id: invoice?.id || undefined,
       invoice_no: invoiceNo,
       client_id: clientId || null,
@@ -982,7 +998,9 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       balance: grandTotal - (parseFloat(deposit) || 0),
       status: status,
       notes: notes.trim(),
-      pengeluaran: parseFloat(pengeluaran) || 0
+      pengeluaran: parseFloat(pengeluaran) || 0,
+      payment_bank: invoice?.payment_bank || 'CIMB Bank',
+      factory_payment_bank: factoryPaymentBank || 'Bank Islam'
     };
 
     try {
@@ -998,15 +1016,39 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '1000px' }}>
+      <div className="modal-content invoice-editor" data-step={mobile ? formStep : undefined} role="dialog" aria-modal="true" aria-label="Tempahan" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '1000px' }}>
         <div className="modal-header">
-          <h3>{invoice ? 'KEMASKINI INVOICE' : 'CIPTA INVOICE BAHARU'}</h3>
-          <button className="modal-close" onClick={onClose}>
+          <h3>{invoice?.id ? 'KEMASKINI INVOICE' : 'CIPTA INVOICE BAHARU'}</h3>
+          <button className="modal-close" aria-label="Tutup borang" onClick={onClose}>
             <X size={20} />
           </button>
         </div>
 
-        <form>
+        {mobile && (
+          <nav className="mobile-form-steps" aria-label="Langkah borang invois">
+            {[
+              { label: '1. Pelanggan' },
+              { label: '2. Barang' },
+              { label: '3. Semak' }
+            ].map((step, i) => {
+              const isActive = formStep === i;
+              const isDone = formStep > i;
+              return (
+                <button
+                  key={step.label}
+                  type="button"
+                  className={`mobile-step-item ${isActive ? 'is-active' : ''} ${isDone ? 'is-done' : ''}`}
+                  aria-current={isActive ? 'step' : undefined}
+                  onClick={() => goStep(i)}
+                >
+                  <span className="step-badge">{isDone ? '✓' : i + 1}</span>
+                  <span className="step-text">{step.label.replace(/^\d+\.\s*/, '')}</span>
+                </button>
+              );
+            })}
+          </nav>
+        )}
+        <form onSubmit={e => e.preventDefault()}>
           <div className="modal-body form-modal-body">
             
             {/* Row 1: Basic Details & Payment Info */}
@@ -1287,7 +1329,9 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
 
                         {collapsedDesigns[item.id] === false && (
                           <>
-                            {/* Specification Dropdowns */}
+                            {/* Native disclosure keeps optional specifications out of the mobile quantity flow. */}
+                            <details className="m-product-specs" open={!mobile}>
+                              <summary>Spesifikasi & design <small>{item.print_method || 'Sublimation'} · {item.material} · {item.cutting} · {item.neck}</small></summary>
                             <div className="grid-4 specs-grid">
                           <div className="form-group">
                             <label className="form-label">Nama/Code Design (Optional)</label>
@@ -1516,6 +1560,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                             </div>
                           </div>
                         </div>
+
+                        </details>
 
                         {/* Breakdown Matrix */}
                         {item.print_method === 'DTF' && item.baju_source === 'customer' && (
@@ -2600,18 +2646,6 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
                       style={{ resize: 'none' }}
                     ></textarea>
                   </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Kos Pengeluaran Kilang (RM) (Optional)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={pengeluaran}
-                      onChange={(e) => setPengeluaran(e.target.value)}
-                      placeholder="0.00"
-                      className="form-control"
-                    />
-                  </div>
                 </div>
 
                 <div className="summary-card-calc">
@@ -2622,21 +2656,21 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
 
                   <div className="calc-row discount-row" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
                     <div 
-                      onClick={() => setIsDiscountCollapsed(!isDiscountCollapsed)} 
-                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '0.5rem 0', width: '100%' }}
+                      onClick={() => !mobile && setIsDiscountCollapsed(!isDiscountCollapsed)} 
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: mobile ? 'default' : 'pointer', padding: '0.5rem 0', width: '100%' }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <span style={{ fontWeight: 600, color: 'var(--text-dark)' }}>Diskaun</span>
-                        {isDiscountCollapsed && totalDiscount > 0 && (
+                        {!mobile && isDiscountCollapsed && totalDiscount > 0 && (
                            <span className="text-red font-bold" style={{ fontSize: '0.85rem' }}>
                              - RM {totalDiscount.toFixed(2)}{discountType === 'percent' ? ` (${discountValue}%)` : ''}
                            </span>
                         )}
                       </div>
-                      {isDiscountCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                      {!mobile && (isDiscountCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />)}
                     </div>
 
-                    {!isDiscountCollapsed && (
+                    {(mobile || !isDiscountCollapsed) && (
                       <div className="discount-input-row" style={{ padding: '0.5rem 0 0.5rem 0', borderTop: '1px dashed var(--border-color)', marginTop: '0.25rem', width: '100%' }}>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                           <div style={{ display: 'flex', gap: '1rem' }}>
@@ -2732,11 +2766,33 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
           </div>
 
           <div className="modal-footer">
-            <button type="button" onClick={onClose} className="btn btn-secondary" disabled={loading}>
-              {tr('cancel')}
+            <button type="button" onClick={() => mobile && formStep > 0 ? goStep(formStep - 1) : onClose()} className="btn btn-secondary" disabled={loading}>
+              {mobile && formStep > 0 ? (
+                <>
+                  <ArrowLeft size={16} /> Kembali
+                </>
+              ) : tr('cancel')}
             </button>
-            <button type="button" onClick={handleSave} className="btn btn-primary" disabled={loading}>
-              <Save size={16} /> {loading ? 'Menyimpan...' : tr('saveInvoice')}
+            <button type="button" onClick={e => {
+                if (mobile && formStep < 2) {
+                  if (formStep === 0 && (!clientName.trim() || !clientPhone.trim())) {
+                    document.querySelector('.invoice-editor input:invalid')?.reportValidity();
+                    return;
+                  }
+                  goStep(formStep + 1);
+                } else { handleSave(e); }
+              }} className="btn btn-primary" disabled={loading}>
+              {loading ? (
+                'Menyimpan...'
+              ) : mobile && formStep < 2 ? (
+                <>
+                  Seterusnya <ArrowRight size={16} />
+                </>
+              ) : (
+                <>
+                  <Save size={16} /> {tr('saveInvoice')}
+                </>
+              )}
             </button>
           </div>
         </form>

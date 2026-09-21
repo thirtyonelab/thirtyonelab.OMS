@@ -7,6 +7,7 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
   const { tr } = useLanguage();
   const [deposit, setDeposit] = useState(invoice.deposit || 0);
   const [status, setStatus] = useState(invoice.status || 'Unpaid');
+  const [paymentBank, setPaymentBank] = useState(invoice.payment_bank || 'CIMB Bank');
   const [loading, setLoading] = useState(false);
 
   const getToday = () => new Date().toISOString().split('T')[0];
@@ -62,7 +63,7 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
     e.preventDefault();
     setLoading(true);
     try {
-      const success = await updateInvoicePayment(invoice.id, deposit, status, invoice.pengeluaran, depositDate, paidDate);
+      const success = await updateInvoicePayment(invoice.id, deposit, status, invoice.pengeluaran, depositDate, paidDate, paymentBank);
       if (success) {
         onSaveSuccess();
       } else {
@@ -172,6 +173,92 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
                   className="form-control"
                   required
                 />
+              </div>
+            )}
+
+            {/* Bank Selection */}
+            {status !== 'Void' && deposit > 0 && (
+              <div className="form-group bank-selection-field" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--text-dark)' }}>PILIH AKAUN BANK (DUIT MASUK)</span>
+                  <span style={{ fontSize: '10.5px', color: '#16a34a', fontWeight: 650 }}>● Auto-rekod ke Bank</span>
+                </label>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {[
+                    {
+                      id: 'CIMB Bank',
+                      name: 'CIMB Bank',
+                      holder: 'Aiman Hambali',
+                      account: '7656497860',
+                      badge: 'Akaun Operasi'
+                    },
+                    {
+                      id: 'Bank Islam',
+                      name: 'Bank Islam',
+                      holder: 'Hidayatul Rizman',
+                      account: '0502 1020 4490 03',
+                      badge: 'Akaun Simpanan'
+                    },
+                    {
+                      id: 'Tunai',
+                      name: 'Tunai / Cash',
+                      holder: 'Kaunter Tunai Fizikal',
+                      account: 'Penerimaan Tunai',
+                      badge: 'Tunai'
+                    }
+                  ].map(b => {
+                    const isSelected = paymentBank === b.id;
+                    return (
+                      <div
+                        key={b.id}
+                        onClick={() => setPaymentBank(b.id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          border: isSelected ? '1.5px solid var(--primary-red, #C51B27)' : '1px solid var(--border-color, #e4e4e7)',
+                          backgroundColor: isSelected ? 'rgba(197, 27, 39, 0.04)' : '#ffffff',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <input
+                            type="radio"
+                            name="payment_bank_selection"
+                            checked={isSelected}
+                            onChange={() => setPaymentBank(b.id)}
+                            style={{ accentColor: 'var(--primary-red, #C51B27)', margin: 0, cursor: 'pointer' }}
+                          />
+                          <div>
+                            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-dark, #18181b)' }}>
+                              {b.name} <span style={{ fontWeight: 500, fontSize: '11.5px', color: 'var(--text-muted)' }}>({b.holder})</span>
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                              {b.account}
+                            </div>
+                          </div>
+                        </div>
+                        <span style={{
+                          fontSize: '10px',
+                          padding: '2px 7px',
+                          borderRadius: '4px',
+                          backgroundColor: isSelected ? '#fee2e2' : '#f4f4f5',
+                          color: isSelected ? '#991b1b' : '#71717a',
+                          fontWeight: 650
+                        }}>
+                          {b.badge}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                  * Jumlah RM {deposit.toFixed(2)} ini akan terus ditambah ke baki akaun bank yang dipilih dalam <b>Buku Tunai & Bank</b>.
+                </p>
               </div>
             )}
 

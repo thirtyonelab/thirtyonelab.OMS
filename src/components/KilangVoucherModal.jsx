@@ -178,8 +178,13 @@ export default function KilangVoucherModal({ isOpen, onClose, invoice, settings 
               <hr style={{ border: 'none', borderTop: '2px solid #111', margin: '1rem 0' }} />
 
               {/* Pay To Row */}
-              <div style={{ fontSize: '0.85rem', marginBottom: '1.5rem', borderBottom: '1px solid #111', paddingBottom: '0.5rem' }}>
-                <strong>PAY TO:</strong> <span style={{ marginLeft: '0.5rem', fontSize: '0.9rem' }}>{payTo}</span>
+              <div style={{ fontSize: '0.85rem', marginBottom: '1.5rem', borderBottom: '1px solid #111', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <strong>PAY TO:</strong> <span style={{ marginLeft: '0.5rem', fontSize: '0.9rem' }}>{payTo}</span>
+                </div>
+                <div style={{ fontSize: '0.8rem', fontWeight: 650, color: '#333' }}>
+                  <strong>BAYAR DARI:</strong> <span style={{ marginLeft: '0.4rem', color: 'var(--primary-red)' }}>{invoice.factory_payment_bank || 'Bank Islam'}</span>
+                </div>
               </div>
 
               {/* Details Title */}

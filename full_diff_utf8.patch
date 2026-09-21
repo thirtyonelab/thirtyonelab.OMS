@@ -1,0 +1,407 @@
+﻿diff --git a/src/components/InvoiceDetailModal.jsx b/src/components/InvoiceDetailModal.jsx
+index 84cdab1..f6149f8 100644
+--- a/src/components/InvoiceDetailModal.jsx
++++ b/src/components/InvoiceDetailModal.jsx
+@@ -148,17 +148,19 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
+ 
+   const calculateItemQty = (item) => {
+     if (item.item_type === 'banner') return parseInt(item.qty || 0, 10);
++    if (item.item_type === 'seluar') {
++      return Object.values(item.sizes).reduce((sum, s) => sum + parseInt(s.pants || 0, 10), 0);
++    }
+     return SIZES.reduce((itemTotal, size) => {
+       let sQty = parseInt(item.sizes[size]?.short || 0, 10);
+       if (item.cutting === 'Muslimah') sQty = 0;
+       const lQty = parseInt(item.sizes[size]?.long || 0, 10);
+-      const pQty = parseInt(item.sizes[size]?.pants || 0, 10);
+-      return itemTotal + sQty + lQty + pQty;
++      return itemTotal + sQty + lQty;
+     }, 0);
+   };
+ 
+   const calculateItemSubtotal = (item, basePrice) => {
+-    if (item.item_type === 'banner') return parseFloat(item.subtotal || 0);
++    if (item.item_type === 'banner' || item.item_type === 'seluar') return parseFloat(item.subtotal || 0);
+     let itemBaseTotal = 0;
+     let itemAddonTotal = 0;
+ 
+@@ -617,6 +619,73 @@ export default function InvoiceDetailModal({ invoice, onClose }) {
+                         </tr>
+                       );
+                     }
++                    if (item.item_type === 'seluar') {
++                      const qty = calculateItemQty(item);
++                      const subtotal = parseFloat(item.subtotal || 0);
++                      const isRepeatOrder = item.is_repeat_order || false;
++                      
++                      let adultPantsPrice = 25;
++                      let kidPantsPrice = 23;
++                      if (isRepeatOrder && item.custom_adult_pants_price && !isNaN(parseFloat(item.custom_adult_pants_price))) {
++                        adultPantsPrice = parseFloat(item.custom_adult_pants_price);
++                      }
++                      if (isRepeatOrder && item.custom_kid_pants_price && !isNaN(parseFloat(item.custom_kid_pants_price))) {
++                        kidPantsPrice = parseFloat(item.custom_kid_pants_price);
++                      }
++                      
++                      const ADULT_PANTS = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
++                      const KID_SIZES = ['22', '24', '26', '28', '30', '32', '34'];
++                      const pAdultQty = ADULT_PANTS.reduce((sum, s) => sum + parseInt(item.sizes[s]?.pants || 0, 10), 0);
++                      const pKidQty = KID_SIZES.reduce((sum, s) => sum + parseInt(item.sizes[s]?.pants || 0, 10), 0);
++                      
++                      let rows = [];
++                      if (pAdultQty > 0) {
++                        rows.push({
++                          prefix: 'Adult Pants:',
++                          value: formatSubsetBreakdown(item.sizes, 'pants', ADULT_PANTS),
++                          qty: pAdultQty,
++                          price: adultPantsPrice,
++                          total: pAdultQty * adultPantsPrice
++                        });
++                      }
++                      if (pKidQty > 0) {
++                        rows.push({
++                          prefix: 'Kid Pants:',
++                          value: formatSubsetBreakdown(item.sizes, 'pants', KID_SIZES),
++                          qty: pKidQty,
++                          price: kidPantsPrice,
++                          total: pKidQty * kidPantsPrice
++                        });
++                      }
++                      
++                      return (
++                        <tr key={item.id} className="print-avoid-break">
++                          <td style={{ verticalAlign: 'top', textAlign: 'center' }}>{idx + 1}.</td>
++                          <td style={{ textAlign: 'left', verticalAlign: 'top' }}>
++                            <div className="print-item-desc">
++                              <span className="print-design-name" style={{ fontWeight: '800' }}>Seluar: {item.design_name || 'Unnamed'}</span>
++                              <div className="print-sub-rows" style={{ fontSize: '0.8rem', marginTop: '4px' }}>
++                                {rows.map((r, i) => (
++                                  <div key={i} style={{ display: 'flex', gap: '0.5rem', marginBottom: '2px' }}>
++                                    <span style={{ fontWeight: '600' }}>{r.prefix}</span>
++                                    <span>{r.value}</span>
++                                  </div>
++                                ))}
++                              </div>
++                            </div>
++                          </td>
++                          <td style={{ textAlign: 'center', verticalAlign: 'top' }}>{qty}</td>
++                          <td style={{ textAlign: 'center', verticalAlign: 'top' }}>
++                            {rows.map((r, i) => <div key={i}>{r.price.toFixed(2)}</div>)}
++                          </td>
++                          <td style={{ textAlign: 'center', verticalAlign: 'top' }} className="font-bold">
++                            {rows.map((r, i) => <div key={i}>{r.total.toFixed(2)}</div>)}
++                            {rows.length > 1 && <div style={{ borderTop: '1px solid #000', marginTop: '2px' }}>{subtotal.toFixed(2)}</div>}
++                          </td>
++                        </tr>
++                      );
++                    }
++
+ 
+                     const subRows = getItemSubRows(item, basePrice);
+                     const firstRow = subRows[0];
+diff --git a/src/components/InvoiceModal.jsx b/src/components/InvoiceModal.jsx
+index b265436..9274fde 100644
+--- a/src/components/InvoiceModal.jsx
++++ b/src/components/InvoiceModal.jsx
+@@ -276,6 +276,19 @@ const createEmptyBannerItem = () => ({
+   qty: ''
+ });
+ 
++const createEmptySeluarItem = () => ({
++  id: generateUUID(),
++  item_type: 'seluar',
++  design_name: '',
++  design_image: '',
++  custom_adult_pants_price: '',
++  custom_kid_pants_price: '',
++  sizes: SIZES.reduce((acc, size) => {
++    acc[size] = { pants: 0 };
++    return acc;
++  }, {})
++});
++
+ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSaveSuccess }) {
+   const { tr } = useLanguage();
+   const [clients, setClients] = useState([]);
+@@ -292,6 +305,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
+   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+   const [items, setItems] = useState([createEmptyItem()]);
+   const [bannerItems, setBannerItems] = useState([]);
++  const [seluarItems, setSeluarItems] = useState([]);
+   const [activeTab, setActiveTab] = useState('baju');
+   const [discountType, setDiscountType] = useState('per_pcs');
+   const [discountValue, setDiscountValue] = useState(0);
+@@ -408,11 +422,43 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
+       setDate(invoice.date);
+       
+       const allItems = JSON.parse(JSON.stringify(invoice.items || []));
+-      const bajuList = allItems.filter(item => item.item_type !== 'banner');
++      
+       const bannerList = allItems.filter(item => item.item_type === 'banner');
++      let seluarList = allItems.filter(item => item.item_type === 'seluar');
++      const bajuList = allItems.filter(item => item.item_type !== 'banner' && item.item_type !== 'seluar');
++      
++      // Migrate old pants inside Baju to Seluar items
++      bajuList.forEach(baju => {
++        let hasPants = false;
++        const seluar = createEmptySeluarItem();
++        seluar.design_name = baju.design_name;
++        seluar.design_image = baju.design_image;
++        if (baju.repeat_order_prices) {
++            seluar.custom_adult_pants_price = baju.repeat_order_prices.adult_pants || '';
++            seluar.custom_kid_pants_price = baju.repeat_order_prices.kid_pants || '';
++        }
++        
++        Object.keys(baju.sizes || {}).forEach(size => {
++          if (baju.sizes[size] && baju.sizes[size].pants > 0) {
++            hasPants = true;
++            seluar.sizes[size].pants = baju.sizes[size].pants;
++            baju.sizes[size].pants = 0; // Remove from baju
++          }
++        });
++        
++        if (hasPants) {
++            seluarList.push(seluar);
++        }
++      });
++
+       setItems(bajuList.length > 0 ? bajuList : [createEmptyItem()]);
++      setSeluarItems(seluarList);
+       setBannerItems(bannerList);
+-      setActiveTab(bajuList.length === 0 && bannerList.length > 0 ? 'banner' : 'baju');
++      if (bajuList.length === 0 && seluarList.length > 0 && bannerList.length === 0) {
++        setActiveTab('baju');
++      } else {
++        setActiveTab(bajuList.length === 0 && bannerList.length > 0 ? 'banner' : 'baju');
++      }
+ 
+       setDiscountType(invoice.discount_type || 'per_pcs');
+       setDiscountValue(invoice.discount_value !== undefined ? invoice.discount_value : (invoice.discount_per_pcs || 0));
+@@ -766,7 +812,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
+   // 3. Overall Invoice Summaries
+   const grossSubtotal = [
+     ...items,
+-    ...bannerItems
++    ...bannerItems,
++    ...seluarItems
+   ].reduce((sum, item) => sum + calculateItemSummary(item).subtotal, 0);
+ 
+   const totalDiscount = discountType === 'percent' 
+@@ -802,7 +849,8 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
+     // Check if there's at least 1 item (shirt, pants or banner)
+     const totalAllQty = [
+       ...items,
+-      ...bannerItems
++      ...bannerItems,
++      ...seluarItems
+     ].reduce((sum, item) => sum + calculateItemSummary(item).qty, 0);
+     if (totalAllQty === 0) {
+       alert('Sila masukkan kuantiti baju / seluar / banner (sekurang-kurangnya 1 helai/pcs).');
+@@ -841,6 +889,16 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
+       };
+     });
+ 
++    const processedSeluarItems = seluarItems.map(item => {
++      const summary = calculateItemSummary(item);
++      return {
++        ...item,
++        item_type: 'seluar',
++        subtotal: summary.subtotal,
++        qty: summary.qty
++      };
++    });
++
+     // Construct database invoice object
+     const finalInvoice = {
+       id: invoice?.id || undefined,
+@@ -851,7 +909,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
+       client_address: clientAddress.trim(),
+       job_name: jobName.trim(),
+       date: date,
+-      items: [...processedBajuItems, ...processedBannerItems],
++      items: [...processedBajuItems, ...processedBannerItems, ...processedSeluarItems],
+       subtotal: grossSubtotal,
+       discount_type: discountType,
+       discount_value: parseFloat(discountValue) || 0,
+@@ -2084,6 +2142,181 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
+                     );
+                   })
+                   )}
++                  
++                  {seluarItems.map((item, index) => {
++                    const summary = calculateItemSummary(item);
++                    return (
++                      <div key={item.id} className="design-item-card card">
++                        {/* Header */}
++                        <div 
++                          className="design-item-header"
++                          onClick={() => toggleDesignCollapse(item.id)}
++                          style={{ cursor: 'pointer', userSelect: 'none', borderBottom: collapsedDesigns[item.id] !== false ? 'none' : '1px dashed var(--border-color)', marginBottom: collapsedDesigns[item.id] !== false ? '0' : '1.25rem', paddingBottom: collapsedDesigns[item.id] !== false ? '0' : '0.5rem' }}
++                        >
++                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', flex: 1 }}>
++                            <h5 style={{ margin: 0, whiteSpace: 'nowrap' }}>SELUAR #{index + 1} {item.design_name ? `- ${item.design_name}` : ''}</h5>
++                            {collapsedDesigns[item.id] !== false ? <ChevronDown size={16} style={{ flexShrink: 0 }} /> : <ChevronUp size={16} style={{ flexShrink: 0 }} />}
++                            {collapsedDesigns[item.id] !== false && (
++                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: '0.25rem' }}>
++                                <span style={{ fontWeight: '600', color: 'var(--text-dark)' }}>{summary.qty} pcs</span> | RM {summary.subtotal.toFixed(2)}
++                              </div>
++                            )}
++                          </div>
++                          
++                          <button
++                            type="button"
++                            onClick={(e) => { e.stopPropagation(); deleteSeluarItem(index); }}
++                            className="btn-text text-red"
++                            style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}
++                          >
++                            <Trash2 size={14} /> Delete
++                          </button>
++                        </div>
++
++                        {collapsedDesigns[item.id] === false && (
++                          <>
++                            <div className="grid-2 specs-grid">
++                              <div className="form-group">
++                                <label className="form-label">Nama/Code Design (Optional)</label>
++                                <input
++                                  type="text"
++                                  value={item.design_name}
++                                  onChange={(e) => updateSeluarItem(index, 'design_name', e.target.value)}
++                                  placeholder="Cth: Pants Pro"
++                                  className="form-control"
++                                />
++                              </div>
++                            </div>
++                            
++                            {/* Desktop Adult Pants Section */}
++                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden', marginTop: '1rem' }}>
++                              <div 
++                                onClick={() => toggleAdultPantsCollapse(item.id)}
++                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedAdultPants[item.id] !== false) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
++                              >
++                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Adult Pants Sizes (RM25/pcs)</span>
++                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
++                                  {collapsedAdultPants[item.id] !== false && summary.adultPantsQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.adultPantsQty} pcs</span>}
++                                  {collapsedAdultPants[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
++                                </div>
++                              </div>
++                              
++                              {collapsedAdultPants[item.id] === false && (
++                                <div style={{ overflowX: 'auto' }}>
++                                  {isRepeatOrder && (
++                                    <div style={{ padding: '0.8rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--white)' }}>
++                                      <label style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '0.3rem' }}>Harga Custom (RM/pcs)</label>
++                                      <input
++                                        type="number"
++                                        step="0.01"
++                                        min="0"
++                                        value={item.custom_adult_pants_price || ''}
++                                        onChange={(e) => updateSeluarItem(index, 'custom_adult_pants_price', e.target.value)}
++                                        placeholder="Cth: 20"
++                                        className="form-control"
++                                        style={{ maxWidth: '150px' }}
++                                      />
++                                    </div>
++                                  )}
++                                  <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
++                                    <thead>
++                                      <tr>
++                                        {ADULT_PANTS_SIZES.map(s => (
++                                          <th key={s} style={{ borderRight: '1px solid var(--border-color)' }}>{s}</th>
++                                        ))}
++                                      </tr>
++                                    </thead>
++                                    <tbody>
++                                      <tr>
++                                        {ADULT_PANTS_SIZES.map(s => (
++                                          <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
++                                            <input
++                                              type="number"
++                                              min="0"
++                                              value={displayQty(item.sizes[s]?.pants)}
++                                              onChange={(e) => updateSeluarSize(index, s, 'pants', e.target.value)}
++                                              placeholder="0"
++                                              className="qty-input"
++                                            />
++                                          </td>
++                                        ))}
++                                      </tr>
++                                    </tbody>
++                                  </table>
++                                </div>
++                              )}
++                            </div>
++                            
++                            {/* Desktop Kid Pants Section */}
++                            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden', marginTop: '1rem' }}>
++                              <div 
++                                onClick={() => toggleKidPantsCollapse(item.id)}
++                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: 'var(--off-white-bg)', borderBottom: (collapsedKidPants[item.id] !== false) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', userSelect: 'none' }}
++                              >
++                                <span style={{ fontWeight: '700', fontSize: '0.8rem', color: 'var(--text-dark)' }}>Kid Pants Sizes (RM23/pcs)</span>
++                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
++                                  {collapsedKidPants[item.id] !== false && summary.kidPantsQty > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary-red)' }}>{summary.kidPantsQty} pcs</span>}
++                                  {collapsedKidPants[item.id] !== false ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
++                                </div>
++                              </div>
++                              
++                              {collapsedKidPants[item.id] === false && (
++                                <div style={{ overflowX: 'auto' }}>
++                                  {isRepeatOrder && (
++                                    <div style={{ padding: '0.8rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--white)' }}>
++                                      <label style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-dark)', display: 'block', marginBottom: '0.3rem' }}>Harga Custom (RM/pcs)</label>
++                                      <input
++                                        type="number"
++                                        step="0.01"
++                                        min="0"
++                                        value={item.custom_kid_pants_price || ''}
++                                        onChange={(e) => updateSeluarItem(index, 'custom_kid_pants_price', e.target.value)}
++                                        placeholder="Cth: 18"
++                                        className="form-control"
++                                        style={{ maxWidth: '150px' }}
++                                      />
++                                    </div>
++                                  )}
++                                  <table className="breakdown-table" style={{ border: 'none', minWidth: '700px' }}>
++                                    <thead>
++                                      <tr>
++                                        {KID_SIZES.map(s => (
++                                          <th key={s} style={{ borderRight: '1px solid var(--border-color)' }}>{s}</th>
++                                        ))}
++                                      </tr>
++                                    </thead>
++                                    <tbody>
++                                      <tr>
++                                        {KID_SIZES.map(s => (
++                                          <td key={s} style={{ borderRight: '1px solid var(--border-color)', borderBottom: 'none' }}>
++                                            <input
++                                              type="number"
++                                              min="0"
++                                              value={displayQty(item.sizes[s]?.pants)}
++                                              onChange={(e) => updateSeluarSize(index, s, 'pants', e.target.value)}
++                                              placeholder="0"
++                                              className="qty-input"
++                                            />
++                                          </td>
++                                        ))}
++                                      </tr>
++                                    </tbody>
++                                  </table>
++                                </div>
++                              )}
++                            </div>
++
++                            <div className="item-summary-card" style={{ marginTop: '1rem' }}>
++                              <div className="calc-pill subtotal-pill">
++                                <span className="calc-pill-label">Subtotal Seluar</span>
++                                <strong className="calc-pill-value">RM {summary.subtotal.toFixed(2)}</strong>
++                              </div>
++                            </div>
++                          </>
++                        )}
++                      </div>
++                    );
++                  })}
+                 </>
+               ) : (
+                 <>

@@ -87,8 +87,8 @@ export default function Clients({ onCreateInvoiceForClient }) {
 
   return (
     <div className="main-content">
-      {/* Header & Title */}
-      <div className="clients-header" style={{ marginBottom: '1.5rem' }}>
+      {/* Header & Title (Desktop Only) */}
+      <div className="clients-header desktop-only" style={{ marginBottom: '1.5rem' }}>
         <div>
           <span className="section-tag">{tr('clientsTag')}</span>
           <h1 style={{ fontSize: '1.75rem', fontWeight: '800', marginTop: '0.5rem' }}>{tr('clientsTitle')}</h1>
@@ -98,124 +98,186 @@ export default function Clients({ onCreateInvoiceForClient }) {
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="search-filters-bar card" style={{ padding: '1.25rem' }}>
-        <div className="search-box">
-          <Search size={18} className="search-icon" />
+      {/* Search Bar (Aligned with Invoices, Kilang & Pos) */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '8px', 
+        marginBottom: '16px', 
+        alignItems: 'center' 
+      }}>
+        <div style={{ flex: '1', position: 'relative' }}>
+          <Search size={15} style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: '#a1a1aa' }} />
           <input
             type="text"
             placeholder={tr('searchClientPlaceholder') || "Cari nama atau nombor telefon pelanggan..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="form-control search-input"
+            className="form-control"
+            style={{ 
+              width: '100%',
+              padding: '7px 32px 7px 34px',
+              borderRadius: '8px',
+              border: '1px solid #e4e4e7',
+              fontSize: '12.5px',
+              backgroundColor: '#ffffff',
+              height: '36px',
+              boxSizing: 'border-box'
+            }}
           />
+          {searchQuery && (
+            <button 
+              onClick={() => setSearchQuery('')} 
+              style={{ 
+                position: 'absolute', 
+                right: '8px', 
+                top: '50%', 
+                transform: 'translateY(-50%)', 
+                background: 'none', 
+                border: 0, 
+                cursor: 'pointer', 
+                color: '#a1a1aa', 
+                padding: '2px 4px', 
+                display: 'flex', 
+                alignItems: 'center' 
+              }}
+              title="Padam carian"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Clients List Table */}
-      <div className="card" style={{ padding: 0 }}>
-        {loading ? (
-          <div className="loading-state">{tr('loadingClient')}</div>
-        ) : filteredClients.length === 0 ? (
-          <div className="empty-state">{tr('noClient')}</div>
-        ) : (
-          <>
-            <div className="table-container desktop-only">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>{tr('clientName')}</th>
-                    <th style={{ textAlign: 'center' }}>{tr('phone')}</th>
-                    <th style={{ textAlign: 'center' }}>{tr('totalOrder')}</th>
-                    <th style={{ textAlign: 'center' }}>{tr('totalSpent')}</th>
-                    <th style={{ textAlign: 'center' }}>{tr('actions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredClients.map((client) => (
-                    <tr key={client.id}>
-                      <td>
-                        <div className="client-name-cell">
-                          <User size={16} className="text-light" />
-                          <span className="font-bold">{client.name}</span>
-                        </div>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>{client.phone}</td>
-                      <td style={{ textAlign: 'center' }}>{client.orders_count || 0} kali</td>
-                      <td style={{ textAlign: 'center' }} className="font-bold">
-                        RM {parseFloat(client.total_spent || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <div className="actions-cell">
-                          <button
-                            onClick={() => setSelectedClient(client)}
-                            className="btn btn-secondary btn-sm"
-                            title="Lihat Sejarah"
-                          >
-                            <Eye size={12} /> {tr('view')}
-                          </button>
-                          <button
-                            onClick={() => handleEditClick(client)}
-                            className="btn btn-secondary btn-sm"
-                            title="Kemaskini Butiran"
-                          >
-                            <Edit2 size={12} /> {tr('edit')}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClick(client)}
-                            className="btn btn-secondary btn-sm"
-                            title="Padam Pelanggan"
-                            style={{ borderColor: '#FEE2E2', color: '#B91C1C' }}
-                          >
-                            <Trash2 size={12} /> {tr('delete')}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+      {/* Clients List Bento Grid */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+          <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+            DIREKTORI PELANGGAN ({filteredClients.length})
+          </span>
+        </div>
 
-            <div className="mobile-cards-list mobile-only">
-              {filteredClients.map((client) => (
-                <div key={client.id} className="mobile-card">
-                  <div className="mobile-card-row">
-                    <span className="mobile-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <User size={14} className="text-red" />
-                      {client.name}
-                    </span>
-                    <span className="mobile-card-detail">{client.phone}</span>
+        {loading ? (
+          <div className="loading-state" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid var(--border-color)' }}>{tr('loadingClient')}</div>
+        ) : filteredClients.length === 0 ? (
+          <div className="empty-state" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid var(--border-color)' }}>{tr('noClient')}</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
+            {filteredClients.map((client) => {
+              const cleanPhone = (client.phone || '').replace(/\D/g, '');
+              const phoneWithCode = cleanPhone.startsWith('60') ? cleanPhone : (cleanPhone.startsWith('0') ? `6${cleanPhone}` : cleanPhone);
+
+              return (
+                <div 
+                  key={client.id} 
+                  className="card"
+                  style={{ 
+                    padding: '1.25rem',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: '#ffffff',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.85rem',
+                    transition: 'border-color 0.15s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ 
+                        width: '38px', 
+                        height: '38px', 
+                        borderRadius: '50%', 
+                        backgroundColor: '#18181b', 
+                        color: '#ffffff', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        fontSize: '0.9rem',
+                        fontWeight: 800,
+                        flexShrink: 0
+                      }}>
+                        {(client.name || 'P').charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-dark)', lineHeight: 1.2 }}>
+                          {client.name}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          {client.phone || '-'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {phoneWithCode && (
+                      <a 
+                        href={`https://wa.me/${phoneWithCode}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          gap: '4px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: '#16a34a',
+                          backgroundColor: '#f0fdf4',
+                          border: '1px solid #bbf7d0',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          textDecoration: 'none'
+                        }}
+                      >
+                        WhatsApp
+                      </a>
+                    )}
                   </div>
-                  <div className="mobile-card-row">
-                    <span className="mobile-card-detail">Tempahan: <span className="mobile-card-bold">{client.orders_count || 0} kali</span></span>
-                    <span className="mobile-card-detail">Jumlah Belanja: <span className="mobile-card-bold" style={{ color: 'var(--primary-red)' }}>RM {parseFloat(client.total_spent || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>
+
+                  {/* Metrics Box */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', background: '#f8f7f4', padding: '0.65rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <div>
+                      <div style={{ fontSize: '10px', fontWeight: 750, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Kekerapan Order</div>
+                      <div style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-dark)', marginTop: '1px' }}>
+                        {client.orders_count || 0} kali
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '10px', fontWeight: 750, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Jumlah Belanja</div>
+                      <div style={{ fontSize: '0.92rem', fontWeight: 900, color: 'var(--primary-red)', marginTop: '1px' }}>
+                        RM {parseFloat(client.total_spent || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                    </div>
                   </div>
-                  <div className="mobile-card-actions">
+
+                  {/* Actions Bar */}
+                  <div style={{ display: 'flex', gap: '0.4rem', marginTop: 'auto', paddingTop: '0.35rem' }}>
                     <button
                       onClick={() => setSelectedClient(client)}
-                      className="btn btn-secondary btn-sm"
+                      className="btn btn-primary btn-sm"
+                      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', borderRadius: '8px', fontWeight: 650, fontSize: '0.78rem' }}
                     >
-                      <Eye size={12} /> {tr('view')}
+                      <Eye size={13} /> {tr('view')} Sejarah
                     </button>
                     <button
                       onClick={() => handleEditClick(client)}
                       className="btn btn-secondary btn-sm"
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', borderRadius: '8px', fontWeight: 650, fontSize: '0.78rem' }}
                     >
-                      <Edit2 size={12} /> {tr('edit')}
+                      <Edit2 size={13} /> {tr('edit')}
                     </button>
                     <button
                       onClick={() => handleDeleteClick(client)}
                       className="btn btn-secondary btn-sm"
-                      style={{ borderColor: '#FEE2E2', color: '#B91C1C' }}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', color: '#dc2626', borderColor: '#fecaca', padding: '0 8px' }}
+                      title="Padam Pelanggan"
                     >
-                      <Trash2 size={12} /> {tr('delete')}
+                      <Trash2 size={13} />
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          </>
+              );
+            })}
+          </div>
         )}
       </div>
 

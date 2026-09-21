@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getInvoices, getSettings, updateManufacturingStatus } from '../services/storage';
-import { Search, Printer, X, Save, Inbox, Pencil, Clock, Factory, CheckCircle2, Wrench } from 'lucide-react';
+import { Search, Printer, X, Save, Inbox, Pencil, Clock, Factory, CheckCircle2, Wrench, Building2 } from 'lucide-react';
 import KilangVoucherModal from '../components/KilangVoucherModal';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -66,13 +66,12 @@ export default function Manufacturing() {
   const loadInvoicesAndSettings = async () => {
     setLoading(true);
     try {
-      const data = await getInvoices();
-      const setts = await getSettings();
-      const sortedData = data.sort((a, b) => b.invoice_no.localeCompare(a.invoice_no));
-      setInvoices(sortedData);
-      setSettings(setts);
-    } catch (e) {
-      console.error('Error loading data in manufacturing:', e);
+      const [invData, setData] = await Promise.all([getInvoices(), getSettings()]);
+      const sortedInvoices = [...invData].sort((a, b) => (b.invoice_no || '').localeCompare(a.invoice_no || ''));
+      setInvoices(sortedInvoices);
+      setSettings(setData);
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -102,10 +101,11 @@ export default function Manufacturing() {
     const kos = rawKos !== undefined ? (parseFloat(rawKos) || 0) : (inv.pengeluaran || 0);
     const status = editedData[inv.id]?.order_status !== undefined ? editedData[inv.id].order_status : (inv.order_status || 'BELUM_DRAFT');
     const due = editedData[inv.id]?.due_date !== undefined ? editedData[inv.id].due_date : (inv.due_date || '');
+    const factoryBank = editedData[inv.id]?.factory_payment_bank !== undefined ? editedData[inv.id].factory_payment_bank : (inv.factory_payment_bank || 'Bank Islam');
     
     setLoading(true);
     try {
-      const success = await updateManufacturingStatus(inv.id, status, kos, due);
+      const success = await updateManufacturingStatus(inv.id, status, kos, due, factoryBank);
       if (success) {
         alert('Kemaskini berjaya disimpan!');
         setEditedData(prev => {
@@ -215,498 +215,382 @@ export default function Manufacturing() {
   const finalScale = scale * zoom;
 
   return (
-    <div className="main-content">
-      {/* Header */}
-      <div className="dashboard-header" style={{ marginBottom: '2rem' }}>
+    <div className="main-content" style={{ padding: '1rem', maxWidth: '1400px', margin: '0 auto' }}>
+      {/* Desktop Header */}
+      <div className="desktop-only" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <div>
-          <span className="section-tag">{tr('mfgTag')}</span>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: '800', marginTop: '0.5rem' }}>{tr('mfgTitle')}</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.25rem', letterSpacing: '0.5px' }}>
-            {tr('mfgSubtitle')}
-          </p>
+          <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary-red, #c51b27)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+            {tr('mfgTag')}
+          </span>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 900, margin: '2px 0 0 0', color: '#18181b', letterSpacing: '-0.5px' }}>
+            {tr('mfgTitle')}
+          </h1>
         </div>
+
+        <button
+          onClick={() => setShowVoucherModal(true)}
+          className="btn btn-secondary btn-sm"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, padding: '0.5rem 0.9rem' }}
+          title="Cetak Monthly Statement"
+        >
+          <Printer size={14} /> Penyata Bulanan Kilang
+        </button>
       </div>
 
-      {/* RINGKASAN STATUS KERJA KILANG */}
-      <div className="mfg-summary-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
-        <div 
-          className="card" 
-          onClick={() => setStatusFilter(prev => prev === 'BELUM_DRAFT' ? 'All' : 'BELUM_DRAFT')}
-          style={{ 
-            padding: '1rem', 
-            borderLeft: '4px solid #64748B', 
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            outline: statusFilter === 'BELUM_DRAFT' ? '2px solid #64748B' : 'none',
-            background: statusFilter === 'BELUM_DRAFT' ? 'rgba(100, 116, 139, 0.08)' : undefined
-          }}
-          title={statusFilter === 'BELUM_DRAFT' ? 'Klik untuk set semula (semua)' : 'Tapis: Belum Draft'}
-        >
-          <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            <Inbox size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: 'var(--text-muted)' }} /> {tr('belumDraft')}
-          </h3>
-          <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
-            {belumDraftCount}
-          </span>
-        </div>
-        <div 
-          className="card" 
-          onClick={() => setStatusFilter(prev => prev === 'DRAFT' ? 'All' : 'DRAFT')}
-          style={{ 
-            padding: '1rem', 
-            borderLeft: '4px solid #94A3B8', 
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            outline: statusFilter === 'DRAFT' ? '2px solid #94A3B8' : 'none',
-            background: statusFilter === 'DRAFT' ? 'rgba(148, 163, 184, 0.08)' : undefined
-          }}
-          title={statusFilter === 'DRAFT' ? 'Klik untuk set semula (semua)' : 'Tapis: Draft'}
-        >
-          <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            <Pencil size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: 'var(--text-muted)' }} /> {tr('draft')}
-          </h3>
-          <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
-            {draftCount}
-          </span>
-        </div>
-        <div 
-          className="card" 
-          onClick={() => setStatusFilter(prev => prev === 'PENDING' ? 'All' : 'PENDING')}
-          style={{ 
-            padding: '1rem', 
-            borderLeft: '4px solid #D97706', 
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            outline: statusFilter === 'PENDING' ? '2px solid #D97706' : 'none',
-            background: statusFilter === 'PENDING' ? 'rgba(217, 119, 6, 0.08)' : undefined
-          }}
-          title={statusFilter === 'PENDING' ? 'Klik untuk set semula (semua)' : 'Tapis: Pending'}
-        >
-          <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            <Clock size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: '#D97706' }} /> {tr('pending')}
-          </h3>
-          <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
-            {pendingCount}
-          </span>
-        </div>
-        <div 
-          className="card" 
-          onClick={() => setStatusFilter(prev => prev === 'PROCESSING' ? 'All' : 'PROCESSING')}
-          style={{ 
-            padding: '1rem', 
-            borderLeft: '4px solid #2563EB', 
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            outline: statusFilter === 'PROCESSING' ? '2px solid #2563EB' : 'none',
-            background: statusFilter === 'PROCESSING' ? 'rgba(37, 99, 235, 0.08)' : undefined
-          }}
-          title={statusFilter === 'PROCESSING' ? 'Klik untuk set semula (semua)' : 'Tapis: Processing'}
-        >
-          <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            <Factory size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: '#2563EB' }} /> {tr('processing')}
-          </h3>
-          <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
-            {processingCount}
-          </span>
-        </div>
-        <div 
-          className="card" 
-          onClick={() => setStatusFilter(prev => prev === 'COMPLETED' ? 'All' : 'COMPLETED')}
-          style={{ 
-            padding: '1rem', 
-            borderLeft: '4px solid #15803D', 
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            outline: statusFilter === 'COMPLETED' ? '2px solid #15803D' : 'none',
-            background: statusFilter === 'COMPLETED' ? 'rgba(21, 128, 61, 0.08)' : undefined
-          }}
-          title={statusFilter === 'COMPLETED' ? 'Klik untuk set semula (semua)' : 'Tapis: Completed'}
-        >
-          <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            <CheckCircle2 size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: '#15803D' }} /> {tr('completed')}
-          </h3>
-          <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
-            {completedCount}
-          </span>
-        </div>
-        <div 
-          className="card" 
-          onClick={() => setStatusFilter(prev => prev === 'MAINTENANCE' ? 'All' : 'MAINTENANCE')}
-          style={{ 
-            padding: '1rem', 
-            borderLeft: '4px solid #DC2626', 
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            outline: statusFilter === 'MAINTENANCE' ? '2px solid #DC2626' : 'none',
-            background: statusFilter === 'MAINTENANCE' ? 'rgba(220, 38, 38, 0.08)' : undefined
-          }}
-          title={statusFilter === 'MAINTENANCE' ? 'Klik untuk set semula (semua)' : 'Tapis: Maintenance'}
-        >
-          <h3 className="section-title" style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-            <Wrench size={13} style={{ verticalAlign: '-2px', marginRight: '4px', color: '#DC2626' }} /> {tr('maintenance')}
-          </h3>
-          <span className="summary-val" style={{ fontSize: '1.2rem', fontWeight: '900', lineHeight: '1', color: 'var(--text-dark)' }}>
-            {maintenanceCount}
-          </span>
-        </div>
+      {/* COMPACT STATUS FILTER CHIPS (MATCHED WITH INVOICES) */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '8px', 
+        overflowX: 'auto', 
+        paddingBottom: '6px', 
+        marginBottom: '14px', 
+        scrollbarWidth: 'none',
+        WebkitOverflowScrolling: 'touch',
+        flexShrink: 0,
+        alignItems: 'center',
+        minHeight: '42px'
+      }}>
+        {[
+          { key: 'All', label: 'Semua', count: nonVoidInvoices.length, Icon: Factory },
+          { key: 'BELUM_DRAFT', label: tr('belumDraft') || 'Belum Draft', count: belumDraftCount, Icon: Clock },
+          { key: 'DRAFT', label: tr('draft') || 'Draft', count: draftCount, Icon: Pencil },
+          { key: 'PENDING', label: tr('pending') || 'Pending', count: pendingCount, Icon: Inbox },
+          { key: 'PROCESSING', label: tr('processing') || 'Sedang Diproses', count: processingCount, Icon: Building2 },
+          { key: 'COMPLETED', label: tr('completed') || 'Siap', count: completedCount, Icon: CheckCircle2 },
+          { key: 'MAINTENANCE', label: tr('maintenance') || 'Baik Pulih', count: maintenanceCount, Icon: Wrench, isAlert: maintenanceCount > 0 }
+        ].map(({ key, label, count, Icon, isAlert }) => {
+          const isSelected = statusFilter === key;
+          return (
+            <button 
+              key={key}
+              onClick={() => setStatusFilter(key)}
+              style={{ 
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                height: '34px',
+                minHeight: '34px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 650,
+                cursor: 'pointer',
+                border: isSelected ? '1px solid #18181b' : '1px solid var(--border-color)',
+                backgroundColor: isSelected ? '#18181b' : '#ffffff',
+                color: isSelected ? '#ffffff' : isAlert ? 'var(--primary-red)' : 'var(--text-dark)',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                boxSizing: 'border-box'
+              }}
+            >
+              <Icon size={14} color={isSelected ? '#ffffff' : isAlert ? 'var(--primary-red)' : 'var(--text-muted)'} />
+              <span>{label}</span>
+              <span style={{ 
+                fontSize: '10.5px',
+                padding: '1px 6px',
+                borderRadius: '6px',
+                backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : '#f4f4f5',
+                color: isSelected ? '#ffffff' : isAlert ? 'var(--primary-red)' : '#71717a',
+                fontWeight: 700
+              }}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* SEARCH AND FILTERS */}
-      <div className="search-filters-bar card" style={{ marginBottom: '1.5rem', padding: '1.25rem' }}>
-        <div className="search-box">
-          <Search size={18} className="search-icon" />
+      {/* SEARCH AND MONTH FILTER BAR (COMPACT 1-LINE) */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '1.25rem', alignItems: 'center' }}>
+        <div style={{ flex: '1', position: 'relative' }}>
+          <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#a1a1aa' }} />
           <input
             type="text"
             placeholder={tr('searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="form-control search-input"
+            className="form-control"
+            style={{ 
+              width: '100%',
+              padding: '7px 10px 7px 32px',
+              borderRadius: '8px',
+              border: '1px solid #e4e4e7',
+              fontSize: '12.5px',
+              backgroundColor: '#ffffff'
+            }}
           />
         </div>
 
-        <div className="filter-group-row">
-          <div className="filter-box">
-            <span className="select-label">{tr('status')}</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="form-control filter-select"
-            >
-              <option value="All">{tr('allStatus')}</option>
-              <option value="BELUM_DRAFT">{tr('belumDraft')}</option>
-              <option value="DRAFT">{tr('draft')}</option>
-              <option value="PENDING">{tr('pending')}</option>
-              <option value="PROCESSING">{tr('processing')}</option>
-              <option value="COMPLETED">{tr('completed')}</option>
-              <option value="MAINTENANCE">{tr('maintenance')}</option>
-            </select>
-          </div>
-
-          <div className="filter-box">
-            <span className="select-label">{tr('month')}</span>
-            <select
-              value={monthFilter}
-              onChange={(e) => setMonthFilter(e.target.value)}
-              className="form-control filter-select"
-            >
-              <option value="All">{tr('allMonths')}</option>
-              {monthsList.map(m => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <button
-            onClick={() => setShowVoucherModal(true)}
-            className="btn btn-primary print-stmt-btn"
-            title="Cetak Monthly Statement"
-          >
-            <Printer size={16} /> Print Statement
-          </button>
-        </div>
+        <select
+          value={monthFilter}
+          onChange={(e) => setMonthFilter(e.target.value)}
+          className="form-control"
+          style={{ 
+            width: 'auto',
+            padding: '7px 10px',
+            borderRadius: '8px',
+            border: '1px solid #e4e4e7',
+            fontSize: '12.5px',
+            fontWeight: 650,
+            backgroundColor: '#ffffff',
+            cursor: 'pointer',
+            flexShrink: 0
+          }}
+        >
+          <option value="All">{tr('allMonths')}</option>
+          {monthsList.map(m => (
+            <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
+        </select>
       </div>
 
-      {/* SENARAI TEMPAHAN TABLE */}
-      <div className="card" style={{ padding: 0 }}>
-        <div className="card-header" style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--border-color)' }}>
-          <h3 className="card-title" style={{ fontSize: '0.85rem' }}>SENARAI TEMPAHAN</h3>
+      {/* SENARAI TEMPAHAN CARD GRID / LIST */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+          <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+            SENARAI PESANAN KILANG ({filteredInvoices.length})
+          </span>
+          {statusFilter !== 'All' && (
+            <button 
+              onClick={() => setStatusFilter('All')} 
+              style={{ background: 'none', border: 'none', color: '#b91c1c', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Reset Tapisan
+            </button>
+          )}
         </div>
 
         {loading && invoices.length === 0 ? (
-          <div className="loading-state" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>{tr('loadingData')}</div>
+          <div className="loading-state" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid var(--border-color)' }}>{tr('loadingData')}</div>
         ) : filteredInvoices.length === 0 ? (
-          <div className="empty-state" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>{tr('noData')}</div>
+          <div className="empty-state" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid var(--border-color)' }}>{tr('noData')}</div>
         ) : (
-          <>
-            <div className="table-container desktop-only">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: 'left' }}>{tr('invNo')} & {tr('clientName')}</th>
-                    <th style={{ textAlign: 'left' }}>{tr('items')}</th>
-                    <th style={{ textAlign: 'center', width: '160px' }}>{tr('kosKilang')}</th>
-                    <th style={{ textAlign: 'center', width: '160px' }}>{tr('status')}</th>
-                    <th style={{ textAlign: 'center', width: '180px' }}>{tr('actions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredInvoices.map((inv) => {
-                    const isVoid = inv.status === 'Void';
-                    const currentKos = editedData[inv.id]?.pengeluaran !== undefined 
-                      ? editedData[inv.id].pengeluaran 
-                      : (inv.pengeluaran || '');
-                    
-                    const currentStatus = editedData[inv.id]?.order_status !== undefined 
-                      ? editedData[inv.id].order_status 
-                      : (inv.order_status || 'BELUM_DRAFT');
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))', gap: '1rem' }}>
+            {filteredInvoices.map((inv) => {
+              const isVoid = inv.status === 'Void';
+              const currentKos = editedData[inv.id]?.pengeluaran !== undefined 
+                ? editedData[inv.id].pengeluaran 
+                : (inv.pengeluaran || '');
+              
+              const currentStatus = editedData[inv.id]?.order_status !== undefined 
+                ? editedData[inv.id].order_status 
+                : (inv.order_status || 'BELUM_DRAFT');
 
-                    const currentDueDate = editedData[inv.id]?.due_date !== undefined 
-                      ? editedData[inv.id].due_date 
-                      : (inv.due_date || '');
+              const currentDueDate = editedData[inv.id]?.due_date !== undefined 
+                ? editedData[inv.id].due_date 
+                : (inv.due_date || '');
 
-                    return (
-                      <tr 
-                        key={inv.id}
-                        style={isVoid ? { backgroundColor: '#f8fafc' } : {}}
-                      >
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <span className="font-bold">#{inv.invoice_no}</span>
-                          </div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{inv.client_name}</div>
-                        </td>
-                        <td>
-                          <div style={{ fontSize: '0.85rem', whiteSpace: 'normal', maxWidth: '300px', textDecoration: isVoid ? 'line-through' : 'none' }}>
-                            {getItemSummary(inv)}
-                          </div>
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>RM</span>
-                            <input 
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              disabled={isVoid}
-                              value={currentKos}
-                              onChange={e => handleFieldChange(inv.id, 'pengeluaran', e.target.value)}
-                              className="form-control"
-                              style={{ 
-                                width: '90px', 
-                                padding: '0.25rem 0.5rem', 
-                                textAlign: 'right',
-                                cursor: isVoid ? 'not-allowed' : 'text',
-                                backgroundColor: isVoid ? '#f1f5f9' : undefined
-                              }}
-                              placeholder="0.00"
-                            />
-                          </div>
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          {isVoid ? (
-                            <span 
-                              className="badge badge-void" 
-                              style={{ 
-                                fontSize: '0.75rem', 
-                                padding: '0.35rem 0.8rem',
-                                fontWeight: '700',
-                                letterSpacing: '0.5px'
-                              }}
-                            >
-                              VOID
-                            </span>
-                          ) : (
-                            <>
-                              <select
-                                value={currentStatus}
-                                onChange={e => handleFieldChange(inv.id, 'order_status', e.target.value)}
-                                className="form-control"
-                                style={{ 
-                                  padding: '0.25rem 0.5rem', 
-                                  width: '130px', 
-                                  margin: '0 auto', 
-                                  fontSize: '0.85rem',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                <option value="BELUM_DRAFT">Belum Draft</option>
-                                <option value="DRAFT">Draft</option>
-                                <option value="PENDING">Pending</option>
-                                <option value="PROCESSING">Processing</option>
-                                <option value="COMPLETED">Completed</option>
-                                <option value="MAINTENANCE">Maintenance</option>
-                              </select>
-                              {currentStatus === 'PROCESSING' && (
-                                <div style={{ marginTop: '0.5rem' }}>
-                                  <input
-                                    type="date"
-                                    value={currentDueDate}
-                                    onChange={e => handleFieldChange(inv.id, 'due_date', e.target.value)}
-                                    className="form-control"
-                                    style={{ 
-                                      width: '130px', 
-                                      margin: '0 auto', 
-                                      padding: '0.1rem 0.25rem', 
-                                      fontSize: '0.75rem',
-                                      cursor: 'pointer'
-                                    }}
-                                  />
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
-                            <button 
-                              disabled={isVoid}
-                              onClick={() => handleSaveInline(inv)}
-                              className="btn btn-primary btn-sm font-bold"
-                              style={{ 
-                                fontSize: '0.75rem', 
-                                padding: '0.25rem 0.5rem', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '0.25rem',
-                                opacity: isVoid ? 0.4 : 1,
-                                cursor: isVoid ? 'not-allowed' : 'pointer'
-                              }}
-                              title={isVoid ? 'Invois ini telah dibatalkan (Void)' : tr('save')}
-                            >
-                              <Save size={12} /> {tr('save')}
-                            </button>
-                            <button 
-                              onClick={() => { setSelectedVoucherInvoice(inv); setIsVoucherModalOpen(true); }}
-                              className="btn btn-secondary btn-sm font-bold"
-                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                            >
-                              <Printer size={12} /> {tr('print')}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+              const currentFactoryBank = editedData[inv.id]?.factory_payment_bank !== undefined 
+                ? editedData[inv.id].factory_payment_bank 
+                : (inv.factory_payment_bank || 'Bank Islam');
 
-            <div className="mobile-cards-list mobile-only">
-              {filteredInvoices.map((inv) => {
-                const isVoid = inv.status === 'Void';
-                const currentKos = editedData[inv.id]?.pengeluaran !== undefined 
-                  ? editedData[inv.id].pengeluaran 
-                  : (inv.pengeluaran || '');
-                
-                const currentStatus = editedData[inv.id]?.order_status !== undefined 
-                  ? editedData[inv.id].order_status 
-                  : (inv.order_status || 'BELUM_DRAFT');
+              const statusColor = 
+                currentStatus === 'COMPLETED' ? '#16a34a' :
+                currentStatus === 'PROCESSING' ? '#2563eb' :
+                currentStatus === 'PENDING' ? '#d97706' :
+                currentStatus === 'MAINTENANCE' ? '#dc2626' : '#71717a';
 
-                const currentDueDate = editedData[inv.id]?.due_date !== undefined 
-                  ? editedData[inv.id].due_date 
-                  : (inv.due_date || '');
-
-                return (
-                  <div 
-                    key={inv.id} 
-                    className="mobile-card"
-                    style={isVoid ? { backgroundColor: '#f8fafc' } : {}}
-                  >
-                    <div className="mobile-card-row" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span className="mobile-card-title">#{inv.invoice_no} - {inv.client_name}</span>
+              return (
+                <div 
+                  key={inv.id} 
+                  className="card"
+                  style={{ 
+                    padding: '1.25rem',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: isVoid ? '#fafafa' : '#ffffff',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.85rem',
+                    transition: 'border-color 0.15s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '1.05rem', fontWeight: 900, color: 'var(--text-dark)' }}>#{inv.invoice_no}</span>
+                        {isVoid && <span style={{ fontSize: '10px', fontWeight: 800, color: '#dc2626', background: '#fee2e2', padding: '1px 6px', borderRadius: '4px' }}>VOID</span>}
+                      </div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 650, color: '#52525b', marginTop: '2px' }}>
+                        {inv.client_name}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem', textDecoration: isVoid ? 'line-through' : 'none' }}>
-                      <strong>Items:</strong> {getItemSummary(inv)}
-                    </div>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span>Kos Kilang:</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <span>RM</span>
-                          <input 
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            disabled={isVoid}
-                            value={currentKos}
-                            onChange={e => handleFieldChange(inv.id, 'pengeluaran', e.target.value)}
-                            className="form-control"
-                            style={{ 
-                              width: '90px', 
-                              padding: '0.25rem 0.5rem', 
-                              textAlign: 'right',
-                              cursor: isVoid ? 'not-allowed' : 'text',
-                              backgroundColor: isVoid ? '#f1f5f9' : undefined
-                            }}
-                            placeholder="0.00"
-                          />
-                        </div>
-                      </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span>Status:</span>
-                        {isVoid ? (
-                          <span 
-                            className="badge badge-void" 
-                            style={{ 
-                              fontSize: '0.75rem', 
-                              padding: '0.35rem 0.8rem',
-                              fontWeight: '700',
-                              letterSpacing: '0.5px'
-                            }}
-                          >
-                            VOID
-                          </span>
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-                            <select
-                              value={currentStatus}
-                              onChange={e => handleFieldChange(inv.id, 'order_status', e.target.value)}
-                              className="form-control"
-                              style={{ 
-                                padding: '0.25rem 0.5rem', 
-                                width: '130px',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              <option value="BELUM_DRAFT">Belum Draft</option>
-                              <option value="DRAFT">Draft</option>
-                              <option value="PENDING">Pending</option>
-                              <option value="PROCESSING">Processing</option>
-                              <option value="COMPLETED">Completed</option>
-                              <option value="MAINTENANCE">Maintenance</option>
-                            </select>
-                            {currentStatus === 'PROCESSING' && (
-                              <input
-                                type="date"
-                                value={currentDueDate}
-                                onChange={e => handleFieldChange(inv.id, 'due_date', e.target.value)}
-                                className="form-control"
-                                style={{ 
-                                  width: '130px', 
-                                  padding: '0.1rem 0.25rem', 
-                                  fontSize: '0.75rem',
-                                  cursor: 'pointer'
-                                }}
-                              />
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                        <button 
-                          disabled={isVoid}
-                          onClick={() => handleSaveInline(inv)}
-                          className="btn btn-primary btn-sm font-bold"
-                          style={{ 
-                            flex: 1, 
-                            display: 'flex', 
-                            justifyContent: 'center', 
-                            alignItems: 'center', 
-                            gap: '0.25rem',
-                            opacity: isVoid ? 0.4 : 1,
-                            cursor: isVoid ? 'not-allowed' : 'pointer'
-                          }}
-                          title={isVoid ? 'Invois ini telah dibatalkan (Void)' : tr('save')}
-                        >
-                          <Save size={12} /> {tr('save')}
-                        </button>
-                        <button 
-                          onClick={() => { setSelectedVoucherInvoice(inv); setIsVoucherModalOpen(true); }}
-                          className="btn btn-secondary btn-sm font-bold"
-                          style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.25rem' }}
-                        >
-                          <Printer size={12} /> {tr('print')}
-                        </button>
-                      </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                      <span style={{ 
+                        fontSize: '11px', 
+                        fontWeight: 700, 
+                        color: statusColor, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '4px',
+                        padding: '3px 8px',
+                        background: `${statusColor}15`,
+                        borderRadius: '6px'
+                      }}>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: statusColor }}></span>
+                        {currentStatus.replace('_', ' ')}
+                      </span>
+                      <span style={{ 
+                        fontSize: '10px', 
+                        fontWeight: 650, 
+                        color: '#52525b', 
+                        background: '#f4f4f5', 
+                        padding: '2px 6px', 
+                        borderRadius: '4px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                        <Building2 size={11} color="var(--primary-red)" />
+                        {currentFactoryBank}
+                      </span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </>
+
+                  <div style={{ fontSize: '0.82rem', color: '#71717a', lineHeight: 1.4, borderTop: '1px dashed var(--border-color)', paddingTop: '0.65rem' }}>
+                    {getItemSummary(inv)}
+                  </div>
+
+                  {/* Inline Controls (Kos Kilang, Status & Pilihan Bank) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem', background: '#f8f7f4', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 750, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '3px' }}>
+                        Kos Kilang (RM)
+                      </label>
+                      <input 
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        disabled={isVoid}
+                        value={currentKos}
+                        onChange={e => handleFieldChange(inv.id, 'pengeluaran', e.target.value)}
+                        className="form-control"
+                        style={{ 
+                          width: '100%', 
+                          padding: '0.35rem 0.5rem', 
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          borderRadius: '6px'
+                        }}
+                        placeholder="0.00"
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 750, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '3px' }}>
+                        Status Kerja
+                      </label>
+                      <select
+                        value={currentStatus}
+                        onChange={e => handleFieldChange(inv.id, 'order_status', e.target.value)}
+                        className="form-control"
+                        style={{ 
+                          width: '100%',
+                          padding: '0.35rem 0.5rem', 
+                          fontSize: '0.82rem',
+                          fontWeight: 650,
+                          borderRadius: '6px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="BELUM_DRAFT">Belum Draft</option>
+                        <option value="DRAFT">Draft</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="PROCESSING">Processing</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="MAINTENANCE">Maintenance</option>
+                      </select>
+                    </div>
+
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 750, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '3px' }}>
+                        Pilihan Bank (Bayar Kos Kilang)
+                      </label>
+                      <select
+                        value={currentFactoryBank}
+                        onChange={e => handleFieldChange(inv.id, 'factory_payment_bank', e.target.value)}
+                        className="form-control"
+                        disabled={isVoid}
+                        style={{ 
+                          width: '100%',
+                          padding: '0.35rem 0.5rem', 
+                          fontSize: '0.82rem',
+                          fontWeight: 650,
+                          borderRadius: '6px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="CIMB Bank">CIMB Bank (Aiman Hambali - 7656497860)</option>
+                        <option value="Bank Islam">Bank Islam (Hidayatul Rizman - 05021020449003)</option>
+                        <option value="Tunai">Tunai / Cash</option>
+                      </select>
+                    </div>
+
+                    {currentStatus === 'PROCESSING' && (
+                      <div style={{ gridColumn: 'span 2' }}>
+                        <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 750, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '3px' }}>
+                          Tarikh Siap Dijangka
+                        </label>
+                        <input
+                          type="date"
+                          value={currentDueDate}
+                          onChange={e => handleFieldChange(inv.id, 'due_date', e.target.value)}
+                          className="form-control"
+                          style={{ 
+                            width: '100%', 
+                            padding: '0.35rem 0.5rem', 
+                            fontSize: '0.82rem',
+                            borderRadius: '6px',
+                            cursor: 'pointer'
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto', paddingTop: '0.35rem' }}>
+                    <button 
+                      disabled={isVoid}
+                      onClick={() => handleSaveInline(inv)}
+                      className="btn btn-primary"
+                      style={{ 
+                        flex: 1, 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        alignItems: 'center', 
+                        gap: '6px',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        padding: '0.45rem 0.75rem',
+                        borderRadius: '8px'
+                      }}
+                    >
+                      <Save size={14} /> Simpan
+                    </button>
+                    <button 
+                      onClick={() => { setSelectedVoucherInvoice(inv); setIsVoucherModalOpen(true); }}
+                      className="btn btn-secondary"
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '6px',
+                        fontSize: '0.8rem',
+                        fontWeight: 650,
+                        padding: '0.45rem 0.75rem',
+                        borderRadius: '8px'
+                      }}
+                      title="Cetak Baucar Kilang"
+                    >
+                      <Printer size={14} /> Voucher
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 

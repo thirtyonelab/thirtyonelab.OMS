@@ -5,9 +5,11 @@ export const MATERIALS = [
   { id: 'Interlock', label: 'Interlock (+RM0)', price: 0 },
   { id: 'Lycra', label: 'Lycra (+RM10)', price: 10 },
   { id: 'Mesh', label: 'Mesh (+RM6)', price: 6 },
+  { id: 'Micro Lattice', label: 'Micro Lattice (+RM6)', price: 6 },
   { id: 'Mini-Eyelet', label: 'Mini-Eyelet (+RM0)', price: 0 },
   { id: 'Popcorn', label: 'Popcorn (+RM8)', price: 8 },
-  { id: 'RJPK', label: 'RJPK (+RM3)', price: 3 }
+  { id: 'RJPK', label: 'RJPK (+RM3)', price: 3 },
+  { id: 'Square', label: 'Square (+RM8)', price: 8 }
 ];
 
 export const CUTTINGS = [
@@ -31,6 +33,7 @@ export const NECKS = [
   { id: 'Retro', label: 'Retro (+RM6)', price: 6 },
   { id: 'Retro End', label: 'Retro End (+RM6)', price: 6 },
   { id: 'Retro Cross', label: 'Retro Cross (+RM6)', price: 6 },
+  { id: 'Retro Laces', label: 'Retro Laces (+RM12)', price: 12 },
   { id: 'V-Neck', label: 'V-Neck (+RM3)', price: 3 },
   { id: 'V-Neck End', label: 'V-Neck End (+RM3)', price: 3 },
   { id: 'V-Neck Outer', label: 'V-Neck Outer (+RM7)', price: 7 },

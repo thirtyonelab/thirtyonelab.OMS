@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getSettings, saveSettings, isCloudMode } from '../services/storage';
 import { createClient } from '@supabase/supabase-js';
-import { Save, RefreshCw, Upload, CheckCircle2, AlertCircle, Download, FileSpreadsheet } from 'lucide-react';
+import { Save, RefreshCw, Upload, CheckCircle2, AlertCircle, Download, FileSpreadsheet, Plus, Trash2 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 export default function Settings() {
@@ -23,6 +23,10 @@ export default function Settings() {
   const [bankAccountNo, setBankAccountNo] = useState('');
   const [bankAccountName, setBankAccountName] = useState('');
   
+  // Payment Profiles State
+  const [paymentProfiles, setPaymentProfiles] = useState([]);
+  const [selectedProfileId, setSelectedProfileId] = useState('profile_1');
+
   const [loading, setLoading] = useState(false);
   const [testStatus, setTestStatus] = useState(null); // 'idle' | 'success' | 'error'
   const [testError, setTestError] = useState('');
@@ -55,10 +59,125 @@ export default function Settings() {
       const parsed = parseBankAccount(data.bank_account);
       setBankAccountNo(parsed.number);
       setBankAccountName(parsed.name);
+
+      // Initialize or load payment profiles
+      const storedProfiles = localStorage.getItem('31lab_payment_profiles');
+      const storedSelected = localStorage.getItem('31lab_selected_payment_profile') || 'profile_1';
+      
+      let profiles = [];
+      if (storedProfiles) {
+        try {
+          profiles = JSON.parse(storedProfiles);
+        } catch (e) {
+          profiles = [];
+        }
+      }
+
+      if (!Array.isArray(profiles) || profiles.length === 0) {
+        profiles = [
+          {
+            id: 'profile_1',
+            label: 'Akaun 1 (Bank Islam)',
+            bank_name: data.bank_name || 'Bank Islam',
+            bank_account_no: parsed.number || '0502 1020 4490 03',
+            bank_account_name: parsed.name || 'Hidayatul Rizman bin Rafiuddarajat',
+            qr_code: data.qr_code || ''
+          },
+          {
+            id: 'profile_2',
+            label: 'Akaun 2 (Pilihan Lain)',
+            bank_name: '',
+            bank_account_no: '',
+            bank_account_name: '',
+            qr_code: ''
+          }
+        ];
+        localStorage.setItem('31lab_payment_profiles', JSON.stringify(profiles));
+      }
+
+      setPaymentProfiles(profiles);
+      const activeId = profiles.some(p => p.id === storedSelected) ? storedSelected : profiles[0].id;
+      setSelectedProfileId(activeId);
     } catch (error) {
       console.error('Error loading settings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateActiveProfile = (updatedFields) => {
+    setPaymentProfiles(prev => {
+      const next = prev.map(p => {
+        if (p.id === selectedProfileId) {
+          return { ...p, ...updatedFields };
+        }
+        return p;
+      });
+      localStorage.setItem('31lab_payment_profiles', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const handleSelectProfile = (profileId) => {
+    setSelectedProfileId(profileId);
+    localStorage.setItem('31lab_selected_payment_profile', profileId);
+    const target = paymentProfiles.find(p => p.id === profileId);
+    if (target) {
+      const accNo = target.bank_account_no || '';
+      const accName = target.bank_account_name || '';
+      const bName = target.bank_name || '';
+      const qr = target.qr_code || '';
+      setBankAccountNo(accNo);
+      setBankAccountName(accName);
+      setSettings(prev => ({
+        ...prev,
+        bank_name: bName,
+        bank_account: accName ? `${accNo} (${accName})` : accNo,
+        qr_code: qr
+      }));
+    }
+  };
+
+  const handleProfileLabelChange = (e) => {
+    const val = e.target.value;
+    updateActiveProfile({ label: val });
+  };
+
+  const handleAddProfile = () => {
+    const newId = `profile_${Date.now()}`;
+    const newProfile = {
+      id: newId,
+      label: `Akaun ${paymentProfiles.length + 1}`,
+      bank_name: '',
+      bank_account_no: '',
+      bank_account_name: '',
+      qr_code: ''
+    };
+    const next = [...paymentProfiles, newProfile];
+    setPaymentProfiles(next);
+    localStorage.setItem('31lab_payment_profiles', JSON.stringify(next));
+    setSelectedProfileId(newId);
+    localStorage.setItem('31lab_selected_payment_profile', newId);
+    setBankAccountNo('');
+    setBankAccountName('');
+    setSettings(prev => ({
+      ...prev,
+      bank_name: '',
+      bank_account: '',
+      qr_code: ''
+    }));
+  };
+
+  const handleDeleteProfile = (profileId) => {
+    if (paymentProfiles.length <= 1) {
+      alert('Sekurang-kurangnya satu profil pembayaran diperlukan.');
+      return;
+    }
+    const next = paymentProfiles.filter(p => p.id !== profileId);
+    setPaymentProfiles(next);
+    localStorage.setItem('31lab_payment_profiles', JSON.stringify(next));
+    if (selectedProfileId === profileId) {
+      handleSelectProfile(next[0].id);
     }
   };
 
@@ -77,15 +196,31 @@ export default function Settings() {
       ...prev,
       bank_account: bankAccountName ? `${val} (${bankAccountName})` : val
     }));
+    updateActiveProfile({ bank_account_no: val });
   };
 
   const handleBankNameChange = (e) => {
+    const val = e.target.value;
+    setSettings(prev => ({
+      ...prev,
+      bank_name: val
+    }));
+    updateActiveProfile({ bank_name: val });
+  };
+
+  const handleBankAccountNameChange = (e) => {
     const val = e.target.value;
     setBankAccountName(val);
     setSettings(prev => ({
       ...prev,
       bank_account: val ? `${bankAccountNo} (${val})` : bankAccountNo
     }));
+    updateActiveProfile({ bank_account_name: val });
+  };
+
+  const handleRemoveQR = () => {
+    setSettings(prev => ({ ...prev, qr_code: '' }));
+    updateActiveProfile({ qr_code: '' });
   };
 
   const handleFileChange = (e, field) => {
@@ -104,6 +239,9 @@ export default function Settings() {
         ...prev,
         [field]: reader.result // Base64 string
       }));
+      if (field === 'qr_code') {
+        updateActiveProfile({ qr_code: reader.result });
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -154,7 +292,11 @@ export default function Settings() {
       // 1. Save general settings
       await saveSettings(settings);
 
-      // 2. Save Supabase config to localStorage
+      // 2. Save payment profiles
+      localStorage.setItem('31lab_payment_profiles', JSON.stringify(paymentProfiles));
+      localStorage.setItem('31lab_selected_payment_profile', selectedProfileId);
+
+      // 3. Save Supabase config to localStorage
       if (supabaseUrl.trim() && supabaseAnonKey.trim()) {
         localStorage.setItem('supabase_url', supabaseUrl.trim());
         localStorage.setItem('supabase_anon_key', supabaseAnonKey.trim());
@@ -184,7 +326,9 @@ export default function Settings() {
       const backupData = {
         invoices: JSON.parse(localStorage.getItem('31lab_invoices') || '[]'),
         clients: JSON.parse(localStorage.getItem('31lab_clients') || '[]'),
-        settings: JSON.parse(localStorage.getItem('31lab_settings') || '{}')
+        settings: JSON.parse(localStorage.getItem('31lab_settings') || '{}'),
+        payment_profiles: JSON.parse(localStorage.getItem('31lab_payment_profiles') || '[]'),
+        selected_payment_profile: localStorage.getItem('31lab_selected_payment_profile') || 'profile_1'
       };
 
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
@@ -207,11 +351,13 @@ export default function Settings() {
     reader.onload = (event) => {
       try {
         const parsed = JSON.parse(event.target.result);
-        if (parsed.invoices || parsed.clients || parsed.settings) {
+        if (parsed.invoices || parsed.clients || parsed.settings || parsed.payment_profiles) {
           if (confirm('Amaran: Ini akan menggantikan data tempatan semasa anda. Teruskan?')) {
             if (parsed.invoices) localStorage.setItem('31lab_invoices', JSON.stringify(parsed.invoices));
             if (parsed.clients) localStorage.setItem('31lab_clients', JSON.stringify(parsed.clients));
             if (parsed.settings) localStorage.setItem('31lab_settings', JSON.stringify(parsed.settings));
+            if (parsed.payment_profiles) localStorage.setItem('31lab_payment_profiles', JSON.stringify(parsed.payment_profiles));
+            if (parsed.selected_payment_profile) localStorage.setItem('31lab_selected_payment_profile', parsed.selected_payment_profile);
             alert('Pemulihan data berjaya! Sila segar semula aplikasi.');
             window.location.reload();
           }
@@ -323,16 +469,65 @@ export default function Settings() {
         {/* Section 2: Payment Details */}
         <section className="settings-section card">
           <h3 className="section-title">{tr('paymentInfo')}</h3>
+
+          <div className="grid-2">
+            <div className="form-group">
+              <label className="form-label">{tr('selectProfile')}</label>
+              <select
+                value={selectedProfileId}
+                onChange={(e) => {
+                  if (e.target.value === '__add_new__') {
+                    handleAddProfile();
+                  } else {
+                    handleSelectProfile(e.target.value);
+                  }
+                }}
+                className="form-control"
+              >
+                {paymentProfiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label || (p.bank_name ? `${p.bank_name} - ${p.bank_account_name || p.bank_account_no}` : 'Profil Tanpa Nama')}
+                  </option>
+                ))}
+                <option value="__add_new__">+ {tr('addProfile')}</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">{tr('profileLabel')}</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={paymentProfiles.find(p => p.id === selectedProfileId)?.label || ''}
+                  onChange={handleProfileLabelChange}
+                  placeholder="Contoh: Akaun 1 (Bank Islam)"
+                  className="form-control"
+                  style={{ flex: 1 }}
+                />
+                {paymentProfiles.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteProfile(selectedProfileId)}
+                    className="btn btn-secondary btn-sm"
+                    style={{ color: 'var(--primary-red)', borderColor: 'var(--border-color)', padding: '0 12px' }}
+                    title={tr('deleteProfile')}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
           
-          <div className="grid-3">
+          <div className="grid-3" style={{ marginTop: '1rem' }}>
             <div className="form-group">
               <label className="form-label">{tr('bankName')}</label>
               <input
                 type="text"
                 name="bank_name"
                 value={settings.bank_name}
-                onChange={handleChange}
-                placeholder="Contoh: Maybank"
+                onChange={handleBankNameChange}
+                placeholder="Contoh: Maybank / Bank Islam"
                 className="form-control"
               />
             </div>
@@ -353,14 +548,14 @@ export default function Settings() {
                 type="text"
                 name="bank_account_name"
                 value={bankAccountName}
-                onChange={handleBankNameChange}
-                placeholder="Contoh: THIRTYONE LAB"
+                onChange={handleBankAccountNameChange}
+                placeholder="Contoh: THIRTYONE LAB / NAMA PEMILIK"
                 className="form-control"
               />
             </div>
           </div>
 
-          <div className="form-group">
+          <div className="form-group" style={{ marginTop: '1rem' }}>
             <label className="form-label">{tr('qrCode')}</label>
             <div className="file-upload-wrapper">
               <input
@@ -378,7 +573,7 @@ export default function Settings() {
                   <img src={settings.qr_code} alt="DuitNow QR Preview" className="qr-preview" />
                   <button
                     type="button"
-                    onClick={() => setSettings(prev => ({ ...prev, qr_code: '' }))}
+                    onClick={handleRemoveQR}
                     className="btn-text btn-delete-img"
                   >
                     {tr('delete')}

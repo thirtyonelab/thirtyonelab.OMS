@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { generateUUID } from '../utils/uuid.js';
 
+const DEFAULT_SUPABASE_URL = 'https://jcwvhpreptjfucrhbzcy.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'sb_publishable_tR03lALW-SHxK625ZoYpWA_n6cVQZqA';
+
 // Keys for localStorage fallback
 const STORAGE_KEYS = {
   SETTINGS: '31lab_settings',
@@ -14,8 +17,8 @@ let supabaseInstance = null;
 
 // Initialize Supabase if credentials exist in localStorage or environment variables
 export const getSupabaseClient = () => {
-  const url = localStorage.getItem('supabase_url') || (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_URL : undefined);
-  const key = localStorage.getItem('supabase_anon_key') || (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_ANON_KEY : undefined);
+  const url = localStorage.getItem('supabase_url') || (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_URL : undefined) || DEFAULT_SUPABASE_URL;
+  const key = localStorage.getItem('supabase_anon_key') || (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_ANON_KEY : undefined) || DEFAULT_SUPABASE_KEY;
   
   if (url && key) {
     if (supabaseInstance && supabaseInstance.supabaseUrl === url) {
@@ -46,14 +49,20 @@ const DEFAULT_SETTINGS = {
   company_phone: 'Tel: +60 11-2561 4436',
   company_logo: '/Logo Header.webp', // Loads from public/
   invoice_prefix: 'NO.',
-  bank_name: 'Bank Islam',
-  bank_account: '0502 1020 4490 03 (Hidayatul Rizman bin Rafiuddarajat)',
+  bank_name: 'CIMB Bank',
+  bank_account: '7656497860 (Aiman Hambali bin Amran)',
+  bank_opening_balance: 2000,
+  bank_opening_balance_cimb: 2000,
+  bank_opening_balance_islam: 0,
   qr_code: '', // Base64
   terms: 'The ordered goods will be processed within **two weeks** after we receive a **50% deposit (or half payment).**\nGoods sold are **neither returnable nor refundable.** Otherwise, a **20% cancellation fee** on the total purchase price will be imposed.'
 };
 
 // --- SETTINGS SERVICE ---
 export const getSettings = async () => {
+  const localStored = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+  const localData = localStored ? JSON.parse(localStored) : {};
+
   const client = getSupabaseClient();
   if (client) {
     try {
@@ -63,45 +72,49 @@ export const getSettings = async () => {
         .eq('id', 'global')
         .single();
       
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // Row doesn't exist, create default
-          await saveSettings(DEFAULT_SETTINGS);
-          return DEFAULT_SETTINGS;
+      if (!error && data) {
+        const merged = { ...DEFAULT_SETTINGS, ...data, ...localData };
+        if (merged.bank_opening_balance === undefined || merged.bank_opening_balance === 0) {
+          merged.bank_opening_balance = localData.bank_opening_balance !== undefined ? localData.bank_opening_balance : 2000;
         }
-        throw error;
+        if (merged.bank_opening_balance_cimb === undefined) {
+          merged.bank_opening_balance_cimb = localData.bank_opening_balance_cimb !== undefined ? localData.bank_opening_balance_cimb : 2000;
+        }
+        if (merged.bank_opening_balance_islam === undefined) {
+          merged.bank_opening_balance_islam = localData.bank_opening_balance_islam !== undefined ? localData.bank_opening_balance_islam : 0;
+        }
+        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(merged));
+        return merged;
       }
-      return data;
     } catch (e) {
       console.error('Error fetching settings from Supabase, falling back:', e);
     }
   }
   
   // LocalStorage Fallback
-  const stored = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-  if (stored) {
-    return JSON.parse(stored);
+  if (localStored) {
+    return { ...DEFAULT_SETTINGS, ...localData };
   }
   localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
   return DEFAULT_SETTINGS;
 };
 
 export const saveSettings = async (settings) => {
+  const mergedSettings = { ...DEFAULT_SETTINGS, ...settings };
   const client = getSupabaseClient();
   if (client) {
     try {
+      const { payment_profiles, selected_payment_profile, bank_opening_balance, ...dbSettings } = mergedSettings;
       const { error } = await client
         .from('settings')
-        .upsert({ id: 'global', ...settings });
+        .upsert({ id: 'global', ...dbSettings });
       if (error) throw error;
-      return true;
     } catch (e) {
       console.error('Error saving settings to Supabase:', e);
     }
   }
   
-  // LocalStorage Fallback
-  localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+  localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(mergedSettings));
   return true;
 };
 
@@ -252,6 +265,8 @@ export const getInvoices = async () => {
     let delivery_paid_date = invoice.delivery_paid_date;
     let delivery_payment_method = invoice.delivery_payment_method;
     let has_delivery = invoice.has_delivery;
+    let payment_bank = invoice.payment_bank || '';
+    let factory_payment_bank = invoice.factory_payment_bank || '';
     let cleanNotes = invoice.notes || '';
     let _raw_meta = {};
 
@@ -281,6 +296,8 @@ export const getInvoices = async () => {
         if (meta.delivery_paid_date !== undefined) delivery_paid_date = meta.delivery_paid_date;
         if (meta.delivery_payment_method !== undefined) delivery_payment_method = meta.delivery_payment_method;
         if (meta.has_delivery !== undefined) has_delivery = meta.has_delivery;
+        if (meta.payment_bank !== undefined) payment_bank = meta.payment_bank;
+        if (meta.factory_payment_bank !== undefined) factory_payment_bank = meta.factory_payment_bank;
       } catch (e) {}
     }
 
@@ -292,10 +309,23 @@ export const getInvoices = async () => {
     const isSyafiq = (invoice.client_name || '').toLowerCase().includes('syafiq');
     const finalHasDelivery = has_delivery !== undefined ? Boolean(has_delivery) : isSyafiq;
 
+    // Inference for payment_bank: All historical records belong to Bank Islam unless explicitly set to CIMB Bank
+    let finalPaymentBank = payment_bank || invoice.payment_bank;
+    if (!finalPaymentBank) {
+      finalPaymentBank = 'Bank Islam';
+    }
+
+    let finalFactoryPaymentBank = factory_payment_bank || invoice.factory_payment_bank;
+    if (!finalFactoryPaymentBank) {
+      finalFactoryPaymentBank = 'Bank Islam';
+    }
+
     return {
       ...invoice,
       notes: cleanNotes,
       _raw_meta,
+      payment_bank: finalPaymentBank,
+      factory_payment_bank: finalFactoryPaymentBank,
       due_date: due_date || '',
       discount_type: discount_type !== undefined ? discount_type : (parseFloat(invoice.discount_per_pcs || 0) > 0 ? 'per_pcs' : 'bulk'),
       discount_value: discount_value !== undefined ? discount_value : (parseFloat(invoice.discount_per_pcs || 0) || 0),
@@ -475,7 +505,8 @@ export const saveInvoice = async (invoiceData) => {
         delivery_fee: finalInvoiceData.delivery_fee !== undefined && finalInvoiceData.delivery_fee !== '' ? (parseFloat(finalInvoiceData.delivery_fee) || 0) : '',
         delivery_payment_status: finalInvoiceData.delivery_payment_status || '',
         delivery_paid_date: finalInvoiceData.delivery_paid_date || '',
-        delivery_payment_method: finalInvoiceData.delivery_payment_method || ''
+        payment_bank: finalInvoiceData.payment_bank || 'Bank Islam',
+        factory_payment_bank: finalInvoiceData.factory_payment_bank || 'Bank Islam'
       };
       if (finalInvoiceData.due_date !== undefined) {
         metadata.due_date = finalInvoiceData.due_date;
@@ -595,7 +626,7 @@ export const deleteInvoice = async (id) => {
   return true;
 };
 
-export const updateInvoicePayment = async (id, depositAmount, status, pengeluaranVal, depositDate, paidDate) => {
+export const updateInvoicePayment = async (id, depositAmount, status, pengeluaranVal, depositDate, paidDate, paymentBank) => {
   const invoices = await getInvoices();
   const invoice = invoices.find(inv => inv.id === id);
   if (!invoice) return false;
@@ -615,12 +646,13 @@ export const updateInvoicePayment = async (id, depositAmount, status, pengeluara
 
   if (depositDate !== undefined) updatedInvoice.deposit_date = depositDate;
   if (paidDate !== undefined) updatedInvoice.paid_date = paidDate;
+  if (paymentBank !== undefined) updatedInvoice.payment_bank = paymentBank;
 
   const saved = await saveInvoice(updatedInvoice);
   return saved !== null;
 };
 
-export const updateManufacturingStatus = async (id, order_status, pengeluaranVal, dueDateVal) => {
+export const updateManufacturingStatus = async (id, order_status, pengeluaranVal, dueDateVal, factoryPaymentBankVal) => {
   const invoices = await getInvoices();
   const invoice = invoices.find(inv => inv.id === id);
   if (!invoice) return false;
@@ -634,6 +666,9 @@ export const updateManufacturingStatus = async (id, order_status, pengeluaranVal
   
   if (dueDateVal !== undefined) {
     updatedInvoice.due_date = dueDateVal;
+  }
+  if (factoryPaymentBankVal !== undefined) {
+    updatedInvoice.factory_payment_bank = factoryPaymentBankVal;
   }
 
   const saved = await saveInvoice(updatedInvoice);

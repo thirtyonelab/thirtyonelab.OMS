@@ -4,10 +4,6 @@ import './index.css'
 import App from './App.jsx'
 import './pwaInstall.js'
 
-// Block zoom (iOS ignores user-scalable=no): pinch, double-tap, ctrl/cmd+wheel
-document.addEventListener('gesturestart', (e) => e.preventDefault())
-document.addEventListener('gesturechange', (e) => e.preventDefault())
-document.addEventListener('wheel', (e) => { if (e.ctrlKey) e.preventDefault() }, { passive: false })
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -15,7 +11,7 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>,
 )
 
-if ('serviceWorker' in navigator) {
+if (import.meta.env.PROD && !demoMode && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js', { scope: import.meta.env.BASE_URL })
       .then((registration) => {

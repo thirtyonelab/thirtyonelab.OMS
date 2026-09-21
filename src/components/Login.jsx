@@ -50,15 +50,6 @@ export default function Login({ onLoginSuccess }) {
           <span className="brand-dot" />
           <span className="brand-label">INTERNAL SYSTEM</span>
         </div>
-        <button 
-          type="button" 
-          onClick={toggleLanguage} 
-          className="lang-pill-btn"
-          aria-label="Switch Language"
-        >
-          <Globe size={14} />
-          <span>{language === 'EN' ? 'EN' : 'BM'}</span>
-        </button>
       </header>
 
       {/* Main Container */}

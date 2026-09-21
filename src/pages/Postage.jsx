@@ -394,88 +394,144 @@ export default function Postage() {
   };
 
   return (
-    <div className="main-content">
-      {/* Header - Aligned with Orders (Invoices.jsx) */}
-      <div className="invoices-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="main-content" style={{ padding: '1rem', maxWidth: '1400px', margin: '0 auto' }}>
+      {/* Desktop Header */}
+      <div className="desktop-only" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <div>
-          <span className="section-tag">{language === 'EN' ? 'LOGISTICS & COURIER' : 'LOGISTIK & KURIER'}</span>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: '800', marginTop: '0.5rem' }}>
+          <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary-red, #c51b27)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+            {language === 'EN' ? 'LOGISTICS & COURIER' : 'LOGISTIK & KURIER'}
+          </span>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 900, margin: '2px 0 0 0', color: '#18181b', letterSpacing: '-0.5px' }}>
             {language === 'EN' ? 'Courier Delivery' : 'Penghantaran Kurier'}
           </h1>
         </div>
 
         <button
           onClick={openAddModal}
-          className="btn btn-primary"
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.25rem', fontWeight: 600 }}
+          className="btn btn-primary btn-sm"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, padding: '0.5rem 0.9rem' }}
         >
-          <Plus size={18} /> {language === 'EN' ? 'Add Delivery' : 'Tambah Penghantaran'}
+          <Plus size={15} /> {language === 'EN' ? 'Add Delivery' : 'Tambah Penghantaran'}
         </button>
       </div>
 
-      {/* Advanced Filters Bar - Exactly matched with Orders (Invoices.jsx) */}
-      <div className="search-filters-bar card">
-        <div className="search-box">
-          <Search size={18} className="search-icon" />
+      {/* COMPACT STATUS FILTER CHIPS (MATCHED WITH INVOICES) */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '8px', 
+        overflowX: 'auto', 
+        paddingBottom: '6px', 
+        marginBottom: '14px', 
+        scrollbarWidth: 'none',
+        WebkitOverflowScrolling: 'touch',
+        flexShrink: 0,
+        alignItems: 'center',
+        minHeight: '42px'
+      }}>
+        {[
+          { key: 'All', label: 'Semua Pos', count: invoices.filter(inv => inv.has_delivery || inv.postage_courier || inv.postage_tracking).length, Icon: Truck },
+          { key: 'PENDING', label: 'Belum Pos', count: invoices.filter(inv => (inv.has_delivery || inv.postage_courier || inv.postage_tracking) && (!inv.postage_status || inv.postage_status === 'PENDING')).length, Icon: Clock },
+          { key: 'DROPOFF', label: 'Drop Off', count: invoices.filter(inv => inv.postage_status === 'DROPOFF').length, Icon: Package },
+          { key: 'PICKUP', label: 'Pick Up', count: invoices.filter(inv => inv.postage_status === 'PICKUP').length, Icon: CheckCircle },
+        ].map(({ key, label, count, Icon }) => {
+          const isSelected = statusFilter === key;
+          return (
+            <button 
+              key={key}
+              onClick={() => setStatusFilter(key)}
+              style={{ 
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                height: '34px',
+                minHeight: '34px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 650,
+                cursor: 'pointer',
+                border: isSelected ? '1px solid #18181b' : '1px solid var(--border-color)',
+                backgroundColor: isSelected ? '#18181b' : '#ffffff',
+                color: isSelected ? '#ffffff' : 'var(--text-dark)',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                boxSizing: 'border-box'
+              }}
+            >
+              <Icon size={14} color={isSelected ? '#ffffff' : 'var(--text-muted)'} />
+              <span>{label}</span>
+              <span style={{ 
+                fontSize: '10.5px',
+                padding: '1px 6px',
+                borderRadius: '6px',
+                backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : '#f4f4f5',
+                color: isSelected ? '#ffffff' : '#71717a',
+                fontWeight: 700
+              }}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* SEARCH AND MONTH FILTER BAR (COMPACT 1-LINE) */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '1.25rem', alignItems: 'center' }}>
+        <div style={{ flex: '1', position: 'relative' }}>
+          <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#a1a1aa' }} />
           <input
             type="text"
             placeholder={language === 'EN' ? 'Search invoice, client, or tracking...' : 'Cari invois, pelanggan, atau tracking...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="form-control search-input"
+            className="form-control"
+            style={{ 
+              width: '100%',
+              padding: '7px 10px 7px 32px',
+              borderRadius: '8px',
+              border: '1px solid #e4e4e7',
+              fontSize: '12.5px',
+              backgroundColor: '#ffffff'
+            }}
           />
         </div>
 
-        <div className="filter-group-row">
-          <div className="filter-box">
-            <span className="select-label">{tr('month')}</span>
-            <select
-              value={monthFilter}
-              onChange={(e) => setMonthFilter(e.target.value)}
-              className="form-control filter-select"
-            >
-              <option value="All">{tr('allMonths')}</option>
-              {monthsList.map(m => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="filter-box">
-            <span className="select-label">Status Pos</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="form-control filter-select"
-            >
-              <option value="All">{tr('allStatus')}</option>
-              <option value="PENDING">Belum Pos</option>
-              <option value="DROPOFF">Drop Off</option>
-              <option value="PICKUP">Pick Up</option>
-            </select>
-          </div>
-
-          <div className="filter-box">
-            <span className="select-label">Bayaran Delivery</span>
-            <select
-              value={paymentFilter}
-              onChange={(e) => setPaymentFilter(e.target.value)}
-              className="form-control filter-select"
-            >
-              <option value="All">Semua Bayaran</option>
-              <option value="Unpaid">Belum Bayar (Unpaid)</option>
-              <option value="Paid">Lunas (Paid)</option>
-            </select>
-          </div>
-        </div>
+        <select
+          value={monthFilter}
+          onChange={(e) => setMonthFilter(e.target.value)}
+          className="form-control"
+          style={{ 
+            width: 'auto',
+            padding: '7px 10px',
+            borderRadius: '8px',
+            border: '1px solid #e4e4e7',
+            fontSize: '12.5px',
+            fontWeight: 650,
+            backgroundColor: '#ffffff',
+            cursor: 'pointer',
+            flexShrink: 0
+          }}
+        >
+          <option value="All">{tr('allMonths')}</option>
+          {monthsList.map(m => (
+            <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
+        </select>
       </div>
 
-      {/* Main Table Card - Exactly matched with Orders (Invoices.jsx) */}
-      <div className="card" style={{ padding: 0 }}>
+      {/* Main Grid / Delivery Cards */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+          <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+            SENARAI PENGHANTARAN KURIER ({filteredInvoices.length})
+          </span>
+        </div>
+
         {loading && invoices.length === 0 ? (
-          <div className="loading-state">Memuatkan rekod penghantaran...</div>
+          <div className="loading-state" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid var(--border-color)' }}>Memuatkan rekod penghantaran...</div>
         ) : paginatedInvoices.length === 0 ? (
-          <div className="empty-state" style={{ padding: '3.5rem 1.5rem', textAlign: 'center' }}>
+          <div className="empty-state card" style={{ padding: '3.5rem 1.5rem', textAlign: 'center', borderRadius: '12px' }}>
             <Package size={44} style={{ color: '#cbd5e1', marginBottom: '0.75rem' }} />
             <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
               Tiada Rekod Penghantaran Kurier
@@ -492,302 +548,163 @@ export default function Postage() {
             </button>
           </div>
         ) : (
-          <>
-            {/* Desktop Table View */}
-            <div className="table-container desktop-only">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: 'center' }}>{tr('invNo')}</th>
-                    <th style={{ textAlign: 'left' }}>{tr('clientName')}</th>
-                    <th style={{ textAlign: 'left' }}>DESTINATION & COURIER</th>
-                    <th style={{ textAlign: 'left' }}>TRACKING NO.</th>
-                    <th style={{ textAlign: 'right' }}>DELIVERY FEE</th>
-                    <th style={{ textAlign: 'center', width: '130px' }}>{tr('status')}</th>
-                    <th style={{ textAlign: 'center', width: '175px', paddingRight: '1.75rem' }}>{tr('actions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedInvoices.map((inv) => {
-                    const isVoid = inv.status === 'Void';
-                    const isDeliveryPaid = inv.delivery_payment_status === 'Paid';
-                    const fee = parseFloat(inv.delivery_fee || 0);
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))', gap: '1rem' }}>
+            {paginatedInvoices.map((inv) => {
+              const isVoid = inv.status === 'Void';
+              const isDeliveryPaid = inv.delivery_payment_status === 'Paid';
+              const fee = parseFloat(inv.delivery_fee || 0);
+              const cost = parseFloat(inv.postage_cost || 0);
+              const profit = fee - cost;
 
-                    return (
-                      <tr 
-                        key={inv.id}
-                        style={isVoid ? { backgroundColor: '#f8fafc' } : {}}
-                      >
-                        {/* No. Invois */}
-                        <td style={{ textAlign: 'center' }} className="font-bold">
-                          #{inv.invoice_no}
-                        </td>
+              const statusBadgeColor = 
+                inv.postage_status === 'DELIVERED' || inv.postage_status === 'DROPOFF' || inv.postage_status === 'PICKUP' ? '#16a34a' :
+                inv.postage_status === 'PROCESSING' || inv.postage_status === 'SHIPPED' ? '#2563eb' : '#d97706';
 
-                        {/* Pelanggan */}
-                        <td>
-                          <div className="client-cell">
-                            <span className="client-name">{inv.client_name}</span>
-                            <span className="client-phone-sub">{inv.client_phone || '-'}</span>
-                          </div>
-                        </td>
-
-                        {/* Destinasi & Kurier */}
-                        <td>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            <span style={{ fontSize: '0.85rem', fontWeight: inv.postage_courier ? '700' : 'normal', color: inv.postage_courier ? 'var(--text-dark)' : 'var(--text-muted)' }}>
-                              {inv.postage_courier || '-'}
-                            </span>
-                            <span 
-                              style={{ 
-                                fontSize: '0.72rem', 
-                                color: 'var(--text-muted)', 
-                                maxWidth: '240px', 
-                                overflow: 'hidden', 
-                                textOverflow: 'ellipsis', 
-                                whiteSpace: 'nowrap' 
-                              }}
-                              title={inv.client_address || ''}
-                            >
-                              {inv.client_address ? inv.client_address.toUpperCase() : <em style={{ color: '#94a3b8' }}>Tiada alamat</em>}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* No. Tracking */}
-                        <td>
-                          {inv.postage_tracking ? (
-                            <span style={{ fontFamily: 'monospace', fontWeight: '700', fontSize: '0.82rem', letterSpacing: '0.5px' }}>
-                              {inv.postage_tracking.toUpperCase()}
-                            </span>
-                          ) : (
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>-</span>
-                          )}
-                        </td>
-
-                        {/* Caj Delivery (RM) & Status Bayaran */}
-                        <td style={{ textAlign: 'right', verticalAlign: 'middle' }}>
-                          {inv.postage_courier === 'Lalamove' ? (
-                            <span style={{ 
-                              fontSize: '0.72rem', 
-                              color: '#0284c7', 
-                              fontWeight: 600, 
-                              backgroundColor: '#f0f9ff', 
-                              padding: '3px 8px', 
-                              borderRadius: '4px', 
-                              border: '1px solid #bae6fd',
-                              display: 'inline-block'
-                            }}>
-                              Bayar ke Lalamove
-                            </span>
-                          ) : inv.postage_courier === 'Runner / Grab' ? (
-                            <span style={{ 
-                              fontSize: '0.72rem', 
-                              color: '#0284c7', 
-                              fontWeight: 600, 
-                              backgroundColor: '#f0f9ff', 
-                              padding: '3px 8px', 
-                              borderRadius: '4px', 
-                              border: '1px solid #bae6fd',
-                              display: 'inline-block'
-                            }}>
-                              Bayar ke Runner
-                            </span>
-                          ) : inv.postage_courier === 'Self Pick-Up' ? (
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>-</span>
-                          ) : inv.delivery_fee !== undefined && inv.delivery_fee !== null && inv.delivery_fee !== '' && parseFloat(inv.delivery_fee) > 0 ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
-                              <span style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-dark)' }}>
-                                RM {parseFloat(inv.delivery_fee).toFixed(2)}
-                              </span>
-                              {inv.postage_cost !== undefined && inv.postage_cost !== null && inv.postage_cost !== '' && parseFloat(inv.postage_cost) > 0 && (
-                                <span style={{ 
-                                  fontSize: '0.65rem', 
-                                  fontWeight: 700, 
-                                  color: (parseFloat(inv.delivery_fee) - parseFloat(inv.postage_cost)) >= 0 ? '#15803d' : '#b91c1c',
-                                  backgroundColor: (parseFloat(inv.delivery_fee) - parseFloat(inv.postage_cost)) >= 0 ? '#f0fdf4' : '#fef2f2',
-                                  border: `1px solid ${(parseFloat(inv.delivery_fee) - parseFloat(inv.postage_cost)) >= 0 ? '#bbf7d0' : '#fecaca'}`,
-                                  padding: '1px 5px',
-                                  borderRadius: '4px',
-                                  whiteSpace: 'nowrap'
-                                }}>
-                                  +RM {(parseFloat(inv.delivery_fee) - parseFloat(inv.postage_cost)).toFixed(2)} untung
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>-</span>
-                          )}
-                        </td>
-
-                        {/* Status Pos & Bayaran */}
-                        <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
-                          {isVoid ? (
-                            <span className="badge badge-void">VOID</span>
-                          ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                              {inv.postage_status ? (
-                                <span className={`badge ${getPostageStatusBadgeClass(inv.postage_status)}`}>
-                                  {getPostageStatusLabel(inv.postage_status)}
-                                </span>
-                              ) : (
-                                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>-</span>
-                              )}
-                              {inv.delivery_payment_status && (
-                                <span 
-                                  className={`badge ${isDeliveryPaid ? 'badge-paid' : 'badge-unpaid'}`}
-                                  style={{ fontWeight: 700 }}
-                                >
-                                  {isDeliveryPaid ? 'Paid' : 'Unpaid'}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </td>
-
-                        {/* Tindakan (Staging / Stacked Grid) */}
-                        <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
-                          <div className="actions-cell">
-                            <button
-                              disabled={isVoid}
-                              onClick={() => openEditModal(inv)}
-                              className="btn btn-secondary btn-sm"
-                              title="Kemas Kini Maklumat Penghantaran"
-                              style={{ 
-                                opacity: isVoid ? 0.4 : 1, 
-                                cursor: isVoid ? 'not-allowed' : 'pointer'
-                              }}
-                            >
-                              <Edit2 size={12} /> {tr('edit')}
-                            </button>
-
-                            <button
-                              onClick={() => openDocumentModal(inv, isDeliveryPaid ? 'receipt' : 'invoice')}
-                              className="btn btn-secondary btn-sm"
-                              title={isDeliveryPaid ? "Cetak Resit Delivery" : "Cetak Invois Delivery"}
-                              style={{ 
-                                opacity: isVoid ? 0.4 : 1, 
-                                cursor: isVoid ? 'not-allowed' : 'pointer'
-                              }}
-                            >
-                              <Printer size={12} /> {isDeliveryPaid ? 'Resit' : 'Invois'}
-                            </button>
-
-                            <button
-                              disabled={isVoid}
-                              onClick={() => handleDeleteDelivery(inv)}
-                              className="btn btn-secondary btn-sm"
-                              style={{ 
-                                gridColumn: 'span 2',
-                                color: '#dc2626', 
-                                borderColor: '#fca5a5',
-                                opacity: isVoid ? 0.4 : 1, 
-                                cursor: isVoid ? 'not-allowed' : 'pointer'
-                              }}
-                              title="Padam dari Rekod Penghantaran"
-                            >
-                              <Trash2 size={12} /> Padam
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Cards View - Matched with Orders */}
-            <div className="mobile-cards-list mobile-only">
-              {paginatedInvoices.map((inv) => {
-                const isVoid = inv.status === 'Void';
-                const isDeliveryPaid = inv.delivery_payment_status === 'Paid';
-                const fee = parseFloat(inv.delivery_fee || 0);
-
-                return (
-                  <div key={inv.id} className="mobile-card" style={isVoid ? { backgroundColor: '#f8fafc' } : {}}>
-                    <div className="mobile-card-row">
-                      <span className="mobile-card-title">#{inv.invoice_no}</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                        {isVoid ? (
-                          <span className="badge badge-void">VOID</span>
-                        ) : (
-                          <>
-                            {inv.postage_status ? (
-                              <span className={`badge ${getPostageStatusBadgeClass(inv.postage_status)}`}>
-                                {getPostageStatusLabel(inv.postage_status)}
-                              </span>
-                            ) : null}
-                            {inv.delivery_payment_status && (
-                              <span className={`badge ${isDeliveryPaid ? 'badge-paid' : 'badge-unpaid'}`} style={{ fontWeight: 700 }}>
-                                {isDeliveryPaid ? 'Paid' : 'Unpaid'}
-                              </span>
-                            )}
-                          </>
-                        )}
+              return (
+                <div 
+                  key={inv.id} 
+                  className="card"
+                  style={{ 
+                    padding: '1.25rem',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: isVoid ? '#fafafa' : '#ffffff',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.85rem'
+                  }}
+                >
+                  {/* Top Row: Invoice No, Client, and Status */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '1.05rem', fontWeight: 900, color: 'var(--text-dark)' }}>#{inv.invoice_no}</span>
+                        {isVoid && <span style={{ fontSize: '10px', fontWeight: 800, color: '#dc2626', background: '#fee2e2', padding: '1px 6px', borderRadius: '4px' }}>VOID</span>}
                       </div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 650, color: '#52525b', marginTop: '2px' }}>
+                        {inv.client_name}
+                      </div>
+                      {inv.client_phone && (
+                        <div style={{ fontSize: '0.75rem', color: '#71717a' }}>{inv.client_phone}</div>
+                      )}
                     </div>
 
-                    <div className="mobile-card-row">
-                      <div className="mobile-card-detail">
-                        <div className="mobile-card-bold">{inv.client_name}</div>
-                        <div>Tel: {inv.client_phone || '-'}</div>
-                        <div>Kurier: <strong>{inv.postage_courier || '-'}</strong></div>
-                        {inv.postage_tracking && <div>Track: <code style={{ fontWeight: 'bold' }}>{inv.postage_tracking}</code></div>}
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        {inv.delivery_fee !== undefined && inv.delivery_fee !== null && inv.delivery_fee !== '' && parseFloat(inv.delivery_fee) > 0 ? (
-                          <>
-                            <div className="mobile-card-detail">
-                              Caj Pos: <span className="mobile-card-bold">RM {parseFloat(inv.delivery_fee).toFixed(2)}</span>
-                            </div>
-                            {inv.postage_cost !== undefined && inv.postage_cost !== null && inv.postage_cost !== '' && parseFloat(inv.postage_cost) > 0 && (
-                              <div style={{ 
-                                fontSize: '0.65rem', 
-                                fontWeight: 600, 
-                                color: (parseFloat(inv.delivery_fee) - parseFloat(inv.postage_cost)) >= 0 ? '#16a34a' : '#dc2626' 
-                              }}>
-                                +RM {(parseFloat(inv.delivery_fee) - parseFloat(inv.postage_cost)).toFixed(2)} untung
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div className="mobile-card-detail" style={{ color: 'var(--text-muted)' }}>-</div>
-                        )}
-                      </div>
-                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                      <span style={{ 
+                        fontSize: '11px', 
+                        fontWeight: 700, 
+                        color: statusBadgeColor, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '4px',
+                        padding: '3px 8px',
+                        background: `${statusBadgeColor}15`,
+                        borderRadius: '6px'
+                      }}>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: statusBadgeColor }}></span>
+                        {getPostageStatusLabel(inv.postage_status)}
+                      </span>
 
-                    <div className="mobile-card-actions" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', width: '100%' }}>
-                      <button
-                        disabled={isVoid}
-                        onClick={() => openEditModal(inv)}
-                        className="btn btn-secondary btn-sm"
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}
-                      >
-                        <Edit2 size={12} /> {tr('edit')}
-                      </button>
-
-                      <button
-                        onClick={() => openDocumentModal(inv, isDeliveryPaid ? 'receipt' : 'invoice')}
-                        className="btn btn-secondary btn-sm"
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}
-                      >
-                        <Printer size={12} /> {isDeliveryPaid ? 'Resit' : 'Invois'}
-                      </button>
-
-                      <button
-                        onClick={() => handleDeleteDelivery(inv)}
-                        className="btn btn-secondary btn-sm"
-                        style={{ color: '#dc2626', borderColor: '#fca5a5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}
-                        title="Padam dari Penghantaran"
-                      >
-                        <Trash2 size={12} /> Padam
-                      </button>
+                      <span style={{ 
+                        fontSize: '10px', 
+                        fontWeight: 750, 
+                        color: isDeliveryPaid ? '#16a34a' : '#b45309',
+                        background: isDeliveryPaid ? '#f0fdf4' : '#fef3c7',
+                        padding: '2px 6px',
+                        borderRadius: '4px'
+                      }}>
+                        {isDeliveryPaid ? '● Bayaran Lunas' : '● Belum Bayar Fee'}
+                      </span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </>
+
+                  {/* Courier & Tracking Details */}
+                  <div style={{ background: '#f8f7f4', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem' }}>
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Kurier:</span>
+                      <strong style={{ color: 'var(--text-dark)' }}>{inv.postage_courier || '-'}</strong>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem' }}>
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>No. Tracking:</span>
+                      {inv.postage_tracking ? (
+                        <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#18181b', background: '#e4e4e7', padding: '1px 6px', borderRadius: '4px' }}>
+                          {inv.postage_tracking}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#a1a1aa' }}>Belum dimasukkan</span>
+                      )}
+                    </div>
+
+                    {inv.client_address && (
+                      <div style={{ fontSize: '0.75rem', color: '#71717a', borderTop: '1px dashed #e4e4e7', paddingTop: '0.35rem', marginTop: '0.2rem', display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
+                        <MapPin size={12} color="var(--primary-red)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                        <span>{inv.client_address.toUpperCase()}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Delivery Fee & Profit */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.25rem 0' }}>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Caj Pos Pelanggan</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 900, color: 'var(--text-dark)' }}>
+                        RM {fee.toFixed(2)}
+                      </div>
+                    </div>
+
+                    {cost > 0 && (
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Untung Bersih Pos</div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 800, color: profit >= 0 ? '#16a34a' : '#dc2626' }}>
+                          {profit >= 0 ? `+RM ${profit.toFixed(2)}` : `-RM ${Math.abs(profit).toFixed(2)}`}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions Bar (Standardized 11.5px size) */}
+                  <div style={{ display: 'flex', gap: '5px', marginTop: 'auto', paddingTop: '0.35rem', alignItems: 'center' }}>
+                    <button
+                      disabled={isVoid}
+                      onClick={() => openEditModal(inv)}
+                      className="btn btn-secondary"
+                      style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', height: '30px', minHeight: '30px', padding: '0 8px', fontSize: '11.5px', fontWeight: 650, borderRadius: '6px' }}
+                    >
+                      <Edit2 size={12} /> {tr('edit')}
+                    </button>
+
+                    <button
+                      onClick={() => openDocumentModal(inv, isDeliveryPaid ? 'receipt' : 'invoice')}
+                      className="btn btn-secondary"
+                      style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', height: '30px', minHeight: '30px', padding: '0 8px', fontSize: '11.5px', fontWeight: 650, borderRadius: '6px' }}
+                    >
+                      <Printer size={12} /> {isDeliveryPaid ? 'Resit' : 'Invois'}
+                    </button>
+
+                    <button
+                      onClick={() => handleSendWhatsApp(inv)}
+                      className="btn btn-secondary"
+                      style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', height: '30px', minHeight: '30px', padding: '0 8px', fontSize: '11.5px', fontWeight: 650, borderRadius: '6px', color: '#16a34a', borderColor: '#bbf7d0', background: '#f0fdf4' }}
+                      title="Hantar info ke WhatsApp"
+                    >
+                      <Send size={12} /> WA
+                    </button>
+
+                    <button
+                      disabled={isVoid}
+                      onClick={() => handleDeleteDelivery(inv)}
+                      className="btn btn-secondary"
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '30px', minHeight: '30px', width: '30px', padding: 0, borderRadius: '6px', color: '#dc2626', borderColor: '#fecaca', flexShrink: 0 }}
+                      title="Padam rekod penghantaran"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
