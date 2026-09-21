@@ -1,4 +1,4 @@
-const CACHE_NAME = 'oms-cache-v1';
+const CACHE_NAME = 'oms-cache-v3';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
