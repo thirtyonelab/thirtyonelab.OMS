@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState } from 'react';
 // Natural Malaysian business / operational terms (Bahasa Melayu & English industry rojak)
 const businessTranslations = {
   // Sidebar & Navigation
-  overview: 'Ringkasan',
+  overview: 'Dashboard',
   orders: 'Invois & Tempahan',
   manufacturing: 'Kilang (Production)',
   postage: 'Penghantaran (Pos)',
@@ -19,9 +19,9 @@ const businessTranslations = {
   cloudDesc: 'Awan aktif',
   language: 'BAHASA',
 
-  // Dashboard / Ringkasan
+  // Dashboard
   dashboardTag: 'PUSAT KAWALAN UTAMA',
-  dashboardTitle: 'RINGKASAN OPERASI',
+  dashboardTitle: 'DASHBOARD OPERASI',
   netProfit: 'UNTUNG BERSIH (NET PROFIT)',
   netProfitDesc: 'Kutipan Jualan - Kos Operasi (Lejar)',
   statusBayaran: 'STATUS BAYARAN',

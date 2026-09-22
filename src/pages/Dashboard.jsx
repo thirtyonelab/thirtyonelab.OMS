@@ -105,6 +105,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
 
     let collectedInvoicesMonth = 0;
     let kosKilangMonth = 0;
+    let unpaidBalanceMonth = 0;
 
     invoices.forEach(inv => {
       if (inv.status === 'Void') return;
@@ -112,9 +113,18 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
       const isCurrentMonth = invDate.getMonth() === currentMonth && invDate.getFullYear() === currentYear;
 
       if (isCurrentMonth) {
-        const paidAmount = inv.status === 'Paid' ? parseFloat(inv.grand_total || 0) : parseFloat(inv.deposit || 0);
-        collectedInvoicesMonth += paidAmount;
-        kosKilangMonth += parseFloat(inv.pengeluaran || 0);
+        const grandTotal = parseFloat(inv.grand_total || 0);
+        const deposit = parseFloat(inv.deposit || 0);
+        const hasPayment = inv.status === 'Paid' || inv.status === 'Deposit' || deposit > 0;
+
+        if (hasPayment) {
+          const paidAmount = inv.status === 'Paid' ? grandTotal : deposit;
+          const unpaid = inv.status === 'Paid' ? 0 : Math.max(0, grandTotal - deposit);
+
+          collectedInvoicesMonth += paidAmount;
+          kosKilangMonth += parseFloat(inv.pengeluaran || 0);
+          unpaidBalanceMonth += unpaid;
+        }
       }
     });
 
@@ -151,6 +161,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
       collectedInvoicesMonth,
       kosKilangMonth,
       ledgerOUTMonth,
+      unpaidBalanceMonth,
       lateCount,
       draftCount,
       balanceCount,
@@ -192,7 +203,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
             THIRTYONE LAB OMS
           </span>
           <h1 style={{ fontSize: '1.65rem', fontWeight: 900, letterSpacing: '-0.3px', margin: '2px 0 0', color: 'var(--text-dark)' }}>
-            Ringkasan Operasi<span style={{ color: 'var(--primary-red)' }}>.</span>
+            Dashboard Operasi<span style={{ color: 'var(--primary-red)' }}>.</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '3px 0 0' }}>
             {new Date().toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
@@ -281,9 +292,26 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
       }}>
         {/* Top Net Profit Header */}
         <div style={{ paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
-          <span style={{ fontSize: '11px', fontWeight: 750, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            UNTUNG BERSIH (BULAN INI)
-          </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 750, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              UNTUNG BERSIH (BULAN INI)
+            </span>
+            <span style={{ 
+              fontSize: '10.5px', 
+              fontWeight: 700, 
+              padding: '2px 8px', 
+              borderRadius: '6px', 
+              background: '#ecfdf5', 
+              color: '#065f46', 
+              border: '1px solid #a7f3d0',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }}></span>
+              Aliran Tunai Sebenar (Cash-In)
+            </span>
+          </div>
           <div style={{ 
             fontSize: '1.95rem', 
             fontWeight: 900, 
@@ -352,6 +380,79 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
             <strong style={{ fontSize: '15px', fontWeight: 850, color: '#92400e' }}>
               −{money(metrics.ledgerOUTMonth)}
             </strong>
+          </div>
+        </div>
+
+        {/* Real-Time Cash vs Baki Belum Settle Alert Banner */}
+        <div style={{
+          marginTop: '12px',
+          padding: '12px 14px',
+          background: metrics.unpaidBalanceMonth > 0 ? '#fffbeb' : '#f0fdf4',
+          border: `1px solid ${metrics.unpaidBalanceMonth > 0 ? '#fde68a' : '#bbf7d0'}`,
+          borderRadius: '10px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '14px' }}>{metrics.unpaidBalanceMonth > 0 ? '⚠️' : '✅'}</span>
+              <strong style={{ fontSize: '11.5px', color: metrics.unpaidBalanceMonth > 0 ? '#92400e' : '#166534', fontWeight: 750 }}>
+                Status Aliran Tunai (Real-Time Data)
+              </strong>
+            </div>
+            {metrics.unpaidBalanceMonth > 0 && (
+              <span style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                color: '#b45309',
+                background: '#fef3c7',
+                padding: '2px 8px',
+                borderRadius: '6px'
+              }}>
+                Baki Belum Kutip: {money(metrics.unpaidBalanceMonth)}
+              </span>
+            )}
+          </div>
+
+          <p style={{ margin: 0, fontSize: '11px', color: '#4b5563', lineHeight: 1.45 }}>
+            Kiraan di atas berasaskan <strong>duit tunai & deposit sebenar yang telah dikutip</strong>. 
+            {metrics.unpaidBalanceMonth > 0 ? (
+              <> Baki invois belum <em>settle</em> (<strong>{money(metrics.unpaidBalanceMonth)}</strong>) belum dimasukkan ke dalam untung tunai semasa ini sehingga pelanggan membuat bayaran penuh.</>
+            ) : (
+              <> Tiada baki tertunggak. Semua invois bagi bulan ini telah dijelaskan sepenuhnya.</>
+            )}
+          </p>
+
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            paddingTop: '6px', 
+            borderTop: `1px dashed ${metrics.unpaidBalanceMonth > 0 ? '#fde68a' : '#bbf7d0'}`,
+            fontSize: '11px'
+          }}>
+            <span style={{ color: '#6b7280' }}>
+              Ingin semak unjuran penuh termasuk invois atas kertas?
+            </span>
+            <button
+              type="button"
+              onClick={() => setActiveTab && setActiveTab('reports')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--primary-red)',
+                fontWeight: 700,
+                cursor: 'pointer',
+                padding: '2px 4px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '2px',
+                textDecoration: 'underline'
+              }}
+            >
+              Buka Penyata P&L →
+            </button>
           </div>
         </div>
       </div>

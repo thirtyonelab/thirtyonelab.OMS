@@ -389,7 +389,7 @@ export default function MobileWorkspace({ activeTab, onNavigate, onNew, onLogout
       <nav className="m-bottom-nav" aria-label="Navigasi Utama">
         {[
           ['invoices', FileText, 'Tempahan', isOrders],
-          ['overview', LayoutDashboard, 'Ringkasan', activeTab === 'overview'],
+          ['overview', LayoutDashboard, 'Dashboard', activeTab === 'overview'],
           ['ledger', Wallet, 'Kewangan', isMoney],
           ['menu', Menu, 'Menu', ['menu', 'clients', 'settings'].includes(activeTab)],
         ].map(([id, Icon, label, active]) => (

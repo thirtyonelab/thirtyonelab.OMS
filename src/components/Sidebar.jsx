@@ -35,7 +35,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileMenuOpen, set
   };
 
   const topNavItems = [
-    { id: 'overview', label: 'Ringkasan', icon: LayoutDashboard },
+    { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'invoices', label: 'Invois & Tempahan', icon: FileText },
     { id: 'manufacturing', label: 'Kilang (Production)', icon: Factory },
     { id: 'postage', label: 'Penghantaran (Pos)', icon: Truck },
