@@ -107,18 +107,18 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
 
   return (
     <div className="main-content" style={{ padding: 'clamp(1rem, 2.5vw, 2rem)', maxWidth: '1440px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-      {/* Desktop Header */}
-      <div className="desktop-only" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
+      {/* Responsive Header (Visible on Desktop & Mobile) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', gap: '0.75rem', flexWrap: 'wrap' }}>
         <div>
-          <span className="section-tag">{tr('ordersTag')}</span>
-          <h1 style={{ fontSize: '1.85rem', fontWeight: '900', letterSpacing: '-0.5px', marginTop: '0.25rem', color: 'var(--text-dark)' }}>
+          <span className="section-tag" style={{ fontSize: '10.5px', fontWeight: 800, color: 'var(--primary-red)', letterSpacing: '1px' }}>{tr('ordersTag')}</span>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: '900', letterSpacing: '-0.5px', margin: '2px 0 0 0', color: 'var(--text-dark)' }}>
             Invois & Tempahan<span style={{ color: 'var(--primary-red)' }}>.</span>
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
+          <p className="desktop-only" style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '3px', marginBottom: 0 }}>
             Urus semua tempahan jualan, semak status kilang, dan rekod baki bayaran.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {/* View Toggle (Desktop Only) */}
           <div className="desktop-only" style={{ background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '3px' }}>
             <button
@@ -169,14 +169,16 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
               color: '#ffffff', 
               border: '1px solid #18181b', 
               borderRadius: '8px', 
-              padding: '0.65rem 1.25rem', 
-              display: 'flex', 
+              padding: '0.55rem 1rem', 
+              display: 'inline-flex', 
               alignItems: 'center', 
               gap: '6px', 
-              fontWeight: 700 
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              flexShrink: 0
             }}
           >
-            <Plus size={17} strokeWidth={2.5} /> {tr('newOrder')}
+            <Plus size={16} strokeWidth={2.5} /> {tr('newOrder')}
           </button>
         </div>
       </div>

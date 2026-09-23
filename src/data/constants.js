@@ -8,6 +8,7 @@ export const MATERIALS = [
   { id: 'Micro Lattice', label: 'Micro Lattice (+RM6)', price: 6 },
   { id: 'Mini-Eyelet', label: 'Mini-Eyelet (+RM0)', price: 0 },
   { id: 'Popcorn', label: 'Popcorn (+RM8)', price: 8 },
+  { id: 'PU Diamond', label: 'PU Diamond (+RM6)', price: 6 },
   { id: 'RJPK', label: 'RJPK (+RM3)', price: 3 },
   { id: 'Square', label: 'Square (+RM8)', price: 8 }
 ];

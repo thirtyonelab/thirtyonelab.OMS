@@ -71,6 +71,69 @@ export default function WalletPage() {
       });
   }, [invoices]);
 
+  // 2. Duit Keluar (OUT): Kos Pengeluaran Kilang mengikut factory_payment_bank
+  const factoryOutEvents = useMemo(() => {
+    return invoices
+      .filter(inv => inv.status !== 'Void' && Number(inv.pengeluaran || 0) > 0)
+      .map(inv => {
+        const b = inv.factory_payment_bank || 'Bank Islam';
+        return {
+          id: `inv_mfg_${inv.id}`,
+          date: inv.date || '',
+          type: 'OUT',
+          title: `Kos Kilang: ${inv.job_name || `Invois #${inv.invoice_no}`}`,
+          category: 'Pengeluaran Kilang',
+          payee: `Kilang (Tempahan #${inv.invoice_no} - ${inv.client_name || ''})`,
+          amount: Number(inv.pengeluaran || 0),
+          source: 'manufacturing',
+          bank: b,
+          rawInvoice: inv
+        };
+      });
+  }, [invoices]);
+
+  // 3. Duit Keluar (OUT): Kos Penghantaran Kurier mengikut postage_payment_bank
+  const postageOutEvents = useMemo(() => {
+    return invoices
+      .filter(inv => inv.status !== 'Void' && inv.has_delivery && Number(inv.postage_cost || 0) > 0)
+      .map(inv => {
+        const b = inv.postage_payment_bank || 'Bank Islam';
+        return {
+          id: `inv_post_${inv.id}`,
+          date: inv.postage_date || inv.date || '',
+          type: 'OUT',
+          title: `Kos Pos (${inv.postage_courier || 'Kurier'}): ${inv.job_name || `Invois #${inv.invoice_no}`}`,
+          category: 'Penghantaran Kurier',
+          payee: `${inv.postage_courier || 'Kurier'} (Penghantaran #${inv.invoice_no} - ${inv.client_name || ''})`,
+          amount: Number(inv.postage_cost || 0),
+          source: 'postage',
+          bank: b,
+          rawInvoice: inv
+        };
+      });
+  }, [invoices]);
+
+  // 4. Duit Masuk (IN): Caj Pos Pelanggan Dikutip (jika berasingan dari invois jualan)
+  const deliveryInEvents = useMemo(() => {
+    return invoices
+      .filter(inv => inv.status !== 'Void' && inv.has_delivery && inv.delivery_payment_status === 'Paid' && inv.delivery_payment_method !== 'Termasuk Dalam Invois' && Number(inv.delivery_fee || 0) > 0)
+      .map(inv => {
+        const b = inv.postage_payment_bank || inv.payment_bank || 'Bank Islam';
+        return {
+          id: `inv_del_in_${inv.id}`,
+          date: inv.delivery_paid_date || inv.postage_date || inv.date || '',
+          type: 'IN',
+          title: `Caj Pos Pelanggan: ${inv.job_name || `Invois #${inv.invoice_no}`}`,
+          category: 'Caj Pos Pelanggan',
+          payee: inv.client_name || 'Pelanggan',
+          amount: Number(inv.delivery_fee || 0),
+          source: 'delivery_in',
+          bank: b,
+          rawInvoice: inv
+        };
+      });
+  }, [invoices]);
+
   const ledgerEvents = useMemo(() => {
     return ledger.map(e => {
       let b = e.bank;
@@ -102,8 +165,8 @@ export default function WalletPage() {
   }, [ledger]);
 
   const allBankFeed = useMemo(() => {
-    return [...invoiceInEvents, ...ledgerEvents].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
-  }, [invoiceInEvents, ledgerEvents]);
+    return [...invoiceInEvents, ...factoryOutEvents, ...postageOutEvents, ...deliveryInEvents, ...ledgerEvents].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  }, [invoiceInEvents, factoryOutEvents, postageOutEvents, deliveryInEvents, ledgerEvents]);
 
   const isBankMatch = (itemBank, target) => {
     if (target === 'all') return true;

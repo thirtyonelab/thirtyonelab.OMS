@@ -216,8 +216,8 @@ export default function Manufacturing() {
 
   return (
     <div className="main-content" style={{ padding: '1rem', maxWidth: '1400px', margin: '0 auto' }}>
-      {/* Desktop Header */}
-      <div className="desktop-only" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+      {/* Responsive Header (Visible on Desktop & Mobile) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <div>
           <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary-red, #c51b27)', letterSpacing: '1px', textTransform: 'uppercase' }}>
             {tr('mfgTag')}
@@ -230,7 +230,7 @@ export default function Manufacturing() {
         <button
           onClick={() => setShowVoucherModal(true)}
           className="btn btn-secondary btn-sm"
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, padding: '0.5rem 0.9rem' }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, padding: '0.5rem 0.9rem', flexShrink: 0 }}
           title="Cetak Monthly Statement"
         >
           <Printer size={14} /> Penyata Bulanan Kilang

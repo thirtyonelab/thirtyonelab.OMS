@@ -48,13 +48,22 @@ export default function Clients({ onCreateInvoiceForClient }) {
     if (!editForm.name.trim() || !editForm.phone.trim()) return;
 
     try {
-      await saveClient({
+      const updated = await saveClient({
         ...editingClient,
-        name: editForm.name,
-        phone: editForm.phone
-      });
+        name: editForm.name.trim(),
+        phone: editForm.phone.trim()
+      }, editingClient);
+      
+      if (selectedClient && selectedClient.id === editingClient.id) {
+        setSelectedClient(prev => ({
+          ...prev,
+          name: editForm.name.trim(),
+          phone: editForm.phone.trim()
+        }));
+      }
+
       setEditingClient(null);
-      loadData();
+      await loadData();
     } catch (err) {
       alert('Gagal mengemas kini maklumat pelanggan. Kemungkinan nombor telefon sudah wujud.');
     }

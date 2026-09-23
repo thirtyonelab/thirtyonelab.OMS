@@ -128,6 +128,9 @@ export const getClients = async () => {
         .select('*')
         .order('name', { ascending: true });
       if (error) throw error;
+      if (data) {
+        localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(data));
+      }
       return data;
     } catch (e) {
       console.error('Error fetching clients from Supabase:', e);
@@ -139,8 +142,79 @@ export const getClients = async () => {
   return stored ? JSON.parse(stored) : [];
 };
 
-export const saveClient = async (clientData) => {
+export const cascadeClientUpdateToInvoices = async (clientData, oldClientData = null) => {
+  const targetId = clientData.id;
+  const newName = (clientData.name || '').trim();
+  const newPhone = (clientData.phone || '').trim();
+  const oldPhone = oldClientData?.phone?.trim();
+  const oldName = (oldClientData?.name || '').trim().toLowerCase();
+
+  // If both name and phone haven't changed, skip cascade
+  if (oldClientData && oldClientData.name === clientData.name && oldClientData.phone === clientData.phone) {
+    return;
+  }
+
   const client = getSupabaseClient();
+  const stored = localStorage.getItem(STORAGE_KEYS.INVOICES);
+  let localInvoices = stored ? JSON.parse(stored) : [];
+
+  const matchedInvoiceIds = [];
+
+  localInvoices = localInvoices.map(inv => {
+    const isLinkedById = targetId && inv.client_id === targetId;
+    const isLinkedByOldPhone = oldPhone && inv.client_phone === oldPhone;
+    const isLinkedByName = oldName && (inv.client_name || '').trim().toLowerCase() === oldName;
+
+    if (isLinkedById || isLinkedByOldPhone || (isLinkedByName && (!inv.client_id || inv.client_id === targetId))) {
+      matchedInvoiceIds.push(inv.id);
+      return {
+        ...inv,
+        client_id: targetId || inv.client_id,
+        client_name: newName || inv.client_name,
+        client_phone: newPhone || inv.client_phone,
+        updated_at: new Date().toISOString()
+      };
+    }
+    return inv;
+  });
+
+  localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(localInvoices));
+
+  if (client) {
+    try {
+      // 1. Update in Supabase by client_id
+      if (targetId) {
+        await client
+          .from('invoices')
+          .update({
+            client_name: newName,
+            client_phone: newPhone,
+            updated_at: new Date().toISOString()
+          })
+          .eq('client_id', targetId);
+      }
+
+      // 2. Also update any matched invoices that had missing client_id
+      if (matchedInvoiceIds.length > 0) {
+        await client
+          .from('invoices')
+          .update({
+            client_id: targetId,
+            client_name: newName,
+            client_phone: newPhone,
+            updated_at: new Date().toISOString()
+          })
+          .in('id', matchedInvoiceIds);
+      }
+    } catch (e) {
+      console.error('Error cascading client update to Supabase invoices:', e);
+    }
+  }
+};
+
+export const saveClient = async (clientData, oldClientData = null) => {
+  const client = getSupabaseClient();
+  let savedData = null;
   if (client) {
     try {
       const upsertOptions = clientData.id ? {} : { onConflict: 'phone' };
@@ -150,7 +224,7 @@ export const saveClient = async (clientData) => {
         .select()
         .single();
       if (error) throw error;
-      return data;
+      savedData = data;
     } catch (e) {
       console.error('Error saving client to Supabase:', e);
     }
@@ -175,7 +249,13 @@ export const saveClient = async (clientData) => {
   }
   
   localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients));
-  return updatedClient;
+
+  // If client is being edited with changes, cascade to all related invoices
+  if (clientData.id && oldClientData) {
+    await cascadeClientUpdateToInvoices(savedData || updatedClient, oldClientData);
+  }
+
+  return savedData || updatedClient;
 };
 
 export const deleteClient = async (id) => {
@@ -246,6 +326,72 @@ export const getInvoices = async () => {
     invoicesList = stored ? JSON.parse(stored) : [];
   }
 
+  // Auto-align invoices with CRM clients (Fixes legacy/denormalized data, e.g. WhatsApp username instead of phone number)
+  try {
+    const clientsList = await getClients();
+    if (clientsList && clientsList.length > 0) {
+      let hasAlignmentChanges = false;
+      const alignedInvoicesToUpdate = [];
+
+      invoicesList = invoicesList.map(invoice => {
+        let matchedClient = null;
+        if (invoice.client_id) {
+          matchedClient = clientsList.find(c => c.id === invoice.client_id);
+        }
+        if (!matchedClient && invoice.client_name) {
+          const invName = invoice.client_name.trim().toLowerCase();
+          matchedClient = clientsList.find(c => c.name && c.name.trim().toLowerCase() === invName);
+        }
+
+        if (matchedClient) {
+          const newPhone = (matchedClient.phone || '').trim();
+          const newName = (matchedClient.name || '').trim();
+          const phoneChanged = newPhone && invoice.client_phone !== newPhone;
+          const nameChanged = newName && invoice.client_name !== newName;
+          const idMissing = !invoice.client_id && matchedClient.id;
+
+          if (phoneChanged || nameChanged || idMissing) {
+            hasAlignmentChanges = true;
+            const updatedInv = {
+              ...invoice,
+              client_id: matchedClient.id || invoice.client_id,
+              client_name: newName || invoice.client_name,
+              client_phone: newPhone || invoice.client_phone
+            };
+            alignedInvoicesToUpdate.push(updatedInv);
+            return updatedInv;
+          }
+        }
+        return invoice;
+      });
+
+      if (hasAlignmentChanges) {
+        localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoicesList));
+        if (client && alignedInvoicesToUpdate.length > 0) {
+          (async () => {
+            for (const inv of alignedInvoicesToUpdate) {
+              try {
+                await client
+                  .from('invoices')
+                  .update({
+                    client_id: inv.client_id,
+                    client_name: inv.client_name,
+                    client_phone: inv.client_phone,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', inv.id);
+              } catch (updateErr) {
+                console.warn('Error persisting auto-aligned invoice to Supabase:', inv.invoice_no, updateErr);
+              }
+            }
+          })();
+        }
+      }
+    }
+  } catch (alignErr) {
+    console.warn('Error during auto-aligning invoices with clients:', alignErr);
+  }
+
   return invoicesList.map(invoice => {
     let discount_type = invoice.discount_type;
     let discount_value = invoice.discount_value;
@@ -267,6 +413,7 @@ export const getInvoices = async () => {
     let has_delivery = invoice.has_delivery;
     let payment_bank = invoice.payment_bank || '';
     let factory_payment_bank = invoice.factory_payment_bank || '';
+    let postage_payment_bank = invoice.postage_payment_bank || '';
     let cleanNotes = invoice.notes || '';
     let _raw_meta = {};
 
@@ -298,6 +445,7 @@ export const getInvoices = async () => {
         if (meta.has_delivery !== undefined) has_delivery = meta.has_delivery;
         if (meta.payment_bank !== undefined) payment_bank = meta.payment_bank;
         if (meta.factory_payment_bank !== undefined) factory_payment_bank = meta.factory_payment_bank;
+        if (meta.postage_payment_bank !== undefined) postage_payment_bank = meta.postage_payment_bank;
       } catch (e) {}
     }
 
@@ -320,12 +468,18 @@ export const getInvoices = async () => {
       finalFactoryPaymentBank = 'Bank Islam';
     }
 
+    let finalPostagePaymentBank = postage_payment_bank || invoice.postage_payment_bank;
+    if (!finalPostagePaymentBank) {
+      finalPostagePaymentBank = 'Bank Islam';
+    }
+
     return {
       ...invoice,
       notes: cleanNotes,
       _raw_meta,
       payment_bank: finalPaymentBank,
       factory_payment_bank: finalFactoryPaymentBank,
+      postage_payment_bank: finalPostagePaymentBank,
       due_date: due_date || '',
       discount_type: discount_type !== undefined ? discount_type : (parseFloat(invoice.discount_per_pcs || 0) > 0 ? 'per_pcs' : 'bulk'),
       discount_value: discount_value !== undefined ? discount_value : (parseFloat(invoice.discount_per_pcs || 0) || 0),
@@ -506,7 +660,8 @@ export const saveInvoice = async (invoiceData) => {
         delivery_payment_status: finalInvoiceData.delivery_payment_status || '',
         delivery_paid_date: finalInvoiceData.delivery_paid_date || '',
         payment_bank: finalInvoiceData.payment_bank || 'Bank Islam',
-        factory_payment_bank: finalInvoiceData.factory_payment_bank || 'Bank Islam'
+        factory_payment_bank: finalInvoiceData.factory_payment_bank || 'Bank Islam',
+        postage_payment_bank: finalInvoiceData.postage_payment_bank || 'Bank Islam'
       };
       if (finalInvoiceData.due_date !== undefined) {
         metadata.due_date = finalInvoiceData.due_date;
@@ -692,6 +847,7 @@ export const updatePostageDetails = async (id, postageData) => {
     delivery_payment_status: postageData.delivery_payment_status !== undefined ? postageData.delivery_payment_status : (invoice.delivery_payment_status || ''),
     delivery_paid_date: postageData.delivery_paid_date !== undefined ? postageData.delivery_paid_date : (invoice.delivery_paid_date || ''),
     delivery_payment_method: postageData.delivery_payment_method !== undefined ? postageData.delivery_payment_method : (invoice.delivery_payment_method || ''),
+    postage_payment_bank: postageData.postage_payment_bank !== undefined ? postageData.postage_payment_bank : (invoice.postage_payment_bank || 'Bank Islam'),
     client_address: postageData.client_address !== undefined ? postageData.client_address : (invoice.client_address || ''),
     updated_at: new Date().toISOString()
   };
@@ -722,6 +878,46 @@ export const removeDeliveryFromInvoice = async (id) => {
 
   const saved = await saveInvoice(updatedInvoice);
   return saved !== null;
+};
+
+export const createPostageOrder = async (postageData) => {
+  const nextNo = await getNextInvoiceNo();
+  const dateStr = postageData.postage_date || new Date().toISOString().split('T')[0];
+  const fee = parseFloat(postageData.delivery_fee) || 0;
+  const isPaid = postageData.delivery_payment_status === 'Paid';
+
+  const newInvoice = {
+    invoice_no: nextNo,
+    client_id: postageData.client_id || null,
+    client_name: (postageData.client_name || 'Pelanggan').trim(),
+    client_phone: (postageData.client_phone || '').trim(),
+    client_address: (postageData.client_address || '').trim(),
+    job_name: (postageData.job_name || 'Penghantaran Kurier').trim(),
+    date: dateStr,
+    items: [],
+    subtotal: fee,
+    grand_total: fee,
+    deposit: isPaid ? fee : 0,
+    balance: isPaid ? 0 : fee,
+    status: isPaid ? 'Paid' : (fee > 0 ? 'Unpaid' : 'Paid'),
+    deposit_date: isPaid ? (postageData.delivery_paid_date || dateStr) : null,
+    paid_date: isPaid ? (postageData.delivery_paid_date || dateStr) : null,
+    has_delivery: true,
+    postage_courier: postageData.postage_courier || 'J&T Express',
+    postage_tracking: (postageData.postage_tracking || '').trim().toUpperCase(),
+    postage_status: postageData.postage_status || 'PENDING',
+    postage_date: dateStr,
+    postage_cost: postageData.postage_cost !== undefined && postageData.postage_cost !== '' ? (parseFloat(postageData.postage_cost) || 0) : '',
+    delivery_fee: fee,
+    delivery_payment_status: postageData.delivery_payment_status || 'Unpaid',
+    delivery_paid_date: postageData.delivery_paid_date || '',
+    delivery_payment_method: postageData.delivery_payment_method || 'Online Transfer',
+    postage_payment_bank: postageData.postage_payment_bank || 'Bank Islam',
+    payment_bank: postageData.postage_payment_bank || 'Bank Islam',
+    notes: postageData.notes || 'Tempahan Dibuat dari Bahagian Pos / Penghantaran'
+  };
+
+  return await saveInvoice(newInvoice);
 };
 
 // --- LEDGER SERVICE ---

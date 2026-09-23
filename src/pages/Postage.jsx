@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Truck, Package, Search, Calendar, Printer, Save, CheckCircle, Clock, MapPin, ExternalLink, Send, FileText, Receipt, AlertCircle, Edit2, X, Plus, Trash2 } from 'lucide-react';
-import { getInvoices, getSettings, updatePostageDetails, removeDeliveryFromInvoice } from '../services/storage';
+import { Truck, Package, Search, Calendar, Printer, Save, CheckCircle, Clock, MapPin, ExternalLink, Send, FileText, Receipt, AlertCircle, Edit2, X, Plus, Trash2, Building2, User } from 'lucide-react';
+import { getInvoices, getSettings, updatePostageDetails, removeDeliveryFromInvoice, getClients, createPostageOrder } from '../services/storage';
 import { useLanguage } from '../context/LanguageContext';
 import DeliveryOrderModal from '../components/DeliveryOrderModal';
 
@@ -10,6 +10,7 @@ export default function Postage() {
   const { tr, language } = useLanguage();
   const [invoices, setInvoices] = useState([]);
   const [settings, setSettings] = useState(null);
+  const [crmClients, setCrmClients] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Filters & search
@@ -22,7 +23,11 @@ export default function Postage() {
   // Add Delivery Modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addForm, setAddForm] = useState({
+    mode: 'existing', // 'existing' | 'new_client'
     invoice_id: '',
+    client_id: '',
+    client_name: '',
+    client_phone: '',
     postage_courier: 'J&T Express',
     postage_tracking: '',
     postage_status: 'PENDING',
@@ -31,6 +36,7 @@ export default function Postage() {
     delivery_payment_status: 'Unpaid',
     delivery_paid_date: '',
     delivery_payment_method: 'Online Transfer',
+    postage_payment_bank: 'Bank Islam',
     client_address: ''
   });
 
@@ -46,6 +52,7 @@ export default function Postage() {
     delivery_payment_status: 'Unpaid',
     delivery_paid_date: '',
     delivery_payment_method: 'Online Transfer',
+    postage_payment_bank: 'Bank Islam',
     client_address: ''
   });
 
@@ -85,16 +92,29 @@ export default function Postage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [invData, settingsData] = await Promise.all([
+      const [invData, settingsData, clientList] = await Promise.all([
         getInvoices(),
-        getSettings()
+        getSettings(),
+        getClients()
       ]);
       setInvoices(invData);
       setSettings(settingsData);
+      setCrmClients(clientList || []);
     } catch (e) {
       console.error('Error loading postage data:', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Inline Bank Change on card
+  const handleInlineBankChange = async (inv, newBank) => {
+    setInvoices(prev => prev.map(item => item.id === inv.id ? { ...item, postage_payment_bank: newBank } : item));
+    try {
+      await updatePostageDetails(inv.id, { postage_payment_bank: newBank });
+    } catch (err) {
+      console.error('Error updating postage bank inline:', err);
+      loadData();
     }
   };
 
@@ -110,6 +130,7 @@ export default function Postage() {
       delivery_payment_status: inv.delivery_payment_status || '',
       delivery_paid_date: inv.delivery_paid_date || '',
       delivery_payment_method: inv.delivery_payment_method || '',
+      postage_payment_bank: inv.postage_payment_bank || 'Bank Islam',
       client_address: inv.client_address || ''
     });
     setIsEditModalOpen(true);
@@ -140,6 +161,7 @@ export default function Postage() {
       delivery_payment_status: editForm.delivery_payment_status || 'Unpaid',
       delivery_paid_date: paidDate,
       delivery_payment_method: editForm.delivery_payment_method || 'Online Transfer',
+      postage_payment_bank: editForm.postage_payment_bank || 'Bank Islam',
       client_address: (editForm.client_address || '').trim().toUpperCase()
     };
 
@@ -166,7 +188,11 @@ export default function Postage() {
     const firstInv = available[0] || null;
 
     setAddForm({
+      mode: available.length > 0 ? 'existing' : 'new_client',
       invoice_id: firstInv ? firstInv.id : '',
+      client_id: '',
+      client_name: '',
+      client_phone: '',
       postage_courier: 'J&T Express',
       postage_tracking: '',
       postage_status: 'PENDING',
@@ -175,6 +201,7 @@ export default function Postage() {
       delivery_payment_status: 'Unpaid',
       delivery_paid_date: '',
       delivery_payment_method: 'Online Transfer',
+      postage_payment_bank: 'Bank Islam',
       client_address: firstInv ? (firstInv.client_address || '') : ''
     });
     setIsAddModalOpen(true);
@@ -193,39 +220,91 @@ export default function Postage() {
     }));
   };
 
-  const handleSaveAddModal = async (e) => {
-    e.preventDefault();
-    if (!addForm.invoice_id) {
-      alert('Sila pilih pesanan / invois terlebih dahulu.');
+  const handleSelectCrmClient = (clientId) => {
+    if (!clientId) {
+      setAddForm(prev => ({ ...prev, client_id: '', client_name: '', client_phone: '', client_address: '' }));
       return;
     }
+    const client = crmClients.find(c => c.id === clientId);
+    if (client) {
+      setAddForm(prev => ({
+        ...prev,
+        client_id: client.id,
+        client_name: client.name || '',
+        client_phone: client.phone || '',
+        client_address: client.address || prev.client_address
+      }));
+    }
+  };
+
+  const handleSaveAddModal = async (e) => {
+    e.preventDefault();
 
     let paidDate = addForm.delivery_paid_date;
     if (addForm.delivery_payment_status === 'Paid' && !paidDate) {
       paidDate = new Date().toISOString().split('T')[0];
     }
 
-    const payload = {
-      has_delivery: true,
-      postage_courier: addForm.postage_courier || 'J&T Express',
-      postage_tracking: (addForm.postage_tracking || '').trim().toUpperCase(),
-      postage_status: addForm.postage_status || 'PENDING',
-      postage_cost: addForm.postage_cost !== '' ? (parseFloat(addForm.postage_cost) || 0) : '',
-      delivery_fee: addForm.delivery_fee !== '' ? (parseFloat(addForm.delivery_fee) || 0) : '',
-      delivery_payment_status: addForm.delivery_payment_status || 'Unpaid',
-      delivery_paid_date: paidDate,
-      delivery_payment_method: addForm.delivery_payment_method || 'Online Transfer',
-      client_address: (addForm.client_address || '').trim().toUpperCase()
-    };
-
     setLoading(true);
     try {
-      const success = await updatePostageDetails(addForm.invoice_id, payload);
-      if (success) {
-        setIsAddModalOpen(false);
-        await loadData();
+      if (addForm.mode === 'new_client') {
+        if (!addForm.client_name.trim()) {
+          alert('Sila masukkan nama pelanggan.');
+          setLoading(false);
+          return;
+        }
+
+        const orderPayload = {
+          client_id: addForm.client_id || null,
+          client_name: addForm.client_name.trim(),
+          client_phone: addForm.client_phone.trim(),
+          client_address: (addForm.client_address || '').trim().toUpperCase(),
+          postage_courier: addForm.postage_courier || 'J&T Express',
+          postage_tracking: (addForm.postage_tracking || '').trim().toUpperCase(),
+          postage_status: addForm.postage_status || 'PENDING',
+          postage_cost: addForm.postage_cost !== '' ? (parseFloat(addForm.postage_cost) || 0) : '',
+          postage_payment_bank: addForm.postage_payment_bank || 'Bank Islam',
+          delivery_fee: addForm.delivery_fee !== '' ? (parseFloat(addForm.delivery_fee) || 0) : '',
+          delivery_payment_status: addForm.delivery_payment_status || 'Unpaid',
+          delivery_paid_date: paidDate,
+          delivery_payment_method: addForm.delivery_payment_method || 'Online Transfer'
+        };
+
+        const result = await createPostageOrder(orderPayload);
+        if (result) {
+          setIsAddModalOpen(false);
+          await loadData();
+        } else {
+          alert('Gagal menjana tempahan pos baharu.');
+        }
       } else {
-        alert('Gagal menambah rekod penghantaran.');
+        if (!addForm.invoice_id) {
+          alert('Sila pilih pesanan / invois terlebih dahulu.');
+          setLoading(false);
+          return;
+        }
+
+        const payload = {
+          has_delivery: true,
+          postage_courier: addForm.postage_courier || 'J&T Express',
+          postage_tracking: (addForm.postage_tracking || '').trim().toUpperCase(),
+          postage_status: addForm.postage_status || 'PENDING',
+          postage_cost: addForm.postage_cost !== '' ? (parseFloat(addForm.postage_cost) || 0) : '',
+          postage_payment_bank: addForm.postage_payment_bank || 'Bank Islam',
+          delivery_fee: addForm.delivery_fee !== '' ? (parseFloat(addForm.delivery_fee) || 0) : '',
+          delivery_payment_status: addForm.delivery_payment_status || 'Unpaid',
+          delivery_paid_date: paidDate,
+          delivery_payment_method: addForm.delivery_payment_method || 'Online Transfer',
+          client_address: (addForm.client_address || '').trim().toUpperCase()
+        };
+
+        const success = await updatePostageDetails(addForm.invoice_id, payload);
+        if (success) {
+          setIsAddModalOpen(false);
+          await loadData();
+        } else {
+          alert('Gagal menambah rekod penghantaran.');
+        }
       }
     } catch (err) {
       console.error(err);
@@ -395,8 +474,8 @@ export default function Postage() {
 
   return (
     <div className="main-content" style={{ padding: '1rem', maxWidth: '1400px', margin: '0 auto' }}>
-      {/* Desktop Header */}
-      <div className="desktop-only" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+      {/* Responsive Header (Visible on Desktop & Mobile) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <div>
           <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary-red, #c51b27)', letterSpacing: '1px', textTransform: 'uppercase' }}>
             {language === 'EN' ? 'LOGISTICS & COURIER' : 'LOGISTIK & KURIER'}
@@ -409,9 +488,9 @@ export default function Postage() {
         <button
           onClick={openAddModal}
           className="btn btn-primary btn-sm"
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, padding: '0.5rem 0.9rem' }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, padding: '0.5rem 0.9rem', flexShrink: 0 }}
         >
-          <Plus size={15} /> {language === 'EN' ? 'Add Delivery' : 'Tambah Penghantaran'}
+          <Plus size={15} /> + Kad Pos Baharu
         </button>
       </div>
 
@@ -476,9 +555,9 @@ export default function Postage() {
         })}
       </div>
 
-      {/* SEARCH AND MONTH FILTER BAR (COMPACT 1-LINE) */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '1.25rem', alignItems: 'center' }}>
-        <div style={{ flex: '1', position: 'relative' }}>
+      {/* SEARCH AND MONTH FILTER BAR (COMPACT 1-LINE) WITH + KAD POS BAHARU */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '1.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1', minWidth: '200px', position: 'relative' }}>
           <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#a1a1aa' }} />
           <input
             type="text"
@@ -518,6 +597,24 @@ export default function Postage() {
             <option key={m.value} value={m.value}>{m.label}</option>
           ))}
         </select>
+
+        <button
+          onClick={openAddModal}
+          className="btn btn-primary"
+          style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '6px', 
+            padding: '7px 14px', 
+            borderRadius: '8px', 
+            fontSize: '12.5px', 
+            fontWeight: 750, 
+            whiteSpace: 'nowrap',
+            flexShrink: 0 
+          }}
+        >
+          <Plus size={15} /> + Kad Pos Baharu
+        </button>
       </div>
 
       {/* Main Grid / Delivery Cards */}
@@ -544,7 +641,7 @@ export default function Postage() {
               className="btn btn-primary btn-sm"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', margin: '0 auto' }}
             >
-              <Plus size={15} /> Tambah Penghantaran
+              <Plus size={15} /> + Kad Pos Baharu
             </button>
           </div>
         ) : (
@@ -555,6 +652,7 @@ export default function Postage() {
               const fee = parseFloat(inv.delivery_fee || 0);
               const cost = parseFloat(inv.postage_cost || 0);
               const profit = fee - cost;
+              const currentPostageBank = inv.postage_payment_bank || 'Bank Islam';
 
               const statusBadgeColor = 
                 inv.postage_status === 'DELIVERED' || inv.postage_status === 'DROPOFF' || inv.postage_status === 'PICKUP' ? '#16a34a' :
@@ -615,6 +713,21 @@ export default function Postage() {
                       }}>
                         {isDeliveryPaid ? '● Bayaran Lunas' : '● Belum Bayar Fee'}
                       </span>
+
+                      <span style={{ 
+                        fontSize: '10px', 
+                        fontWeight: 650, 
+                        color: '#52525b', 
+                        background: '#f4f4f5', 
+                        padding: '2px 6px', 
+                        borderRadius: '4px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                        <Building2 size={11} color="var(--primary-red)" />
+                        {currentPostageBank}
+                      </span>
                     </div>
                   </div>
 
@@ -661,6 +774,31 @@ export default function Postage() {
                         </div>
                       </div>
                     )}
+                  </div>
+
+                  {/* Inline Bayar Kurier Dari (Bank) Selector - Matching Kilang */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 750, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '3px' }}>
+                      Bayar Kurier Dari (Bank)
+                    </label>
+                    <select
+                      value={currentPostageBank}
+                      onChange={e => handleInlineBankChange(inv, e.target.value)}
+                      className="form-control"
+                      disabled={isVoid}
+                      style={{ 
+                        width: '100%',
+                        padding: '0.35rem 0.5rem', 
+                        fontSize: '0.82rem',
+                        fontWeight: 650,
+                        borderRadius: '6px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="CIMB Bank">CIMB Bank (Aiman Hambali - 7656497860)</option>
+                      <option value="Bank Islam">Bank Islam (Hidayatul Rizman - 05021020449003)</option>
+                      <option value="Tunai">Tunai / Cash</option>
+                    </select>
                   </div>
 
                   {/* Actions Bar (Standardized 11.5px size) */}
@@ -930,6 +1068,26 @@ export default function Postage() {
                   </select>
                 </div>
 
+                {/* Bayar Kurier Dari (Akaun Bank) */}
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                    Bayar Kurier Dari (Akaun Bank)
+                  </label>
+                  <select
+                    value={editForm.postage_payment_bank}
+                    onChange={e => setEditForm(prev => ({ ...prev, postage_payment_bank: e.target.value }))}
+                    className="form-control"
+                    style={{ fontSize: '0.85rem', fontWeight: '650' }}
+                  >
+                    <option value="CIMB Bank">CIMB Bank (Aiman Hambali - 7656497860)</option>
+                    <option value="Bank Islam">Bank Islam (Hidayatul Rizman - 05021020449003)</option>
+                    <option value="Tunai">Tunai / Cash</option>
+                  </select>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    Kos kurier akan direkodkan sebagai aliran keluar pada akaun bank ini secara automatik.
+                  </span>
+                </div>
+
               </div>
 
               {/* Modal Footer */}
@@ -984,32 +1142,128 @@ export default function Postage() {
             <form onSubmit={handleSaveAddModal} style={{ backgroundColor: '#ffffff', display: 'flex', flexDirection: 'column', margin: 0 }}>
               <div className="modal-body" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.1rem', backgroundColor: '#ffffff', maxHeight: '75vh', overflowY: 'auto' }}>
                 
-                {/* Pilih Invois / Pesanan */}
-                <div className="form-group">
-                  <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>
-                    Pilih Invois / Pesanan Pelanggan <span style={{ color: '#dc2626' }}>*</span>
-                  </label>
-                  {availableInvoicesForDelivery.length === 0 ? (
-                    <div style={{ padding: '0.75rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', color: '#991b1b', fontSize: '0.82rem' }}>
-                      Semua invois aktif telah mempunyai rekod penghantaran atau tiada invois baharu ditemui.
-                    </div>
-                  ) : (
-                    <select
-                      required
-                      value={addForm.invoice_id}
-                      onChange={e => handleSelectInvoiceToAdd(e.target.value)}
-                      className="form-control"
-                      style={{ fontSize: '0.85rem', fontWeight: '600' }}
-                    >
-                      <option value="">-- Pilih Invois Pelanggan --</option>
-                      {availableInvoicesForDelivery.map(inv => (
-                        <option key={inv.id} value={inv.id}>
-                          #{inv.invoice_no} - {inv.client_name} (RM {parseFloat(inv.grand_total || 0).toFixed(2)})
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                {/* Mode Switcher */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '0.25rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setAddForm(prev => ({ ...prev, mode: 'existing' }))}
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      border: addForm.mode === 'existing' ? '2px solid #18181b' : '1px solid #e4e4e7',
+                      backgroundColor: addForm.mode === 'existing' ? '#18181b' : '#ffffff',
+                      color: addForm.mode === 'existing' ? '#ffffff' : '#52525b',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    Hubung Invois Sedia Ada
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAddForm(prev => ({ ...prev, mode: 'new_client' }))}
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      border: addForm.mode === 'new_client' ? '2px solid #18181b' : '1px solid #e4e4e7',
+                      backgroundColor: addForm.mode === 'new_client' ? '#18181b' : '#ffffff',
+                      color: addForm.mode === 'new_client' ? '#ffffff' : '#52525b',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    + Kad Pos / Klien CRM Baharu
+                  </button>
                 </div>
+
+                {addForm.mode === 'new_client' ? (
+                  <>
+                    {/* CRM Client Quick Picker */}
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                        Pilih Dari Klien CRM (Pilihan Pantas)
+                      </label>
+                      <select
+                        value={addForm.client_id}
+                        onChange={e => handleSelectCrmClient(e.target.value)}
+                        className="form-control"
+                        style={{ fontSize: '0.85rem' }}
+                      >
+                        <option value="">-- Pilih dari CRM (atau isi nama di bawah) --</option>
+                        {crmClients.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} {c.phone ? `(${c.phone})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Nama & Telefon Pelanggan */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                          Nama Pelanggan <span style={{ color: '#dc2626' }}>*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={addForm.client_name}
+                          onChange={e => setAddForm(prev => ({ ...prev, client_name: e.target.value.toUpperCase() }))}
+                          placeholder="CONTOH: AHMAD BAZLI"
+                          className="form-control"
+                          style={{ fontSize: '0.85rem', fontWeight: '600' }}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                          No. Telefon Pelanggan
+                        </label>
+                        <input
+                          type="text"
+                          value={addForm.client_phone}
+                          onChange={e => setAddForm(prev => ({ ...prev, client_phone: e.target.value }))}
+                          placeholder="CONTOH: 0123456789"
+                          className="form-control"
+                          style={{ fontSize: '0.85rem' }}
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  /* Pilih Invois / Pesanan Sedia Ada */
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                      Pilih Invois / Pesanan Sedia Ada <span style={{ color: '#dc2626' }}>*</span>
+                    </label>
+                    {availableInvoicesForDelivery.length === 0 ? (
+                      <div style={{ padding: '0.75rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', color: '#991b1b', fontSize: '0.82rem' }}>
+                        Semua invois aktif telah mempunyai rekod penghantaran. Tekan tab <strong>'+ Kad Pos / Klien CRM Baharu'</strong> di atas untuk membuat kad penghantaran baharu!
+                      </div>
+                    ) : (
+                      <select
+                        required
+                        value={addForm.invoice_id}
+                        onChange={e => handleSelectInvoiceToAdd(e.target.value)}
+                        className="form-control"
+                        style={{ fontSize: '0.85rem', fontWeight: '600' }}
+                      >
+                        <option value="">-- Pilih Invois Pelanggan --</option>
+                        {availableInvoicesForDelivery.map(inv => (
+                          <option key={inv.id} value={inv.id}>
+                            #{inv.invoice_no} - {inv.client_name} (RM {parseFloat(inv.grand_total || 0).toFixed(2)})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
 
                 {/* Kurier & No. Tracking */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -1158,6 +1412,26 @@ export default function Postage() {
                   </select>
                 </div>
 
+                {/* Bayar Kurier Dari (Akaun Bank) */}
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                    Bayar Kurier Dari (Akaun Bank)
+                  </label>
+                  <select
+                    value={addForm.postage_payment_bank}
+                    onChange={e => setAddForm(prev => ({ ...prev, postage_payment_bank: e.target.value }))}
+                    className="form-control"
+                    style={{ fontSize: '0.85rem', fontWeight: '650' }}
+                  >
+                    <option value="CIMB Bank">CIMB Bank (Aiman Hambali - 7656497860)</option>
+                    <option value="Bank Islam">Bank Islam (Hidayatul Rizman - 05021020449003)</option>
+                    <option value="Tunai">Tunai / Cash</option>
+                  </select>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    Kos kurier akan direkodkan sebagai aliran keluar pada akaun bank ini secara automatik.
+                  </span>
+                </div>
+
                 {/* Alamat Penghantaran */}
                 <div className="form-group">
                   <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>
@@ -1186,11 +1460,11 @@ export default function Postage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || availableInvoicesForDelivery.length === 0 || !addForm.invoice_id}
+                  disabled={loading || (addForm.mode === 'existing' && (!addForm.invoice_id || availableInvoicesForDelivery.length === 0)) || (addForm.mode === 'new_client' && !addForm.client_name.trim())}
                   className="btn btn-primary btn-sm"
                   style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                 >
-                  <Plus size={14} /> Tambah Penghantaran
+                  <Plus size={14} /> {addForm.mode === 'new_client' ? 'Jana Kad Pos & Rekod Sistem' : 'Tambah Penghantaran'}
                 </button>
               </div>
             </form>

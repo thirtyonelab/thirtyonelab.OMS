@@ -94,7 +94,49 @@ export default function Ledger() {
       });
   }, [invoices]);
 
-  // 3. Transaksi Tambahan Lejar (Meta Ads, Operasi, dll.)
+  // 3. Duit Keluar (OUT): Kos Penghantaran Kurier mengikut postage_payment_bank
+  const postageOutEvents = useMemo(() => {
+    return invoices
+      .filter(inv => inv.status !== 'Void' && inv.has_delivery && Number(inv.postage_cost || 0) > 0)
+      .map(inv => {
+        const b = inv.postage_payment_bank || 'Bank Islam';
+        return {
+          id: `inv_post_${inv.id}`,
+          date: inv.postage_date || inv.date || '',
+          type: 'OUT',
+          title: `Kos Pos (${inv.postage_courier || 'Kurier'}): ${inv.job_name || `Invois #${inv.invoice_no}`}`,
+          category: 'Penghantaran Kurier',
+          payee: `${inv.postage_courier || 'Kurier'} (Penghantaran #${inv.invoice_no} - ${inv.client_name || ''})`,
+          amount: Number(inv.postage_cost || 0),
+          source: 'postage',
+          bank: b,
+          rawInvoice: inv
+        };
+      });
+  }, [invoices]);
+
+  // 4. Duit Masuk (IN): Caj Pos Pelanggan Dikutip (jika berasingan dari invois jualan)
+  const deliveryInEvents = useMemo(() => {
+    return invoices
+      .filter(inv => inv.status !== 'Void' && inv.has_delivery && inv.delivery_payment_status === 'Paid' && inv.delivery_payment_method !== 'Termasuk Dalam Invois' && Number(inv.delivery_fee || 0) > 0)
+      .map(inv => {
+        const b = inv.postage_payment_bank || inv.payment_bank || 'Bank Islam';
+        return {
+          id: `inv_del_in_${inv.id}`,
+          date: inv.delivery_paid_date || inv.postage_date || inv.date || '',
+          type: 'IN',
+          title: `Caj Pos Pelanggan: ${inv.job_name || `Invois #${inv.invoice_no}`}`,
+          category: 'Caj Pos Pelanggan',
+          payee: inv.client_name || 'Pelanggan',
+          amount: Number(inv.delivery_fee || 0),
+          source: 'delivery_in',
+          bank: b,
+          rawInvoice: inv
+        };
+      });
+  }, [invoices]);
+
+  // 5. Transaksi Tambahan Lejar (Meta Ads, Operasi, dll.)
   const ledgerEvents = useMemo(() => {
     return entries.map(e => {
       let b = e.bank;
@@ -125,10 +167,10 @@ export default function Ledger() {
     });
   }, [entries]);
 
-  // Combined real-time cashflow feed across Invoices, Factory Costs & Ledger
+  // Combined real-time cashflow feed across Invoices, Factory Costs, Postage & Ledger
   const allFeed = useMemo(() => {
-    return [...invoiceInEvents, ...factoryOutEvents, ...ledgerEvents].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
-  }, [invoiceInEvents, factoryOutEvents, ledgerEvents]);
+    return [...invoiceInEvents, ...factoryOutEvents, ...postageOutEvents, ...deliveryInEvents, ...ledgerEvents].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  }, [invoiceInEvents, factoryOutEvents, postageOutEvents, deliveryInEvents, ledgerEvents]);
 
   const isBankMatch = (itemBank, target) => {
     if (target === 'all') return true;
@@ -205,12 +247,12 @@ export default function Ledger() {
 
   return (
     <div className="main-content">
-      {/* Desktop Header */}
-      <div className="desktop-only" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Responsive Header (Visible on Mobile & Desktop) */}
+      <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
-          <span className="section-tag">PENGURUSAN KEWANGAN</span>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: '800', marginTop: '0.5rem' }}>Buku Tunai & Bank</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
+          <span className="section-tag" style={{ fontSize: '10.5px', fontWeight: 800, color: 'var(--primary-red)', letterSpacing: '1px' }}>PENGURUSAN KEWANGAN</span>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 900, margin: '2px 0 0 0', color: '#18181b', letterSpacing: '-0.5px' }}>Buku Tunai & Bank</h1>
+          <p className="desktop-only" style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '3px', marginBottom: 0 }}>
             Pengurusan baki akaun bank, penyata aliran tunai, dan rekod perbelanjaan operasi.
           </p>
         </div>
@@ -218,9 +260,9 @@ export default function Ledger() {
         <button
           onClick={() => { setEditingEntry(null); setIsAddModalOpen(true); }}
           className="btn btn-primary"
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.65rem 1.25rem', borderRadius: '8px', fontWeight: 700 }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '0.55rem 1rem', borderRadius: '8px', fontWeight: 700, fontSize: '0.85rem', flexShrink: 0 }}
         >
-          <Plus size={16} /> Tambah Transaksi
+          <Plus size={16} /> + Tambah Transaksi
         </button>
       </div>
 
