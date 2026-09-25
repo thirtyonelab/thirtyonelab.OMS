@@ -3,6 +3,7 @@ import { getClients, deleteClient, getInvoices, saveClient } from '../services/s
 import { getBasePrice } from '../components/InvoiceModal';
 import { Search, User, Phone, ShoppingBag, DollarSign, Eye, Edit2, Trash2, X, Plus, ChevronDown, ChevronUp, Image } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { getOrderCategoryLabel } from '../utils/mobileOrders';
 
 export default function Clients({ onCreateInvoiceForClient }) {
   const { tr } = useLanguage();
@@ -387,7 +388,7 @@ export default function Clients({ onCreateInvoiceForClient }) {
                               </td>
                               <td className="font-bold">{inv.invoice_no}</td>
                               <td>{inv.date}</td>
-                              <td>{inv.job_name || '-'}</td>
+                              <td>{inv.job_name || getOrderCategoryLabel(inv)}</td>
                               <td style={{ textAlign: 'center' }} className="font-bold">
                                 RM {parseFloat(inv.grand_total).toFixed(2)}
                               </td>
@@ -536,7 +537,7 @@ export default function Clients({ onCreateInvoiceForClient }) {
                           <span className={`badge badge-${inv.status.toLowerCase()}`}>{inv.status}</span>
                         </div>
                         <div className="mobile-card-row" onClick={() => setExpandedInvoiceId(expandedInvoiceId === inv.id ? null : inv.id)} style={{ cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                          <span>{inv.date} | {inv.job_name || '-'}</span>
+                          <span>{inv.date} | {inv.job_name || getOrderCategoryLabel(inv)}</span>
                           <span className="mobile-card-bold" style={{ color: 'var(--text-dark)' }}>RM {parseFloat(inv.grand_total).toFixed(2)}</span>
                         </div>
                         {expandedInvoiceId === inv.id && (

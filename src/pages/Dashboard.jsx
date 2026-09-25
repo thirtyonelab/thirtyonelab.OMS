@@ -3,7 +3,7 @@ import { getInvoices, getLedger } from '../services/storage';
 import { Search, Plus, ArrowUpRight, Eye, RefreshCw, CreditCard, Clock, AlertTriangle, CheckCircle2, Factory, Truck, Wallet, FileText, ChevronRight, Calendar } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { formatTelegramStatus } from '../utils/telegramFormatter.js';
-import { money, balanceOf, quantityOf, productionStates, deliveryStates, needsAction } from '../utils/mobileOrders';
+import { money, balanceOf, quantityOf, productionStates, deliveryStates, needsAction, getOrderCategoryLabel } from '../utils/mobileOrders';
 
 const TelegramIcon = ({ size = 16, className = '' }) => (
   <svg 
@@ -20,8 +20,22 @@ const TelegramIcon = ({ size = 16, className = '' }) => (
 
 export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaymentModal, onOpenInvoiceDetail }) {
   const { tr } = useLanguage();
-  const [invoices, setInvoices] = useState([]);
-  const [ledger, setLedger] = useState([]);
+  const [invoices, setInvoices] = useState(() => {
+    try {
+      const stored = localStorage.getItem('oms_invoices');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [ledger, setLedger] = useState(() => {
+    try {
+      const stored = localStorage.getItem('oms_ledger');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
   const [loading, setLoading] = useState(false);
 
   const now = new Date();
@@ -54,7 +68,6 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
   }, []);
 
   const loadData = async () => {
-    setLoading(true);
     try {
       const invs = await getInvoices();
       setInvoices(invs);
@@ -428,9 +441,11 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center', 
-            paddingTop: '6px', 
+            paddingTop: '8px', 
             borderTop: `1px dashed ${metrics.unpaidBalanceMonth > 0 ? '#fde68a' : '#bbf7d0'}`,
-            fontSize: '11px'
+            fontSize: '11px',
+            gap: '8px',
+            flexWrap: 'wrap'
           }}>
             <span style={{ color: '#6b7280' }}>
               Ingin semak unjuran penuh termasuk invois atas kertas?
@@ -439,19 +454,25 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
               type="button"
               onClick={() => setActiveTab && setActiveTab('reports')}
               style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--primary-red)',
+                background: '#ffffff',
+                border: '1px solid #e5e7eb',
+                color: 'var(--text-dark)',
                 fontWeight: 700,
+                fontSize: '11px',
                 cursor: 'pointer',
-                padding: '2px 4px',
+                padding: '5px 12px',
+                borderRadius: '6px',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '2px',
-                textDecoration: 'underline'
+                gap: '5px',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s ease'
               }}
             >
-              Buka Penyata P&L →
+              <FileText size={12} style={{ color: 'var(--primary-red)' }} />
+              Buka Penyata P&L
+              <ArrowUpRight size={12} style={{ color: 'var(--text-muted)' }} />
             </button>
           </div>
         </div>
@@ -646,7 +667,7 @@ export default function Dashboard({ setActiveTab, onOpenInvoiceModal, onOpenPaym
                     {inv.client_name}
                   </h4>
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '1px 0 0' }}>
-                    {inv.job_name || 'Tempahan Pelanggan'}
+                    {inv.job_name || getOrderCategoryLabel(inv)}
                   </p>
                 </div>
 

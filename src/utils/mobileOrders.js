@@ -60,3 +60,54 @@ export function repeatOrderDraft(inv, invoiceNo) {
   }
   return { ...draft, invoice_no: invoiceNo, date: today(), deposit: 0, balance: inv.grand_total, status: 'Unpaid', order_status: 'BELUM_DRAFT', pengeluaran: 0, has_delivery: false };
 }
+
+export const getOrderCategoryLabel = (inv) => {
+  if (!inv) return 'Tempahan Pelanggan';
+  const items = Array.isArray(inv.items) ? inv.items : [];
+  
+  const hasBanner = items.some(i => i.item_type === 'banner');
+  const hasSeluar = items.some(i => i.item_type === 'seluar');
+  const bajuItems = items.filter(i => i.item_type !== 'banner' && i.item_type !== 'seluar');
+  const hasBaju = bajuItems.length > 0;
+
+  // Detect print methods
+  const methods = Array.from(new Set(bajuItems.map(i => i.print_method || 'Sublimation')));
+  const methodStr = methods.length > 0 ? methods.join(' / ') : 'Sublimation';
+
+  // If only banner
+  if (hasBanner && !hasBaju && !hasSeluar) {
+    return 'Banner / Bunting';
+  }
+
+  // If all: baju + banner + seluar
+  if (hasBaju && hasBanner && hasSeluar) {
+    return `Baju (${methodStr}), Seluar & Banner`;
+  }
+
+  // If banner + baju
+  if (hasBanner && hasBaju) {
+    return `Baju (${methodStr}) & Banner`;
+  }
+
+  // If baju + seluar
+  if (hasBaju && hasSeluar) {
+    return `Baju & Seluar · ${methodStr}`;
+  }
+
+  // If banner + seluar
+  if (hasBanner && hasSeluar) {
+    return 'Banner & Seluar';
+  }
+
+  // If only seluar
+  if (hasSeluar && !hasBaju && !hasBanner) {
+    return 'Seluar Sukan';
+  }
+
+  // If baju only
+  if (hasBaju) {
+    return `Baju · ${methodStr}`;
+  }
+
+  return 'Tempahan Pelanggan';
+};

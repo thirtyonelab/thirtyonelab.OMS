@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getClients, saveInvoice, getNextInvoiceNo, getInvoices } from '../services/storage';
 import { X, Plus, Trash2, Upload, AlertTriangle, Save, Check, ChevronDown, ChevronUp, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
@@ -757,7 +757,7 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
 
   // --- CALCULATION ENGINE ---
   // Total shirt qty only (short + long), used for base price tier
-  const calculateTotalQty = () => {
+  const calculateTotalQty = useCallback(() => {
     return items.reduce((total, item) => {
       return total + SIZES.reduce((itemTotal, size) => {
         let sQty = parseInt(item.sizes[size]?.short || 0, 10);
@@ -766,15 +766,19 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
         return itemTotal + sQty + lQty;
       }, 0);
     }, 0);
-  };
+  }, [items]);
 
-  const totalQty = calculateTotalQty();
-  const basePrice = isRepeatOrder && customBasePrice !== '' 
-    ? parseFloat(customBasePrice) || 0 
-    : getBasePrice(totalQty);
+  const totalShirtQty = useMemo(() => calculateTotalQty(), [calculateTotalQty]);
+  const totalQty = totalShirtQty;
+
+  const basePrice = useMemo(() => {
+    return isRepeatOrder && customBasePrice !== '' 
+      ? parseFloat(customBasePrice) || 0 
+      : getBasePrice(totalQty);
+  }, [isRepeatOrder, customBasePrice, totalQty]);
 
   // 2. Calculations per Design Item
-  const calculateItemSummary = (item) => {
+  const calculateItemSummary = useCallback((item) => {
     if (item.item_type === 'banner' || (item.print_method === 'DTF' && item.baju_source === 'customer')) {
       const qty = parseInt(item.item_type === 'banner' ? (item.qty || 0) : (item.dtf_qty || 0), 10);
       const price = parseFloat(item.item_type === 'banner' ? (item.price || 0) : (item.dtf_price || 0));
@@ -874,30 +878,53 @@ export default function InvoiceModal({ invoice, prefilledClient, onClose, onSave
       addons: itemAddonTotal,
       subtotal: subtotal
     };
-  };
+  }, [basePrice, isRepeatOrder]);
 
-  // 3. Overall Invoice Summaries
-  const grossSubtotal = [
-    ...items,
-    ...bannerItems,
-    ...seluarItems
-  ].reduce((sum, item) => sum + calculateItemSummary(item).subtotal, 0);
+  // 3. Overall Invoice Summaries (Single-pass Memoized)
+  const { bajuGrossSubtotal, seluarGrossSubtotal, bannerGrossSubtotal, totalSeluarQty, grossSubtotal } = useMemo(() => {
+    let bSub = 0;
+    for (let i = 0; i < items.length; i++) {
+      bSub += calculateItemSummary(items[i]).subtotal;
+    }
+    let sSub = 0;
+    let sQty = 0;
+    for (let i = 0; i < seluarItems.length; i++) {
+      const summary = calculateItemSummary(seluarItems[i]);
+      sSub += summary.subtotal;
+      sQty += summary.qty;
+    }
+    let banSub = 0;
+    for (let i = 0; i < bannerItems.length; i++) {
+      banSub += calculateItemSummary(bannerItems[i]).subtotal;
+    }
+    return {
+      bajuGrossSubtotal: bSub,
+      seluarGrossSubtotal: sSub,
+      bannerGrossSubtotal: banSub,
+      totalSeluarQty: sQty,
+      grossSubtotal: bSub + sSub + banSub
+    };
+  }, [items, seluarItems, bannerItems, calculateItemSummary]);
 
-  const totalShirtQty = calculateTotalQty();
-  const totalSeluarQty = seluarItems.reduce((sum, item) => sum + calculateItemSummary(item).qty, 0);
+  const applicableDiscountQty = useMemo(() => {
+    return (discountAppliesBaju ? totalShirtQty : 0) + (discountAppliesSeluar ? totalSeluarQty : 0);
+  }, [discountAppliesBaju, totalShirtQty, discountAppliesSeluar, totalSeluarQty]);
 
-  const bajuGrossSubtotal = items.reduce((sum, item) => sum + calculateItemSummary(item).subtotal, 0);
-  const seluarGrossSubtotal = seluarItems.reduce((sum, item) => sum + calculateItemSummary(item).subtotal, 0);
+  const applicableDiscountSubtotal = useMemo(() => {
+    return (discountAppliesBaju ? bajuGrossSubtotal : 0) + (discountAppliesSeluar ? seluarGrossSubtotal : 0);
+  }, [discountAppliesBaju, bajuGrossSubtotal, discountAppliesSeluar, seluarGrossSubtotal]);
 
-  const applicableDiscountQty = (discountAppliesBaju ? totalShirtQty : 0) + (discountAppliesSeluar ? totalSeluarQty : 0);
-  const applicableDiscountSubtotal = (discountAppliesBaju ? bajuGrossSubtotal : 0) + (discountAppliesSeluar ? seluarGrossSubtotal : 0);
+  const totalDiscount = useMemo(() => {
+    return discountType === 'percent' 
+      ? applicableDiscountSubtotal * ((parseFloat(discountValue) || 0) / 100) 
+      : discountType === 'bulk' 
+        ? (parseFloat(discountValue) || 0) 
+        : ((parseFloat(discountValue) || 0) * applicableDiscountQty);
+  }, [discountType, discountValue, applicableDiscountSubtotal, applicableDiscountQty]);
 
-  const totalDiscount = discountType === 'percent' 
-    ? applicableDiscountSubtotal * ((parseFloat(discountValue) || 0) / 100) 
-    : discountType === 'bulk' 
-      ? (parseFloat(discountValue) || 0) 
-      : ((parseFloat(discountValue) || 0) * applicableDiscountQty);
-  const grandTotal = Math.max(0, grossSubtotal - totalDiscount);
+  const grandTotal = useMemo(() => {
+    return Math.max(0, grossSubtotal - totalDiscount);
+  }, [grossSubtotal, totalDiscount]);
 
   // Clamp deposit to grandTotal and auto-derive status, mirroring PaymentModal's logic,
   // so an invoice can't be saved with a negative balance or a status that contradicts its deposit.

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowUpRight, Check, ChevronRight, FileText, Pencil, Wallet, Copy, Trash2, Printer } from 'lucide-react';
 import { updateInvoicePayment, getNextInvoiceNo, deleteInvoice, getSettings } from '../services/storage';
-import { money, today, balanceOf, quantityOf, addedPayment, repeatOrderDraft } from '../utils/mobileOrders';
+import { money, today, balanceOf, quantityOf, addedPayment, repeatOrderDraft, getOrderCategoryLabel } from '../utils/mobileOrders';
 
 export default function MobileOrderDetail({ invoice: inv, section, onBack, onEdit, onPrint, onSaved }) {
   const [panel, setPanel] = useState(
@@ -75,7 +75,7 @@ export default function MobileOrderDetail({ invoice: inv, section, onBack, onEdi
       </button>
 
       <div className="m-detail-title">
-        <span className="m-eyebrow">{inv.job_name || 'Tempahan Pelanggan'}</span>
+        <span className="m-eyebrow">{inv.job_name || getOrderCategoryLabel(inv)}</span>
         <h1>{inv.client_name || 'Pelanggan'}</h1>
         {inv.client_phone && (
           <a className="m-contact" href={`tel:${inv.client_phone}`}>

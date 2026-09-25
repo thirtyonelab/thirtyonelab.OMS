@@ -69,10 +69,14 @@ CREATE TABLE IF NOT EXISTS ledger (
     category TEXT NOT NULL,
     description TEXT NOT NULL,
     payee TEXT,
+    bank TEXT DEFAULT 'Bank Islam',
     amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
     recorded_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
+
+-- Migration if table already exists:
+ALTER TABLE ledger ADD COLUMN IF NOT EXISTS bank TEXT;
 
 -- 5. Enable Row Level Security (RLS) on all tables
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;

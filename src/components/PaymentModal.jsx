@@ -1,21 +1,58 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { updateInvoicePayment } from '../services/storage';
-import { X, Save } from 'lucide-react';
+import { X, Save, CheckCircle, Split } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+
+const BANK_OPTIONS = [
+  {
+    id: 'CIMB Bank',
+    name: 'CIMB Bank',
+    holder: 'Aiman Hambali',
+    account: '7656497860',
+    badge: 'Akaun Operasi'
+  },
+  {
+    id: 'Bank Islam',
+    name: 'Bank Islam',
+    holder: 'Hidayatul Rizman',
+    account: '0502 1020 4490 03',
+    badge: 'Akaun Simpanan'
+  },
+  {
+    id: 'Tunai',
+    name: 'Tunai / Cash',
+    holder: 'Kaunter Tunai Fizikal',
+    account: 'Penerimaan Tunai',
+    badge: 'Tunai'
+  }
+];
 
 export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
   const { tr } = useLanguage();
+  const grandTotal = parseFloat(invoice.grand_total || 0);
+
   const [deposit, setDeposit] = useState(invoice.deposit || 0);
   const [status, setStatus] = useState(invoice.status || 'Unpaid');
-  const [paymentBank, setPaymentBank] = useState(invoice.payment_bank || 'CIMB Bank');
   const [loading, setLoading] = useState(false);
+
+  // Bank selection states
+  const [paymentBank, setPaymentBank] = useState(invoice.payment_bank || 'CIMB Bank');
+  const [depositBank, setDepositBank] = useState(invoice.deposit_bank || invoice.payment_bank || 'Bank Islam');
+  const [balanceBank, setBalanceBank] = useState(invoice.balance_bank || invoice.payment_bank || 'CIMB Bank');
+
+  const initialHasSplit = (parseFloat(invoice.initial_deposit) > 0 && parseFloat(invoice.initial_deposit) < grandTotal) ||
+    (invoice.status === 'Paid' && invoice.deposit_bank && invoice.balance_bank && invoice.deposit_bank !== invoice.balance_bank);
+
+  const [hasSplitPayment, setHasSplitPayment] = useState(initialHasSplit);
+  const [initialDepositAmount, setInitialDepositAmount] = useState(
+    parseFloat(invoice.initial_deposit) || (invoice.deposit > 0 && invoice.deposit < grandTotal ? invoice.deposit : grandTotal / 2)
+  );
 
   const getToday = () => new Date().toISOString().split('T')[0];
   const [depositDate, setDepositDate] = useState(invoice.deposit_date || getToday());
   const [paidDate, setPaidDate] = useState(invoice.paid_date || getToday());
 
-  const grandTotal = parseFloat(invoice.grand_total);
-  const balance = grandTotal - parseFloat(deposit || 0);
+  const balance = Math.max(0, grandTotal - parseFloat(deposit || 0));
 
   // Auto-adjust status based on deposit amount
   const handleDepositChange = (value) => {
@@ -26,7 +63,6 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
       setStatus('Unpaid');
     } else if (val >= grandTotal) {
       setStatus('Paid');
-      // Limit deposit to grand total
       if (val > grandTotal) {
         setDeposit(grandTotal);
       }
@@ -39,15 +75,19 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
   const markAsPaid = () => {
     setDeposit(grandTotal);
     setStatus('Paid');
+    if (invoice.deposit > 0 && invoice.deposit < grandTotal) {
+      setHasSplitPayment(true);
+      setInitialDepositAmount(invoice.deposit);
+    }
   };
 
   const markAsUnpaid = () => {
     setDeposit(0);
     setStatus('Unpaid');
+    setHasSplitPayment(false);
   };
 
   const markAsDeposit = () => {
-    // Default deposit to 50% if currently 0 or full
     if (deposit === 0 || deposit === grandTotal) {
       setDeposit(grandTotal / 2);
     }
@@ -57,13 +97,57 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
   const markAsVoid = () => {
     setDeposit(0);
     setStatus('Void');
+    setHasSplitPayment(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const success = await updateInvoicePayment(invoice.id, deposit, status, invoice.pengeluaran, depositDate, paidDate, paymentBank);
+      let finalDep = deposit;
+      let finalInitDep = 0;
+      let finalDepBank = depositBank;
+      let finalBalBank = balanceBank;
+      let finalPayBank = paymentBank;
+
+      if (status === 'Deposit') {
+        finalDep = deposit;
+        finalInitDep = deposit;
+        finalDepBank = depositBank;
+        finalBalBank = balanceBank;
+        finalPayBank = depositBank;
+      } else if (status === 'Paid') {
+        if (hasSplitPayment && initialDepositAmount > 0 && initialDepositAmount < grandTotal) {
+          finalDep = grandTotal;
+          finalInitDep = initialDepositAmount;
+          finalDepBank = depositBank;
+          finalBalBank = balanceBank;
+          finalPayBank = balanceBank;
+        } else {
+          finalDep = grandTotal;
+          finalInitDep = 0;
+          finalDepBank = paymentBank;
+          finalBalBank = paymentBank;
+          finalPayBank = paymentBank;
+        }
+      } else {
+        finalDep = 0;
+        finalInitDep = 0;
+      }
+
+      const success = await updateInvoicePayment(
+        invoice.id,
+        finalDep,
+        status,
+        invoice.pengeluaran,
+        depositDate,
+        paidDate,
+        finalPayBank,
+        finalInitDep,
+        finalDepBank,
+        finalBalBank
+      );
+
       if (success) {
         onSaveSuccess();
       } else {
@@ -77,9 +161,46 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
     }
   };
 
+  // Reusable bank selection cards
+  const renderBankSelector = (selectedId, onSelect, fieldName) => {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+        {BANK_OPTIONS.map(b => {
+          const isSelected = selectedId === b.id;
+          return (
+            <div
+              key={b.id}
+              onClick={() => onSelect(b.id)}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: '8px 6px',
+                borderRadius: '6px',
+                border: isSelected ? '1.5px solid var(--primary-red, #C51B27)' : '1px solid var(--border-color, #e4e4e7)',
+                backgroundColor: isSelected ? 'rgba(197, 27, 39, 0.05)' : '#ffffff',
+                cursor: 'pointer',
+                textAlign: 'center',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <div style={{ fontSize: '12px', fontWeight: 700, color: isSelected ? 'var(--primary-red, #C51B27)' : 'var(--text-dark, #18181b)' }}>
+                {b.name}
+              </div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                {b.badge}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '460px' }}>
         <div className="modal-header">
           <h3>UPDATE INVOICE</h3>
           <button className="modal-close" onClick={onClose}>
@@ -91,7 +212,7 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
           <div className="modal-body payment-modal-body">
             
             <div className="invoice-summary-strip">
-              <span className="strip-label">No. Invoice: <strong>{invoice.invoice_no}</strong></span>
+              <span className="strip-label">No. Invois: <strong>{invoice.invoice_no}</strong></span>
               <span className="strip-label">Pelanggan: <strong>{invoice.client_name}</strong></span>
             </div>
 
@@ -132,10 +253,204 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
               </button>
             </div>
 
-            {/* Custom Input */}
-            {status !== 'Void' && (
+            {/* 1. STATUS DEPOSIT */}
+            {status === 'Deposit' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '12px', backgroundColor: '#fcfcfc', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', fontWeight: 700 }}>JUMLAH DEPOSIT (RM)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max={grandTotal}
+                      value={deposit || ''}
+                      onChange={(e) => handleDepositChange(e.target.value)}
+                      placeholder="0.00"
+                      className="form-control"
+                      required
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', fontWeight: 700 }}>TARIKH DEPOSIT</label>
+                    <input
+                      type="date"
+                      value={depositDate}
+                      onChange={(e) => setDepositDate(e.target.value)}
+                      className="form-control"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '11px', fontWeight: 700, marginBottom: '6px' }}>
+                    PILIH BANK DEPOSIT (DUIT MASUK)
+                  </label>
+                  {renderBankSelector(depositBank, setDepositBank, 'deposit_bank')}
+                  <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                    * Deposit RM {parseFloat(deposit || 0).toFixed(2)} akan direkodkan ke akaun <strong>{depositBank}</strong>.
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* 2. STATUS PAID (BAYAR PENUH) */}
+            {status === 'Paid' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* Mode Selector: 1 Transaksi vs 2 Peringkat */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setHasSplitPayment(false)}
+                    style={{
+                      padding: '8px 6px',
+                      fontSize: '11.5px',
+                      fontWeight: 650,
+                      borderRadius: '6px',
+                      border: !hasSplitPayment ? '1.5px solid var(--primary-red, #C51B27)' : '1px solid var(--border-color)',
+                      backgroundColor: !hasSplitPayment ? '#ffffff' : '#f4f4f5',
+                      color: !hasSplitPayment ? 'var(--primary-red, #C51B27)' : 'var(--text-muted)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Bayar Penuh Sekaligus
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHasSplitPayment(true)}
+                    style={{
+                      padding: '8px 6px',
+                      fontSize: '11.5px',
+                      fontWeight: 650,
+                      borderRadius: '6px',
+                      border: hasSplitPayment ? '1.5px solid var(--primary-red, #C51B27)' : '1px solid var(--border-color)',
+                      backgroundColor: hasSplitPayment ? '#ffffff' : '#f4f4f5',
+                      color: hasSplitPayment ? 'var(--primary-red, #C51B27)' : 'var(--text-muted)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Ada Deposit Terdahulu
+                  </button>
+                </div>
+
+                {/* Case A: Bayar Penuh Sekaligus */}
+                {!hasSplitPayment && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '12px', backgroundColor: '#fcfcfc', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px', fontWeight: 700 }}>TARIKH BAYARAN PENUH</label>
+                      <input
+                        type="date"
+                        value={paidDate}
+                        onChange={(e) => setPaidDate(e.target.value)}
+                        className="form-control"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px', fontWeight: 700, marginBottom: '6px' }}>
+                        PILIH AKAUN BANK (BAYARAN PENUH)
+                      </label>
+                      {renderBankSelector(paymentBank, setPaymentBank, 'payment_bank')}
+                      <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                        * Jumlah penuh RM {grandTotal.toFixed(2)} akan direkodkan ke akaun <strong>{paymentBank}</strong>.
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Case B: Ada Deposit Terdahulu (2 Peringkat - Split Bank) */}
+                {hasSplitPayment && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {/* Bahagian 1: Deposit Awal */}
+                    <div style={{ padding: '10px 12px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 750, color: '#92400e', textTransform: 'uppercase' }}>
+                          Peringkat 1: Deposit Awal
+                        </span>
+                        <span style={{ fontSize: '10.5px', color: '#b45309', fontWeight: 600 }}>Dikutip Dulu</span>
+                      </div>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                        <div>
+                          <label style={{ fontSize: '10.5px', fontWeight: 700, color: '#92400e', display: 'block', marginBottom: '3px' }}>JUMLAH DEPO (RM)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max={grandTotal}
+                            value={initialDepositAmount || ''}
+                            onChange={(e) => setInitialDepositAmount(parseFloat(e.target.value) || 0)}
+                            className="form-control"
+                            style={{ fontSize: '12px', padding: '5px 8px' }}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '10.5px', fontWeight: 700, color: '#92400e', display: 'block', marginBottom: '3px' }}>TARIKH DEPOSIT</label>
+                          <input
+                            type="date"
+                            value={depositDate}
+                            onChange={(e) => setDepositDate(e.target.value)}
+                            className="form-control"
+                            style={{ fontSize: '12px', padding: '5px 8px' }}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '10.5px', fontWeight: 700, color: '#92400e', display: 'block', marginBottom: '4px' }}>
+                          PILIH BANK DEPOSIT (DUIT MASUK DEPO)
+                        </label>
+                        {renderBankSelector(depositBank, setDepositBank, 'deposit_bank_split')}
+                      </div>
+                    </div>
+
+                    {/* Bahagian 2: Baki Bayaran */}
+                    <div style={{ padding: '10px 12px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 750, color: '#166534', textTransform: 'uppercase' }}>
+                          Peringkat 2: Baki Bayaran
+                        </span>
+                        <span style={{ fontSize: '11px', fontWeight: 750, color: '#166534' }}>
+                          RM {Math.max(0, grandTotal - initialDepositAmount).toFixed(2)}
+                        </span>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '10.5px', fontWeight: 700, color: '#166534', display: 'block', marginBottom: '3px' }}>TARIKH BAYARAN BAKI</label>
+                        <input
+                          type="date"
+                          value={paidDate}
+                          onChange={(e) => setPaidDate(e.target.value)}
+                          className="form-control"
+                          style={{ fontSize: '12px', padding: '5px 8px' }}
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '10.5px', fontWeight: 700, color: '#166534', display: 'block', marginBottom: '4px' }}>
+                          PILIH BANK BAKI (DUIT MASUK BAKI)
+                        </label>
+                        {renderBankSelector(balanceBank, setBalanceBank, 'balance_bank_split')}
+                      </div>
+                    </div>
+
+                    <p style={{ fontSize: '10.5px', color: 'var(--text-muted)', margin: 0 }}>
+                      * Deposit RM {initialDepositAmount.toFixed(2)} direkod ke <strong>{depositBank}</strong>, dan baki RM {Math.max(0, grandTotal - initialDepositAmount).toFixed(2)} direkod ke <strong>{balanceBank}</strong>.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Custom Input for Non-Paid / Non-Deposit (e.g. Unpaid / Void) */}
+            {status !== 'Paid' && status !== 'Deposit' && status !== 'Void' && (
               <div className="form-group">
-                <label className="form-label">Jumlah Deposit (RM)</label>
+                <label className="form-label">Jumlah Bayaran (RM)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -145,120 +460,7 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
                   onChange={(e) => handleDepositChange(e.target.value)}
                   placeholder="0.00"
                   className="form-control"
-                  required={status === 'Deposit'}
                 />
-              </div>
-            )}
-
-            {status === 'Deposit' && (
-              <div className="form-group">
-                <label className="form-label">Tarikh Deposit</label>
-                <input
-                  type="date"
-                  value={depositDate}
-                  onChange={(e) => setDepositDate(e.target.value)}
-                  className="form-control"
-                  required
-                />
-              </div>
-            )}
-            
-            {status === 'Paid' && (
-              <div className="form-group">
-                <label className="form-label">Tarikh Bayaran Penuh</label>
-                <input
-                  type="date"
-                  value={paidDate}
-                  onChange={(e) => setPaidDate(e.target.value)}
-                  className="form-control"
-                  required
-                />
-              </div>
-            )}
-
-            {/* Bank Selection */}
-            {status !== 'Void' && deposit > 0 && (
-              <div className="form-group bank-selection-field" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                  <span style={{ fontWeight: 700, color: 'var(--text-dark)' }}>PILIH AKAUN BANK (DUIT MASUK)</span>
-                  <span style={{ fontSize: '10.5px', color: '#16a34a', fontWeight: 650 }}>● Auto-rekod ke Bank</span>
-                </label>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {[
-                    {
-                      id: 'CIMB Bank',
-                      name: 'CIMB Bank',
-                      holder: 'Aiman Hambali',
-                      account: '7656497860',
-                      badge: 'Akaun Operasi'
-                    },
-                    {
-                      id: 'Bank Islam',
-                      name: 'Bank Islam',
-                      holder: 'Hidayatul Rizman',
-                      account: '0502 1020 4490 03',
-                      badge: 'Akaun Simpanan'
-                    },
-                    {
-                      id: 'Tunai',
-                      name: 'Tunai / Cash',
-                      holder: 'Kaunter Tunai Fizikal',
-                      account: 'Penerimaan Tunai',
-                      badge: 'Tunai'
-                    }
-                  ].map(b => {
-                    const isSelected = paymentBank === b.id;
-                    return (
-                      <div
-                        key={b.id}
-                        onClick={() => setPaymentBank(b.id)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '10px 12px',
-                          borderRadius: '8px',
-                          border: isSelected ? '1.5px solid var(--primary-red, #C51B27)' : '1px solid var(--border-color, #e4e4e7)',
-                          backgroundColor: isSelected ? 'rgba(197, 27, 39, 0.04)' : '#ffffff',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <input
-                            type="radio"
-                            name="payment_bank_selection"
-                            checked={isSelected}
-                            onChange={() => setPaymentBank(b.id)}
-                            style={{ accentColor: 'var(--primary-red, #C51B27)', margin: 0, cursor: 'pointer' }}
-                          />
-                          <div>
-                            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-dark, #18181b)' }}>
-                              {b.name} <span style={{ fontWeight: 500, fontSize: '11.5px', color: 'var(--text-muted)' }}>({b.holder})</span>
-                            </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                              {b.account}
-                            </div>
-                          </div>
-                        </div>
-                        <span style={{
-                          fontSize: '10px',
-                          padding: '2px 7px',
-                          borderRadius: '4px',
-                          backgroundColor: isSelected ? '#fee2e2' : '#f4f4f5',
-                          color: isSelected ? '#991b1b' : '#71717a',
-                          fontWeight: 650
-                        }}>
-                          {b.badge}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
-                  * Jumlah RM {deposit.toFixed(2)} ini akan terus ditambah ke baki akaun bank yang dipilih dalam <b>Buku Tunai & Bank</b>.
-                </p>
               </div>
             )}
 
@@ -271,7 +473,7 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
                 </span>
               </div>
               <div className="outcome-row">
-                <span>Status Invoice:</span>
+                <span>Status Invois:</span>
                 <span className={`badge badge-${status.toLowerCase()}`}>
                   {status}
                 </span>
@@ -294,7 +496,7 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
         .payment-modal-body {
           display: flex;
           flex-direction: column;
-          gap: 1.5rem;
+          gap: 1.25rem;
         }
 
         .invoice-summary-strip {
@@ -309,11 +511,12 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
         .payment-total-box {
           background-color: var(--off-white-bg);
           border: 1px solid var(--border-color);
-          padding: 1.25rem;
+          padding: 1rem;
           text-align: center;
           display: flex;
           flex-direction: column;
-          gap: 0.25rem;
+          gap: 0.2rem;
+          border-radius: 6px;
         }
 
         .payment-total-box .label {
@@ -327,7 +530,7 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
 
         .payment-total-box .value {
           font-family: var(--font-primary);
-          font-size: 1.6rem;
+          font-size: 1.5rem;
           font-weight: 800;
           color: var(--primary-red);
         }
@@ -372,10 +575,10 @@ export default function PaymentModal({ invoice, onClose, onSaveSuccess }) {
 
         .payment-outcome-details {
           border-top: 1px dashed var(--border-color);
-          padding-top: 1rem;
+          padding-top: 0.85rem;
           display: flex;
           flex-direction: column;
-          gap: 0.75rem;
+          gap: 0.6rem;
         }
 
         .outcome-row {

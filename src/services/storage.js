@@ -12,6 +12,24 @@ const STORAGE_KEYS = {
   LEDGER: '31lab_ledger'
 };
 
+// --- HIGH-SPEED IN-MEMORY CACHE ---
+let _cachedInvoices = null;
+let _cachedClients = null;
+let _cachedLedger = null;
+let _cachedSettings = null;
+
+let _invoicesFetchPromise = null;
+let _clientsFetchPromise = null;
+let _ledgerFetchPromise = null;
+let _settingsFetchPromise = null;
+
+let _lastInvoicesTime = 0;
+let _lastClientsTime = 0;
+let _lastLedgerTime = 0;
+let _lastSettingsTime = 0;
+
+const CACHE_TTL_MS = 60000; // 60 saat cache segar (maklum balas 0ms pantas)
+
 // Global Supabase client instance (initialized dynamically)
 let supabaseInstance = null;
 
@@ -59,52 +77,68 @@ const DEFAULT_SETTINGS = {
 };
 
 // --- SETTINGS SERVICE ---
-export const getSettings = async () => {
-  const localStored = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-  const localData = localStored ? JSON.parse(localStored) : {};
+export const getSettings = async (forceRefresh = false) => {
+  if (!forceRefresh && _cachedSettings && (Date.now() - _lastSettingsTime < CACHE_TTL_MS)) {
+    return _cachedSettings;
+  }
+  if (_settingsFetchPromise) return _settingsFetchPromise;
 
-  const client = getSupabaseClient();
-  if (client) {
-    try {
-      const { data, error } = await client
-        .from('settings')
-        .select('*')
-        .eq('id', 'global')
-        .single();
-      
-      if (!error && data) {
-        const merged = { ...DEFAULT_SETTINGS, ...data, ...localData };
-        if (merged.bank_opening_balance === undefined || merged.bank_opening_balance === 0) {
-          merged.bank_opening_balance = localData.bank_opening_balance !== undefined ? localData.bank_opening_balance : 2000;
+  _settingsFetchPromise = (async () => {
+    const localStored = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+    const localData = localStored ? JSON.parse(localStored) : {};
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        const { data, error } = await client
+          .from('settings')
+          .select('*')
+          .eq('id', 'global')
+          .single();
+        
+        if (!error && data) {
+          const merged = { ...DEFAULT_SETTINGS, ...data, ...localData };
+          if (merged.bank_opening_balance === undefined || merged.bank_opening_balance === 0) {
+            merged.bank_opening_balance = localData.bank_opening_balance !== undefined ? localData.bank_opening_balance : 2000;
+          }
+          if (merged.bank_opening_balance_cimb === undefined) {
+            merged.bank_opening_balance_cimb = localData.bank_opening_balance_cimb !== undefined ? localData.bank_opening_balance_cimb : 2000;
+          }
+          if (merged.bank_opening_balance_islam === undefined) {
+            merged.bank_opening_balance_islam = localData.bank_opening_balance_islam !== undefined ? localData.bank_opening_balance_islam : 0;
+          }
+          localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(merged));
+          _cachedSettings = merged;
+          _lastSettingsTime = Date.now();
+          return merged;
         }
-        if (merged.bank_opening_balance_cimb === undefined) {
-          merged.bank_opening_balance_cimb = localData.bank_opening_balance_cimb !== undefined ? localData.bank_opening_balance_cimb : 2000;
-        }
-        if (merged.bank_opening_balance_islam === undefined) {
-          merged.bank_opening_balance_islam = localData.bank_opening_balance_islam !== undefined ? localData.bank_opening_balance_islam : 0;
-        }
-        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(merged));
-        return merged;
+      } catch (e) {
+        console.error('Error fetching settings from Supabase, falling back:', e);
       }
-    } catch (e) {
-      console.error('Error fetching settings from Supabase, falling back:', e);
     }
-  }
-  
-  // LocalStorage Fallback
-  if (localStored) {
-    return { ...DEFAULT_SETTINGS, ...localData };
-  }
-  localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
-  return DEFAULT_SETTINGS;
+    
+    // LocalStorage Fallback
+    const res = localStored ? { ...DEFAULT_SETTINGS, ...localData } : DEFAULT_SETTINGS;
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(res));
+    _cachedSettings = res;
+    _lastSettingsTime = Date.now();
+    return res;
+  })().finally(() => {
+    _settingsFetchPromise = null;
+  });
+
+  return _settingsFetchPromise;
 };
 
 export const saveSettings = async (settings) => {
   const mergedSettings = { ...DEFAULT_SETTINGS, ...settings };
+  _cachedSettings = mergedSettings;
+  _lastSettingsTime = Date.now();
+
   const client = getSupabaseClient();
   if (client) {
     try {
-      const { payment_profiles, selected_payment_profile, bank_opening_balance, ...dbSettings } = mergedSettings;
+      const { payment_profiles, selected_payment_profile, bank_opening_balance, bank_opening_balance_cimb, bank_opening_balance_islam, ...dbSettings } = mergedSettings;
       const { error } = await client
         .from('settings')
         .upsert({ id: 'global', ...dbSettings });
@@ -119,27 +153,43 @@ export const saveSettings = async (settings) => {
 };
 
 // --- CLIENTS SERVICE ---
-export const getClients = async () => {
-  const client = getSupabaseClient();
-  if (client) {
-    try {
-      const { data, error } = await client
-        .from('clients')
-        .select('*')
-        .order('name', { ascending: true });
-      if (error) throw error;
-      if (data) {
-        localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(data));
-      }
-      return data;
-    } catch (e) {
-      console.error('Error fetching clients from Supabase:', e);
-    }
+export const getClients = async (forceRefresh = false) => {
+  if (!forceRefresh && _cachedClients && (Date.now() - _lastClientsTime < CACHE_TTL_MS)) {
+    return _cachedClients;
   }
+  if (_clientsFetchPromise) return _clientsFetchPromise;
 
-  // LocalStorage Fallback
-  const stored = localStorage.getItem(STORAGE_KEYS.CLIENTS);
-  return stored ? JSON.parse(stored) : [];
+  _clientsFetchPromise = (async () => {
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        const { data, error } = await client
+          .from('clients')
+          .select('*')
+          .order('name', { ascending: true });
+        if (error) throw error;
+        if (data) {
+          localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(data));
+          _cachedClients = data;
+          _lastClientsTime = Date.now();
+          return data;
+        }
+      } catch (e) {
+        console.error('Error fetching clients from Supabase:', e);
+      }
+    }
+
+    // LocalStorage Fallback
+    const stored = localStorage.getItem(STORAGE_KEYS.CLIENTS);
+    const parsed = stored ? JSON.parse(stored) : [];
+    _cachedClients = parsed;
+    _lastClientsTime = Date.now();
+    return parsed;
+  })().finally(() => {
+    _clientsFetchPromise = null;
+  });
+
+  return _clientsFetchPromise;
 };
 
 export const cascadeClientUpdateToInvoices = async (clientData, oldClientData = null) => {
@@ -249,6 +299,8 @@ export const saveClient = async (clientData, oldClientData = null) => {
   }
   
   localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients));
+  _cachedClients = clients;
+  _lastClientsTime = Date.now();
 
   // If client is being edited with changes, cascade to all related invoices
   if (clientData.id && oldClientData) {
@@ -277,229 +329,175 @@ export const deleteClient = async (id) => {
   const clients = await getClients();
   const filtered = clients.filter(c => c.id !== id);
   localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(filtered));
+  _cachedClients = null;
   return true;
 };
 
 // --- INVOICES SERVICE ---
-export const getInvoices = async () => {
-  const client = getSupabaseClient();
-  let invoicesList = [];
-  if (client) {
-    try {
-      const { data, error } = await client
-        .from('invoices')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      invoicesList = data || [];
+export const getInvoices = async (forceRefresh = false) => {
+  if (!forceRefresh && _cachedInvoices && (Date.now() - _lastInvoicesTime < CACHE_TTL_MS)) {
+    return _cachedInvoices;
+  }
+  if (_invoicesFetchPromise) return _invoicesFetchPromise;
 
-      // Auto-sync recovery: Check if local storage has invoices not yet uploaded to Supabase
+  _invoicesFetchPromise = (async () => {
+    const client = getSupabaseClient();
+    let invoicesList = [];
+    if (client) {
       try {
+        const { data, error } = await client
+          .from('invoices')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        invoicesList = data || [];
+      } catch (e) {
+        console.error('Error fetching invoices from Supabase:', e);
         const stored = localStorage.getItem(STORAGE_KEYS.INVOICES);
-        const localInvoices = stored ? JSON.parse(stored) : [];
-        const remoteNos = new Set(invoicesList.map(inv => inv.invoice_no));
-        const pendingSync = localInvoices.filter(inv => inv.invoice_no && !remoteNos.has(inv.invoice_no));
-
-        if (pendingSync.length > 0) {
-          for (const pendingInv of pendingSync) {
-            try {
-              const synced = await saveInvoice(pendingInv);
-              if (synced) {
-                invoicesList.unshift(synced);
-                remoteNos.add(synced.invoice_no);
-              }
-            } catch (syncErr) {
-              console.warn('Auto-sync skip for invoice:', pendingInv.invoice_no, syncErr);
-            }
-          }
-        }
-      } catch (syncCheckErr) {
-        console.warn('Local recovery check error:', syncCheckErr);
+        invoicesList = stored ? JSON.parse(stored) : [];
       }
-    } catch (e) {
-      console.error('Error fetching invoices from Supabase:', e);
+    } else {
       const stored = localStorage.getItem(STORAGE_KEYS.INVOICES);
       invoicesList = stored ? JSON.parse(stored) : [];
     }
-  } else {
-    const stored = localStorage.getItem(STORAGE_KEYS.INVOICES);
-    invoicesList = stored ? JSON.parse(stored) : [];
-  }
 
-  // Auto-align invoices with CRM clients (Fixes legacy/denormalized data, e.g. WhatsApp username instead of phone number)
-  try {
-    const clientsList = await getClients();
-    if (clientsList && clientsList.length > 0) {
-      let hasAlignmentChanges = false;
-      const alignedInvoicesToUpdate = [];
+    const processed = invoicesList.map(invoice => {
+      let discount_type = invoice.discount_type;
+      let discount_value = invoice.discount_value;
+      let client_address = invoice.client_address;
+      let pengeluaran = invoice.pengeluaran;
+      let order_status = invoice.order_status;
+      let due_date = invoice.due_date;
+      let discount_applies_baju = invoice.discount_applies_baju;
+      let discount_applies_seluar = invoice.discount_applies_seluar;
+      let postage_courier = invoice.postage_courier;
+      let postage_tracking = invoice.postage_tracking;
+      let postage_status = invoice.postage_status;
+      let postage_date = invoice.postage_date;
+      let postage_cost = invoice.postage_cost;
+      let delivery_fee = invoice.delivery_fee;
+      let delivery_payment_status = invoice.delivery_payment_status;
+      let delivery_paid_date = invoice.delivery_paid_date;
+      let delivery_payment_method = invoice.delivery_payment_method;
+      let has_delivery = invoice.has_delivery;
+      let payment_bank = invoice.payment_bank || '';
+      let factory_payment_bank = invoice.factory_payment_bank || '';
+      let factory_payment_date = invoice.factory_payment_date || '';
+      let initial_deposit = invoice.initial_deposit;
+      let postage_payment_bank = invoice.postage_payment_bank || '';
+      let deposit_bank = invoice.deposit_bank || '';
+      let balance_bank = invoice.balance_bank || '';
+      let delivery_bank = invoice.delivery_bank || '';
+      let cleanNotes = invoice.notes || '';
+      let _raw_meta = {};
 
-      invoicesList = invoicesList.map(invoice => {
-        let matchedClient = null;
-        if (invoice.client_id) {
-          matchedClient = clientsList.find(c => c.id === invoice.client_id);
-        }
-        if (!matchedClient && invoice.client_name) {
-          const invName = invoice.client_name.trim().toLowerCase();
-          matchedClient = clientsList.find(c => c.name && c.name.trim().toLowerCase() === invName);
-        }
-
-        if (matchedClient) {
-          const newPhone = (matchedClient.phone || '').trim();
-          const newName = (matchedClient.name || '').trim();
-          const phoneChanged = newPhone && invoice.client_phone !== newPhone;
-          const nameChanged = newName && invoice.client_name !== newName;
-          const idMissing = !invoice.client_id && matchedClient.id;
-
-          if (phoneChanged || nameChanged || idMissing) {
-            hasAlignmentChanges = true;
-            const updatedInv = {
-              ...invoice,
-              client_id: matchedClient.id || invoice.client_id,
-              client_name: newName || invoice.client_name,
-              client_phone: newPhone || invoice.client_phone
-            };
-            alignedInvoicesToUpdate.push(updatedInv);
-            return updatedInv;
+      if (invoice.notes && invoice.notes.includes('__METADATA__:')) {
+        const parts = invoice.notes.split('__METADATA__:');
+        cleanNotes = parts[0].trim();
+        try {
+          const meta = JSON.parse(parts[1]);
+          _raw_meta = meta;
+          if (meta.discount_type !== undefined) discount_type = meta.discount_type;
+          if (meta.discount_value !== undefined) discount_value = meta.discount_value;
+          if (meta.client_address !== undefined) client_address = meta.client_address;
+          if (meta.pengeluaran !== undefined) pengeluaran = meta.pengeluaran;
+          if (meta.due_date !== undefined) due_date = meta.due_date;
+          if (meta.discount_applies_baju !== undefined) discount_applies_baju = meta.discount_applies_baju;
+          if (meta.discount_applies_seluar !== undefined) discount_applies_seluar = meta.discount_applies_seluar;
+          if (meta.order_status !== undefined) {
+            order_status = meta.order_status;
           }
-        }
-        return invoice;
-      });
-
-      if (hasAlignmentChanges) {
-        localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoicesList));
-        if (client && alignedInvoicesToUpdate.length > 0) {
-          (async () => {
-            for (const inv of alignedInvoicesToUpdate) {
-              try {
-                await client
-                  .from('invoices')
-                  .update({
-                    client_id: inv.client_id,
-                    client_name: inv.client_name,
-                    client_phone: inv.client_phone,
-                    updated_at: new Date().toISOString()
-                  })
-                  .eq('id', inv.id);
-              } catch (updateErr) {
-                console.warn('Error persisting auto-aligned invoice to Supabase:', inv.invoice_no, updateErr);
-              }
-            }
-          })();
-        }
+          if (meta.postage_courier !== undefined) postage_courier = meta.postage_courier;
+          if (meta.postage_tracking !== undefined) postage_tracking = meta.postage_tracking;
+          if (meta.postage_status !== undefined) postage_status = meta.postage_status;
+          if (meta.postage_date !== undefined) postage_date = meta.postage_date;
+          if (meta.postage_cost !== undefined) postage_cost = meta.postage_cost;
+          if (meta.delivery_fee !== undefined) delivery_fee = meta.delivery_fee;
+          if (meta.delivery_payment_status !== undefined) delivery_payment_status = meta.delivery_payment_status;
+          if (meta.delivery_paid_date !== undefined) delivery_paid_date = meta.delivery_paid_date;
+          if (meta.delivery_payment_method !== undefined) delivery_payment_method = meta.delivery_payment_method;
+          if (meta.has_delivery !== undefined) has_delivery = meta.has_delivery;
+          if (meta.payment_bank !== undefined) payment_bank = meta.payment_bank;
+          if (meta.factory_payment_bank !== undefined) factory_payment_bank = meta.factory_payment_bank;
+          if (meta.factory_payment_date !== undefined) factory_payment_date = meta.factory_payment_date;
+          if (meta.initial_deposit !== undefined) initial_deposit = meta.initial_deposit;
+          if (meta.postage_payment_bank !== undefined) postage_payment_bank = meta.postage_payment_bank;
+          if (meta.deposit_bank !== undefined) deposit_bank = meta.deposit_bank;
+          if (meta.balance_bank !== undefined) balance_bank = meta.balance_bank;
+          if (meta.delivery_bank !== undefined) delivery_bank = meta.delivery_bank;
+        } catch (e) {}
       }
-    }
-  } catch (alignErr) {
-    console.warn('Error during auto-aligning invoices with clients:', alignErr);
-  }
 
-  return invoicesList.map(invoice => {
-    let discount_type = invoice.discount_type;
-    let discount_value = invoice.discount_value;
-    let client_address = invoice.client_address;
-    let pengeluaran = invoice.pengeluaran;
-    let order_status = invoice.order_status;
-    let due_date = invoice.due_date;
-    let discount_applies_baju = invoice.discount_applies_baju;
-    let discount_applies_seluar = invoice.discount_applies_seluar;
-    let postage_courier = invoice.postage_courier;
-    let postage_tracking = invoice.postage_tracking;
-    let postage_status = invoice.postage_status;
-    let postage_date = invoice.postage_date;
-    let postage_cost = invoice.postage_cost;
-    let delivery_fee = invoice.delivery_fee;
-    let delivery_payment_status = invoice.delivery_payment_status;
-    let delivery_paid_date = invoice.delivery_paid_date;
-    let delivery_payment_method = invoice.delivery_payment_method;
-    let has_delivery = invoice.has_delivery;
-    let payment_bank = invoice.payment_bank || '';
-    let factory_payment_bank = invoice.factory_payment_bank || '';
-    let postage_payment_bank = invoice.postage_payment_bank || '';
-    let cleanNotes = invoice.notes || '';
-    let _raw_meta = {};
+      if (order_status === 'NOT_SUBMITTED' || !order_status) {
+        order_status = 'BELUM_DRAFT';
+      }
 
-    if (invoice.notes && invoice.notes.includes('__METADATA__:')) {
-      const parts = invoice.notes.split('__METADATA__:');
-      cleanNotes = parts[0].trim();
-      try {
-        const meta = JSON.parse(parts[1]);
-        _raw_meta = meta;
-        if (meta.discount_type !== undefined) discount_type = meta.discount_type;
-        if (meta.discount_value !== undefined) discount_value = meta.discount_value;
-        if (meta.client_address !== undefined) client_address = meta.client_address;
-        if (meta.pengeluaran !== undefined) pengeluaran = meta.pengeluaran;
-        if (meta.due_date !== undefined) due_date = meta.due_date;
-        if (meta.discount_applies_baju !== undefined) discount_applies_baju = meta.discount_applies_baju;
-        if (meta.discount_applies_seluar !== undefined) discount_applies_seluar = meta.discount_applies_seluar;
-        if (meta.order_status !== undefined) {
-          order_status = meta.order_status;
-        }
-        if (meta.postage_courier !== undefined) postage_courier = meta.postage_courier;
-        if (meta.postage_tracking !== undefined) postage_tracking = meta.postage_tracking;
-        if (meta.postage_status !== undefined) postage_status = meta.postage_status;
-        if (meta.postage_date !== undefined) postage_date = meta.postage_date;
-        if (meta.postage_cost !== undefined) postage_cost = meta.postage_cost;
-        if (meta.delivery_fee !== undefined) delivery_fee = meta.delivery_fee;
-        if (meta.delivery_payment_status !== undefined) delivery_payment_status = meta.delivery_payment_status;
-        if (meta.delivery_paid_date !== undefined) delivery_paid_date = meta.delivery_paid_date;
-        if (meta.delivery_payment_method !== undefined) delivery_payment_method = meta.delivery_payment_method;
-        if (meta.has_delivery !== undefined) has_delivery = meta.has_delivery;
-        if (meta.payment_bank !== undefined) payment_bank = meta.payment_bank;
-        if (meta.factory_payment_bank !== undefined) factory_payment_bank = meta.factory_payment_bank;
-        if (meta.postage_payment_bank !== undefined) postage_payment_bank = meta.postage_payment_bank;
-      } catch (e) {}
-    }
+      // Default existing legacy records: only Syafiq has delivery, all other invoices require explicit addition via "+ Tambah"
+      const isSyafiq = (invoice.client_name || '').toLowerCase().includes('syafiq');
+      const finalHasDelivery = has_delivery !== undefined ? Boolean(has_delivery) : isSyafiq;
 
-    if (order_status === 'NOT_SUBMITTED' || !order_status) {
-      order_status = 'BELUM_DRAFT';
-    }
+      // Inference for payment_bank: All historical records belong to Bank Islam unless explicitly set to CIMB Bank
+      let finalPaymentBank = payment_bank || invoice.payment_bank;
+      if (!finalPaymentBank) {
+        finalPaymentBank = 'Bank Islam';
+      }
 
-    // Default existing legacy records: only Syafiq has delivery, all other invoices require explicit addition via "+ Tambah"
-    const isSyafiq = (invoice.client_name || '').toLowerCase().includes('syafiq');
-    const finalHasDelivery = has_delivery !== undefined ? Boolean(has_delivery) : isSyafiq;
+      let finalFactoryPaymentBank = factory_payment_bank || invoice.factory_payment_bank;
+      if (!finalFactoryPaymentBank) {
+        finalFactoryPaymentBank = 'Bank Islam';
+      }
 
-    // Inference for payment_bank: All historical records belong to Bank Islam unless explicitly set to CIMB Bank
-    let finalPaymentBank = payment_bank || invoice.payment_bank;
-    if (!finalPaymentBank) {
-      finalPaymentBank = 'Bank Islam';
-    }
+      let finalPostagePaymentBank = postage_payment_bank || invoice.postage_payment_bank;
+      if (!finalPostagePaymentBank) {
+        finalPostagePaymentBank = 'Bank Islam';
+      }
 
-    let finalFactoryPaymentBank = factory_payment_bank || invoice.factory_payment_bank;
-    if (!finalFactoryPaymentBank) {
-      finalFactoryPaymentBank = 'Bank Islam';
-    }
+      let finalDepositBank = deposit_bank || finalPaymentBank;
+      let finalBalanceBank = balance_bank || finalPaymentBank;
+      let finalDeliveryBank = delivery_bank || finalPostagePaymentBank || finalPaymentBank;
 
-    let finalPostagePaymentBank = postage_payment_bank || invoice.postage_payment_bank;
-    if (!finalPostagePaymentBank) {
-      finalPostagePaymentBank = 'Bank Islam';
-    }
+      return {
+        ...invoice,
+        notes: cleanNotes,
+        _raw_meta,
+        payment_bank: finalPaymentBank,
+        factory_payment_bank: finalFactoryPaymentBank,
+        factory_payment_date: factory_payment_date || '',
+        initial_deposit: initial_deposit !== undefined ? (parseFloat(initial_deposit) || 0) : 0,
+        deposit_bank: finalDepositBank,
+        balance_bank: finalBalanceBank,
+        delivery_bank: finalDeliveryBank,
+        postage_payment_bank: finalPostagePaymentBank,
+        due_date: due_date || '',
+        discount_type: discount_type !== undefined ? discount_type : (parseFloat(invoice.discount_per_pcs || 0) > 0 ? 'per_pcs' : 'bulk'),
+        discount_value: discount_value !== undefined ? discount_value : (parseFloat(invoice.discount_per_pcs || 0) || 0),
+        client_address: client_address || '',
+        pengeluaran: pengeluaran !== undefined ? (parseFloat(pengeluaran) || 0) : 0,
+        order_status: order_status,
+        discount_applies_baju: discount_applies_baju !== undefined ? discount_applies_baju : true,
+        discount_applies_seluar: discount_applies_seluar !== undefined ? discount_applies_seluar : false,
+        has_delivery: finalHasDelivery,
+        postage_courier: postage_courier || '',
+        postage_tracking: postage_tracking || '',
+        postage_status: postage_status || '',
+        postage_date: postage_date || '',
+        postage_cost: postage_cost !== undefined && postage_cost !== '' && postage_cost !== null ? (parseFloat(postage_cost) || 0) : '',
+        delivery_fee: delivery_fee !== undefined && delivery_fee !== '' && delivery_fee !== null ? (parseFloat(delivery_fee) || 0) : '',
+        delivery_payment_status: delivery_payment_status || '',
+        delivery_paid_date: delivery_paid_date || '',
+        delivery_payment_method: delivery_payment_method || ''
+      };
+    });
 
-    return {
-      ...invoice,
-      notes: cleanNotes,
-      _raw_meta,
-      payment_bank: finalPaymentBank,
-      factory_payment_bank: finalFactoryPaymentBank,
-      postage_payment_bank: finalPostagePaymentBank,
-      due_date: due_date || '',
-      discount_type: discount_type !== undefined ? discount_type : (parseFloat(invoice.discount_per_pcs || 0) > 0 ? 'per_pcs' : 'bulk'),
-      discount_value: discount_value !== undefined ? discount_value : (parseFloat(invoice.discount_per_pcs || 0) || 0),
-      client_address: client_address || '',
-      pengeluaran: pengeluaran !== undefined ? (parseFloat(pengeluaran) || 0) : 0,
-      order_status: order_status,
-      discount_applies_baju: discount_applies_baju !== undefined ? discount_applies_baju : true,
-      discount_applies_seluar: discount_applies_seluar !== undefined ? discount_applies_seluar : false,
-      has_delivery: finalHasDelivery,
-      postage_courier: postage_courier || '',
-      postage_tracking: postage_tracking || '',
-      postage_status: postage_status || '',
-      postage_date: postage_date || '',
-      postage_cost: postage_cost !== undefined && postage_cost !== '' && postage_cost !== null ? (parseFloat(postage_cost) || 0) : '',
-      delivery_fee: delivery_fee !== undefined && delivery_fee !== '' && delivery_fee !== null ? (parseFloat(delivery_fee) || 0) : '',
-      delivery_payment_status: delivery_payment_status || '',
-      delivery_paid_date: delivery_paid_date || '',
-      delivery_payment_method: delivery_payment_method || ''
-    };
+    localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(processed));
+    _cachedInvoices = processed;
+    _lastInvoicesTime = Date.now();
+    return processed;
+  })().finally(() => {
+    _invoicesFetchPromise = null;
   });
+
+  return _invoicesFetchPromise;
 };
 
 // Generates next sequential invoice number based on prefix
@@ -660,7 +658,12 @@ export const saveInvoice = async (invoiceData) => {
         delivery_payment_status: finalInvoiceData.delivery_payment_status || '',
         delivery_paid_date: finalInvoiceData.delivery_paid_date || '',
         payment_bank: finalInvoiceData.payment_bank || 'Bank Islam',
+        deposit_bank: finalInvoiceData.deposit_bank || finalInvoiceData.payment_bank || 'Bank Islam',
+        balance_bank: finalInvoiceData.balance_bank || finalInvoiceData.payment_bank || 'CIMB Bank',
+        delivery_bank: finalInvoiceData.delivery_bank || finalInvoiceData.postage_payment_bank || finalInvoiceData.payment_bank || 'Bank Islam',
         factory_payment_bank: finalInvoiceData.factory_payment_bank || 'Bank Islam',
+        factory_payment_date: finalInvoiceData.factory_payment_date || '',
+        initial_deposit: finalInvoiceData.initial_deposit !== undefined ? (parseFloat(finalInvoiceData.initial_deposit) || 0) : 0,
         postage_payment_bank: finalInvoiceData.postage_payment_bank || 'Bank Islam'
       };
       if (finalInvoiceData.due_date !== undefined) {
@@ -720,6 +723,7 @@ export const saveInvoice = async (invoiceData) => {
     localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices));
     savedInvoiceObj = finalInvoiceData;
   }
+  _cachedInvoices = null;
 
   // 2. Recalculate client statistics (orders count & spent) based on all non-void invoices
   const allInvoices = await getInvoices();
@@ -759,6 +763,7 @@ export const deleteInvoice = async (id) => {
     const filtered = invoices.filter(inv => inv.id !== id);
     localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(filtered));
   }
+  _cachedInvoices = null;
 
   // Recalculate client statistics if client exists
   if (customerId) {
@@ -781,20 +786,34 @@ export const deleteInvoice = async (id) => {
   return true;
 };
 
-export const updateInvoicePayment = async (id, depositAmount, status, pengeluaranVal, depositDate, paidDate, paymentBank) => {
+export const updateInvoicePayment = async (id, depositAmount, status, pengeluaranVal, depositDate, paidDate, paymentBank, initialDepositVal, depositBankVal, balanceBankVal, deliveryBankVal) => {
   const invoices = await getInvoices();
   const invoice = invoices.find(inv => inv.id === id);
   if (!invoice) return false;
 
   const deposit = parseFloat(depositAmount);
   const grand_total = parseFloat(invoice.grand_total);
-  const balance = grand_total - deposit;
+  const balance = Math.max(0, grand_total - deposit);
+
+  let initialDeposit = initialDepositVal !== undefined ? (parseFloat(initialDepositVal) || 0) : (invoice.initial_deposit || 0);
+  if (status === 'Deposit') {
+    initialDeposit = deposit;
+  } else if (status === 'Paid') {
+    if (initialDepositVal !== undefined) {
+      initialDeposit = parseFloat(initialDepositVal) || 0;
+    } else if (!initialDeposit && invoice.deposit > 0 && invoice.deposit < grand_total) {
+      initialDeposit = invoice.deposit;
+    }
+  } else if (status === 'Unpaid' || status === 'Void') {
+    initialDeposit = 0;
+  }
 
   const updatedInvoice = {
     ...invoice,
     deposit,
     balance,
     status,
+    initial_deposit: initialDeposit,
     pengeluaran: pengeluaranVal !== undefined ? (parseFloat(pengeluaranVal) || 0) : invoice.pengeluaran,
     updated_at: new Date().toISOString()
   };
@@ -802,12 +821,15 @@ export const updateInvoicePayment = async (id, depositAmount, status, pengeluara
   if (depositDate !== undefined) updatedInvoice.deposit_date = depositDate;
   if (paidDate !== undefined) updatedInvoice.paid_date = paidDate;
   if (paymentBank !== undefined) updatedInvoice.payment_bank = paymentBank;
+  if (depositBankVal !== undefined) updatedInvoice.deposit_bank = depositBankVal;
+  if (balanceBankVal !== undefined) updatedInvoice.balance_bank = balanceBankVal;
+  if (deliveryBankVal !== undefined) updatedInvoice.delivery_bank = deliveryBankVal;
 
   const saved = await saveInvoice(updatedInvoice);
   return saved !== null;
 };
 
-export const updateManufacturingStatus = async (id, order_status, pengeluaranVal, dueDateVal, factoryPaymentBankVal) => {
+export const updateManufacturingStatus = async (id, order_status, pengeluaranVal, dueDateVal, factoryPaymentBankVal, factoryPaymentDateVal) => {
   const invoices = await getInvoices();
   const invoice = invoices.find(inv => inv.id === id);
   if (!invoice) return false;
@@ -824,6 +846,9 @@ export const updateManufacturingStatus = async (id, order_status, pengeluaranVal
   }
   if (factoryPaymentBankVal !== undefined) {
     updatedInvoice.factory_payment_bank = factoryPaymentBankVal;
+  }
+  if (factoryPaymentDateVal !== undefined) {
+    updatedInvoice.factory_payment_date = factoryPaymentDateVal;
   }
 
   const saved = await saveInvoice(updatedInvoice);
@@ -921,24 +946,89 @@ export const createPostageOrder = async (postageData) => {
 };
 
 // --- LEDGER SERVICE ---
-export const getLedger = async () => {
-  const client = getSupabaseClient();
-  if (client) {
+const cleanLedgerItem = (item) => {
+  if (!item) return item;
+  let bank = item.bank;
+  let description = String(item.description || '');
+  if (description.includes('__METADATA__:')) {
+    const parts = description.split('__METADATA__:');
+    description = parts[0].trim();
     try {
-      const { data, error } = await client
-        .from('ledger')
-        .select('*')
-        .order('recorded_at', { ascending: false });
-      if (error) throw error;
-      return data || [];
-    } catch (e) {
-      console.error('Error fetching ledger from Supabase:', e);
+      const meta = JSON.parse(parts[1]);
+      if (!bank && meta.bank) bank = meta.bank;
+    } catch (e) {}
+  }
+  if (!bank) {
+    const text = `${description} ${item.payee || ''} ${item.category || ''}`.toLowerCase();
+    if (text.includes('cimb') || text.includes('meta ads') || (item.date && item.date >= '2026-09-21')) {
+      bank = 'CIMB Bank';
+    } else if (text.includes('islam')) {
+      bank = 'Bank Islam';
+    } else if (text.includes('tunai') || text.includes('cash')) {
+      bank = 'Tunai';
+    } else {
+      bank = 'Bank Islam';
     }
   }
+  return {
+    ...item,
+    description,
+    bank
+  };
+};
 
-  // LocalStorage Fallback
-  const stored = localStorage.getItem(STORAGE_KEYS.LEDGER);
-  return stored ? JSON.parse(stored) : [];
+export const getLedger = async (forceRefresh = false) => {
+  if (!forceRefresh && _cachedLedger && (Date.now() - _lastLedgerTime < CACHE_TTL_MS)) {
+    return _cachedLedger;
+  }
+  if (_ledgerFetchPromise) return _ledgerFetchPromise;
+
+  _ledgerFetchPromise = (async () => {
+    const client = getSupabaseClient();
+    let data = null;
+    if (client) {
+      try {
+        const { data: dbData, error } = await client
+          .from('ledger')
+          .select('*')
+          .order('recorded_at', { ascending: false });
+        if (error) throw error;
+        data = dbData;
+      } catch (e) {
+        console.error('Error fetching ledger from Supabase:', e);
+      }
+    }
+
+    if (data) {
+      const formatted = data.map(cleanLedgerItem);
+      localStorage.setItem(STORAGE_KEYS.LEDGER, JSON.stringify(formatted));
+      _cachedLedger = formatted;
+      _lastLedgerTime = Date.now();
+      return formatted;
+    }
+
+    // LocalStorage Fallback (with automatic cleaning of any metadata residue)
+    const stored = localStorage.getItem(STORAGE_KEYS.LEDGER);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.map(cleanLedgerItem);
+          localStorage.setItem(STORAGE_KEYS.LEDGER, JSON.stringify(cleaned));
+          _cachedLedger = cleaned;
+          _lastLedgerTime = Date.now();
+          return cleaned;
+        }
+      } catch (e) {}
+    }
+    _cachedLedger = [];
+    _lastLedgerTime = Date.now();
+    return [];
+  })().finally(() => {
+    _ledgerFetchPromise = null;
+  });
+
+  return _ledgerFetchPromise;
 };
 
 export const saveLedgerEntry = async (entryData) => {
@@ -946,48 +1036,83 @@ export const saveLedgerEntry = async (entryData) => {
   let finalEntry = { ...entryData, updated_at: new Date().toISOString() };
   
   if (!finalEntry.id) {
-    finalEntry.id = client ? undefined : generateUUID(); // Supabase will auto-gen UUID
+    finalEntry.id = generateUUID();
     finalEntry.recorded_at = finalEntry.recorded_at || new Date().toISOString();
   }
   
+  // Format description with metadata for bank persistence
+  let baseDescription = finalEntry.description || '';
+  if (baseDescription.includes('__METADATA__:')) {
+    baseDescription = baseDescription.split('__METADATA__:')[0].trim();
+  }
+  const bankValue = finalEntry.bank || 'CIMB Bank';
+  const metadata = { bank: bankValue };
+  const fullDescription = `${baseDescription}\n\n__METADATA__:${JSON.stringify(metadata)}`;
+
   let savedEntry = null;
   
   if (client) {
+    let dbPayload = {
+      id: finalEntry.id,
+      date: finalEntry.date,
+      type: finalEntry.type,
+      category: finalEntry.category,
+      description: fullDescription,
+      payee: finalEntry.payee || '',
+      amount: Number(finalEntry.amount || 0),
+      bank: bankValue,
+      recorded_at: finalEntry.recorded_at || new Date().toISOString(),
+      updated_at: finalEntry.updated_at
+    };
+
     try {
       const { data, error } = await client
         .from('ledger')
-        .upsert(finalEntry)
+        .upsert(dbPayload)
         .select()
         .single();
-      if (error) throw error;
-      savedEntry = data;
+
+      if (error) {
+        // If column 'bank' doesn't exist in Supabase schema, retry without bank column
+        if (error.message && (error.message.includes('bank') || error.code === 'PGRST204')) {
+          delete dbPayload.bank;
+          const retryRes = await client
+            .from('ledger')
+            .upsert(dbPayload)
+            .select()
+            .single();
+          if (retryRes.error) throw retryRes.error;
+          savedEntry = { ...retryRes.data, bank: bankValue, description: baseDescription };
+        } else {
+          throw error;
+        }
+      } else {
+        savedEntry = { ...data, bank: bankValue, description: baseDescription };
+      }
     } catch (e) {
       console.error('Error saving ledger entry to Supabase:', e);
     }
   }
   
-  if (!savedEntry) {
-    // LocalStorage Fallback
-    const ledger = await getLedger();
-    if (!finalEntry.id) {
-      finalEntry.id = generateUUID();
-      finalEntry.recorded_at = finalEntry.recorded_at || new Date().toISOString();
-    }
-    const index = ledger.findIndex(l => l.id === finalEntry.id);
-    if (index !== -1) {
-      ledger[index] = finalEntry;
-    } else {
-      ledger.push(finalEntry);
-    }
-    
-    // Sort by date descending
-    ledger.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
-    
-    localStorage.setItem(STORAGE_KEYS.LEDGER, JSON.stringify(ledger));
-    savedEntry = finalEntry;
+  // Update LocalStorage
+  const stored = localStorage.getItem(STORAGE_KEYS.LEDGER);
+  const ledger = stored ? JSON.parse(stored) : [];
+  const cleanEntryToStore = {
+    ...finalEntry,
+    description: baseDescription,
+    bank: bankValue
+  };
+  const index = ledger.findIndex(l => l.id === cleanEntryToStore.id);
+  if (index !== -1) {
+    ledger[index] = cleanEntryToStore;
+  } else {
+    ledger.push(cleanEntryToStore);
   }
+  ledger.sort((a, b) => new Date(b.recorded_at || b.date) - new Date(a.recorded_at || a.date));
+  localStorage.setItem(STORAGE_KEYS.LEDGER, JSON.stringify(ledger));
+  _cachedLedger = null;
   
-  return savedEntry;
+  return savedEntry || cleanEntryToStore;
 };
 
 export const deleteLedgerEntry = async (id) => {
@@ -1003,12 +1128,16 @@ export const deleteLedgerEntry = async (id) => {
     } catch (e) {
       console.error('Error deleting ledger entry from Supabase:', e);
     }
-  } else {
-    // LocalStorage Fallback
-    const ledger = await getLedger();
+  }
+
+  // LocalStorage update
+  const stored = localStorage.getItem(STORAGE_KEYS.LEDGER);
+  if (stored) {
+    const ledger = JSON.parse(stored);
     const filtered = ledger.filter(l => l.id !== id);
     localStorage.setItem(STORAGE_KEYS.LEDGER, JSON.stringify(filtered));
   }
+  _cachedLedger = null;
   return true;
 };
 

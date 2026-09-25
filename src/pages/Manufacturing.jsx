@@ -102,10 +102,11 @@ export default function Manufacturing() {
     const status = editedData[inv.id]?.order_status !== undefined ? editedData[inv.id].order_status : (inv.order_status || 'BELUM_DRAFT');
     const due = editedData[inv.id]?.due_date !== undefined ? editedData[inv.id].due_date : (inv.due_date || '');
     const factoryBank = editedData[inv.id]?.factory_payment_bank !== undefined ? editedData[inv.id].factory_payment_bank : (inv.factory_payment_bank || 'Bank Islam');
+    const factoryDate = editedData[inv.id]?.factory_payment_date !== undefined ? editedData[inv.id].factory_payment_date : (inv.factory_payment_date || inv.deposit_date || '');
     
     setLoading(true);
     try {
-      const success = await updateManufacturingStatus(inv.id, status, kos, due, factoryBank);
+      const success = await updateManufacturingStatus(inv.id, status, kos, due, factoryBank, factoryDate);
       if (success) {
         alert('Kemaskini berjaya disimpan!');
         setEditedData(prev => {
@@ -385,6 +386,10 @@ export default function Manufacturing() {
                 ? editedData[inv.id].factory_payment_bank 
                 : (inv.factory_payment_bank || 'Bank Islam');
 
+              const currentFactoryDate = editedData[inv.id]?.factory_payment_date !== undefined 
+                ? editedData[inv.id].factory_payment_date 
+                : (inv.factory_payment_date || inv.deposit_date || '');
+
               const statusColor = 
                 currentStatus === 'COMPLETED' ? '#16a34a' :
                 currentStatus === 'PROCESSING' ? '#2563eb' :
@@ -504,9 +509,9 @@ export default function Manufacturing() {
                       </select>
                     </div>
 
-                    <div style={{ gridColumn: 'span 2' }}>
+                    <div>
                       <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 750, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '3px' }}>
-                        Pilihan Bank (Bayar Kos Kilang)
+                        Pilihan Bank (Kos Kilang)
                       </label>
                       <select
                         value={currentFactoryBank}
@@ -526,6 +531,25 @@ export default function Manufacturing() {
                         <option value="Bank Islam">Bank Islam (Hidayatul Rizman - 05021020449003)</option>
                         <option value="Tunai">Tunai / Cash</option>
                       </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 750, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '3px' }}>
+                        Tarikh Bayar Kilang
+                      </label>
+                      <input
+                        type="date"
+                        value={currentFactoryDate}
+                        onChange={e => handleFieldChange(inv.id, 'factory_payment_date', e.target.value)}
+                        className="form-control"
+                        disabled={isVoid}
+                        style={{ 
+                          width: '100%',
+                          padding: '0.35rem 0.5rem', 
+                          fontSize: '0.82rem',
+                          borderRadius: '6px'
+                        }}
+                      />
                     </div>
 
                     {currentStatus === 'PROCESSING' && (

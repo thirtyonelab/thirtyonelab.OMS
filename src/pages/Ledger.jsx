@@ -8,9 +8,34 @@ import { money } from '../utils/mobileOrders';
 
 export default function Ledger() {
   const { tr } = useLanguage();
-  const [invoices, setInvoices] = useState([]);
-  const [entries, setEntries] = useState([]);
-  const [settings, setSettings] = useState(null);
+  const [invoices, setInvoices] = useState(() => {
+    try {
+      const stored = localStorage.getItem('oms_invoices');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [entries, setEntries] = useState(() => {
+    try {
+      const stored = localStorage.getItem('oms_ledger');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return parsed.sort((a, b) => new Date(b.date) - new Date(a.date));
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  });
+  const [settings, setSettings] = useState(() => {
+    try {
+      const stored = localStorage.getItem('oms_settings');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(false);
   const [selectedBank, setSelectedBank] = useState('cimb'); // 'cimb' | 'islam' | 'all'
   const [flowFilter, setFlowFilter] = useState('all'); // 'all' | 'in' | 'out'
@@ -30,7 +55,6 @@ export default function Ledger() {
   }, []);
 
   const loadData = async () => {
-    setLoading(true);
     try {
       const [invs, data, setts] = await Promise.all([getInvoices(), getLedger(), getSettings()]);
       setInvoices(invs);
@@ -45,43 +69,126 @@ export default function Ledger() {
 
   const cimbOpening = Number(settings?.bank_opening_balance_cimb ?? settings?.bank_opening_balance ?? 2000);
   const islamOpening = Number(settings?.bank_opening_balance_islam ?? 0);
+  const tunaiOpening = Number(settings?.bank_opening_balance_tunai ?? 0);
 
   const bankDetails = {
     cimb: { name: 'CIMB Bank', account: '7656497860 (Aiman Hambali)', opening: cimbOpening },
     islam: { name: 'Bank Islam', account: '0502 1020 4490 03 (Hidayatul Rizman)', opening: islamOpening },
-    all: { name: 'Semua Akaun Bank', account: 'Ringkasan Aliran Tunai Gabungan', opening: cimbOpening + islamOpening }
+    tunai: { name: 'Tunai Fizikal', account: 'Tunai Di Tangan / Peti Wang', opening: tunaiOpening },
+    all: { name: 'Semua Akaun Bank & Tunai', account: 'Ringkasan Aliran Tunai Gabungan', opening: cimbOpening + islamOpening + tunaiOpening }
   };
 
-  // 1. Duit Masuk (IN): Kutipan Invois Jualan mengikut payment_bank
+  // 1. Duit Masuk (IN): Kutipan Invois Jualan mengikut deposit_bank / balance_bank / payment_bank
   const invoiceInEvents = useMemo(() => {
-    return invoices
-      .filter(inv => inv.status !== 'Void' && Number(inv.deposit || 0) > 0)
-      .map(inv => {
-        const b = inv.payment_bank || 'Bank Islam';
-        return {
+    const events = [];
+    invoices.forEach(inv => {
+      if (inv.status === 'Void') return;
+      const defaultBank = inv.payment_bank || 'Bank Islam';
+      const depBank = inv.deposit_bank || defaultBank;
+      const balBank = inv.balance_bank || defaultBank;
+      const grandTotal = Number(inv.grand_total || 0);
+      const curDeposit = Number(inv.deposit || 0);
+
+      // Situation A: Status 'Deposit' (deposit dikutip, baki belum)
+      if (inv.status === 'Deposit' && curDeposit > 0) {
+        events.push({
+          id: `inv_in_dep_${inv.id}`,
+          date: inv.deposit_date || inv.date || '',
+          type: 'IN',
+          title: `Kutipan Deposit: ${inv.job_name || `Invois #${inv.invoice_no}`}`,
+          category: 'Invois Jualan (Deposit)',
+          payee: inv.client_name || 'Pelanggan',
+          amount: curDeposit,
+          source: 'invoice',
+          bank: depBank,
+          rawInvoice: inv
+        });
+      }
+      // Situation B: Status 'Paid' (bayaran penuh)
+      else if (inv.status === 'Paid') {
+        const initDep = Number(inv.initial_deposit || 0);
+        // Jika ada deposit awal yang sah (bayaran 2 peringkat / split bank)
+        if (initDep > 0 && initDep < grandTotal) {
+          // Peringkat 1: Deposit awal
+          events.push({
+            id: `inv_in_dep_${inv.id}`,
+            date: inv.deposit_date || inv.date || '',
+            type: 'IN',
+            title: `Kutipan Deposit: ${inv.job_name || `Invois #${inv.invoice_no}`}`,
+            category: 'Invois Jualan (Deposit)',
+            payee: inv.client_name || 'Pelanggan',
+            amount: initDep,
+            source: 'invoice',
+            bank: depBank,
+            rawInvoice: inv
+          });
+          // Peringkat 2: Baki Bayaran
+          events.push({
+            id: `inv_in_bal_${inv.id}`,
+            date: inv.paid_date || inv.deposit_date || inv.date || '',
+            type: 'IN',
+            title: `Kutipan Baki: ${inv.job_name || `Invois #${inv.invoice_no}`}`,
+            category: 'Invois Jualan (Baki)',
+            payee: inv.client_name || 'Pelanggan',
+            amount: grandTotal - initDep,
+            source: 'invoice',
+            bank: balBank,
+            rawInvoice: inv
+          });
+        } else {
+          // Bayaran penuh sekaligus
+          events.push({
+            id: `inv_in_paid_${inv.id}`,
+            date: inv.paid_date || inv.deposit_date || inv.date || '',
+            type: 'IN',
+            title: `Kutipan Invois Penuh: ${inv.job_name || `Invois #${inv.invoice_no}`}`,
+            category: 'Invois Jualan',
+            payee: inv.client_name || 'Pelanggan',
+            amount: grandTotal > 0 ? grandTotal : curDeposit,
+            source: 'invoice',
+            bank: balBank,
+            rawInvoice: inv
+          });
+        }
+      }
+      // Situation C: Status lain tetapi ada kutipan deposit
+      else if (curDeposit > 0) {
+        events.push({
           id: `inv_in_${inv.id}`,
           date: inv.deposit_date || inv.date || '',
           type: 'IN',
-          title: inv.job_name || `Kutipan Invois #${inv.invoice_no}`,
+          title: `Kutipan Invois: ${inv.job_name || `Invois #${inv.invoice_no}`}`,
           category: 'Invois Jualan',
           payee: inv.client_name || 'Pelanggan',
-          amount: Number(inv.deposit || 0),
+          amount: curDeposit,
           source: 'invoice',
-          bank: b,
+          bank: depBank,
           rawInvoice: inv
-        };
-      });
+        });
+      }
+    });
+    return events;
   }, [invoices]);
 
   // 2. Duit Keluar (OUT): Kos Pengeluaran Kilang mengikut factory_payment_bank
   const factoryOutEvents = useMemo(() => {
     return invoices
-      .filter(inv => inv.status !== 'Void' && Number(inv.pengeluaran || 0) > 0)
+      .filter(inv => {
+        if (inv.status === 'Void') return false;
+        const kos = Number(inv.pengeluaran || 0);
+        if (kos <= 0) return false;
+        // SOP THIRTYONE LAB: Kos Kilang hanya keluar dari akaun bank bila invois disahkan berbayar/deposit, atau kerja telah dihantar proses di kilang
+        const hasPayment = Number(inv.deposit || 0) > 0 || inv.status === 'Deposit' || inv.status === 'Paid';
+        const isSentToFactory = inv.order_status && inv.order_status !== 'BELUM_DRAFT';
+        return hasPayment || isSentToFactory;
+      })
       .map(inv => {
         const b = inv.factory_payment_bank || 'Bank Islam';
+        // Tarikh Kos Kilang: Utamakan tarikh bayaran kilang atau tarikh deposit (bukan tarikh invois mula dibuka)
+        const factoryDate = inv.factory_payment_date || inv.deposit_date || inv.date || '';
         return {
           id: `inv_mfg_${inv.id}`,
-          date: inv.date || '',
+          date: factoryDate,
           type: 'OUT',
           title: `Kos Kilang: ${inv.job_name || `Invois #${inv.invoice_no}`}`,
           category: 'Pengeluaran Kilang',
@@ -120,7 +227,7 @@ export default function Ledger() {
     return invoices
       .filter(inv => inv.status !== 'Void' && inv.has_delivery && inv.delivery_payment_status === 'Paid' && inv.delivery_payment_method !== 'Termasuk Dalam Invois' && Number(inv.delivery_fee || 0) > 0)
       .map(inv => {
-        const b = inv.postage_payment_bank || inv.payment_bank || 'Bank Islam';
+        const b = inv.delivery_bank || inv.postage_payment_bank || inv.payment_bank || 'Bank Islam';
         return {
           id: `inv_del_in_${inv.id}`,
           date: inv.delivery_paid_date || inv.postage_date || inv.date || '',
@@ -140,8 +247,20 @@ export default function Ledger() {
   const ledgerEvents = useMemo(() => {
     return entries.map(e => {
       let b = e.bank;
+      let title = e.description || '';
+      if (title.includes('__METADATA__:')) {
+        const parts = title.split('__METADATA__:');
+        title = parts[0].trim();
+        try {
+          const meta = JSON.parse(parts[1]);
+          if (!b && meta.bank) b = meta.bank;
+        } catch (err) {}
+      }
+      if (!title) {
+        title = e.type === 'IN' ? 'Duit Masuk' : 'Duit Keluar';
+      }
       if (!b) {
-        const text = `${e.description || ''} ${e.payee || ''} ${e.category || ''}`.toLowerCase();
+        const text = `${title} ${e.payee || ''} ${e.category || ''}`.toLowerCase();
         if (text.includes('cimb') || text.includes('farhan') || text.includes('meta ads') || (e.date && e.date >= '2026-09-21')) {
           b = 'CIMB Bank';
         } else if (text.includes('islam')) {
@@ -152,31 +271,54 @@ export default function Ledger() {
           b = 'Bank Islam';
         }
       }
+      const cleanRawEntry = {
+        ...e,
+        description: title,
+        bank: b
+      };
       return {
         id: e.id,
         date: e.date || '',
         type: e.type || 'OUT',
-        title: e.description || (e.type === 'IN' ? 'Duit Masuk' : 'Duit Keluar'),
+        title: title,
         category: e.category || 'Belanja',
         payee: e.payee || '',
         amount: Number(e.amount || 0),
         source: 'ledger',
         bank: b,
-        rawEntry: e
+        rawEntry: cleanRawEntry
       };
     });
   }, [entries]);
 
+  const getEventPriority = (item) => {
+    // Urutan keutamaan bagi tarikh yang sama (Paling terkini / latest di atas):
+    // 4. Kutipan Baki / Bayaran Penuh (peringkat akhir)
+    // 3. Kos Pos Kurier & Caj Pos Pelanggan (peringkat penghantaran)
+    // 2. Kos Pengeluaran Kilang (peringkat kilang - berlaku selepas deposit)
+    // 1. Kutipan Deposit Pelanggan (peringkat mula-mula tempahan)
+    if (item.category === 'Invois Jualan (Baki)' || item.category === 'Invois Jualan') return 4;
+    if (item.source === 'postage' || item.source === 'delivery_in') return 3;
+    if (item.source === 'manufacturing') return 2;
+    if (item.category === 'Invois Jualan (Deposit)') return 1;
+    return 2.5;
+  };
+
   // Combined real-time cashflow feed across Invoices, Factory Costs, Postage & Ledger
   const allFeed = useMemo(() => {
-    return [...invoiceInEvents, ...factoryOutEvents, ...postageOutEvents, ...deliveryInEvents, ...ledgerEvents].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+    return [...invoiceInEvents, ...factoryOutEvents, ...postageOutEvents, ...deliveryInEvents, ...ledgerEvents].sort((a, b) => {
+      const dateDiff = String(b.date || '').localeCompare(String(a.date || ''));
+      if (dateDiff !== 0) return dateDiff;
+      return getEventPriority(b) - getEventPriority(a);
+    });
   }, [invoiceInEvents, factoryOutEvents, postageOutEvents, deliveryInEvents, ledgerEvents]);
 
   const isBankMatch = (itemBank, target) => {
     if (target === 'all') return true;
     if (target === 'cimb') return itemBank === 'CIMB Bank' || itemBank?.toLowerCase().includes('cimb');
     if (target === 'islam') return itemBank === 'Bank Islam' || itemBank?.toLowerCase().includes('islam');
-    return true;
+    if (target === 'tunai') return itemBank === 'Tunai' || itemBank?.toLowerCase().includes('tunai') || itemBank?.toLowerCase().includes('cash');
+    return false;
   };
 
   const activeOpening = bankDetails[selectedBank]?.opening || 0;
@@ -203,10 +345,15 @@ export default function Ledger() {
     });
 
   const handleSaveTransaction = async (newTransaction) => {
-    await saveLedgerEntry(newTransaction);
-    setIsAddModalOpen(false);
-    setEditingEntry(null);
-    await loadData();
+    try {
+      await saveLedgerEntry(newTransaction);
+      setIsAddModalOpen(false);
+      setEditingEntry(null);
+      await loadData();
+    } catch (err) {
+      console.error('Error saving transaction:', err);
+      alert('Gagal menyimpan transaksi: ' + (err.message || 'Sila cuba lagi'));
+    }
   };
 
   const handleDelete = async (id) => {
@@ -226,7 +373,7 @@ export default function Ledger() {
   const openOpeningBalanceModal = (bankKey) => {
     const key = bankKey === 'all' ? 'cimb' : bankKey;
     setEditingBankKey(key);
-    const curVal = key === 'cimb' ? cimbOpening : islamOpening;
+    const curVal = key === 'cimb' ? cimbOpening : (key === 'islam' ? islamOpening : tunaiOpening);
     setOpeningInput(String(curVal));
     setIsOpeningModalOpen(true);
   };
@@ -238,7 +385,9 @@ export default function Ledger() {
       ...(settings || {}),
       ...(editingBankKey === 'cimb'
         ? { bank_opening_balance_cimb: val, bank_opening_balance: val }
-        : { bank_opening_balance_islam: val })
+        : editingBankKey === 'islam'
+          ? { bank_opening_balance_islam: val }
+          : { bank_opening_balance_tunai: val })
     };
     await saveSettings(updated);
     setSettings(updated);
@@ -262,7 +411,7 @@ export default function Ledger() {
           className="btn btn-primary"
           style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '0.55rem 1rem', borderRadius: '8px', fontWeight: 700, fontSize: '0.85rem', flexShrink: 0 }}
         >
-          <Plus size={16} /> + Tambah Transaksi
+          <Plus size={16} /> Tambah Transaksi
         </button>
       </div>
 
@@ -271,7 +420,8 @@ export default function Ledger() {
         {[
           { key: 'cimb', label: 'CIMB Bank' },
           { key: 'islam', label: 'Bank Islam' },
-          { key: 'all', label: 'Semua Akaun Bank' }
+          { key: 'tunai', label: 'Tunai' },
+          { key: 'all', label: 'Semua Akaun' }
         ].map(b => {
           const isSelected = selectedBank === b.key;
           return (
@@ -540,6 +690,7 @@ export default function Ledger() {
         }}
         onSave={handleSaveTransaction}
         editEntry={editingEntry}
+        defaultBank={selectedBank === 'islam' ? 'Bank Islam' : (selectedBank === 'tunai' ? 'Tunai' : 'CIMB Bank')}
       />
 
       {/* Payment Voucher Modal */}

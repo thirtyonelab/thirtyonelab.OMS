@@ -1,14 +1,28 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getInvoices, getLedger, getSettings } from '../services/storage';
-import { Building2, Wallet, ArrowDownLeft, ArrowUpRight, AlertTriangle, Edit3, X, Save, Search, Filter, Printer, CheckCircle2 } from 'lucide-react';
+import { Building2, Wallet, ArrowDownLeft, ArrowUpRight, AlertTriangle, Edit3, X, Save, Search, Filter, Printer, CheckCircle2, User } from 'lucide-react';
 import { money } from '../utils/mobileOrders';
 import { useLanguage } from '../context/LanguageContext';
 
 export default function WalletPage() {
   const { tr } = useLanguage();
-  const [invoices, setInvoices] = useState([]);
-  const [ledger, setLedger] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [invoices, setInvoices] = useState(() => {
+    try {
+      const stored = localStorage.getItem('oms_invoices');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [ledger, setLedger] = useState(() => {
+    try {
+      const stored = localStorage.getItem('oms_ledger');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(false);
   const [selectedBank, setSelectedBank] = useState('cimb'); // 'cimb' | 'islam' | 'all'
   const [bankFlowFilter, setBankFlowFilter] = useState('all'); // 'all' | 'in' | 'out'
   const [searchQuery, setSearchQuery] = useState('');
@@ -32,7 +46,6 @@ export default function WalletPage() {
   }, []);
 
   const loadData = async () => {
-    setLoading(true);
     try {
       const [invs, ledg] = await Promise.all([getInvoices(), getLedger()]);
       setInvoices(invs);
@@ -52,34 +65,113 @@ export default function WalletPage() {
 
   // Build combined live statement feed
   const invoiceInEvents = useMemo(() => {
-    return invoices
-      .filter(inv => inv.status !== 'Void' && Number(inv.deposit || 0) > 0)
-      .map(inv => {
-        const b = inv.payment_bank || 'Bank Islam';
-        return {
+    const events = [];
+    invoices.forEach(inv => {
+      if (inv.status === 'Void') return;
+      const defaultBank = inv.payment_bank || 'Bank Islam';
+      const depBank = inv.deposit_bank || defaultBank;
+      const balBank = inv.balance_bank || defaultBank;
+      const grandTotal = Number(inv.grand_total || 0);
+      const curDeposit = Number(inv.deposit || 0);
+
+      // Situation A: Status 'Deposit' (deposit dikutip, baki belum)
+      if (inv.status === 'Deposit' && curDeposit > 0) {
+        events.push({
+          id: `inv_in_dep_${inv.id}`,
+          date: inv.deposit_date || inv.date || '',
+          type: 'IN',
+          title: `Kutipan Deposit: ${inv.job_name || `Invois #${inv.invoice_no}`}`,
+          category: 'Invois Jualan (Deposit)',
+          payee: inv.client_name || 'Pelanggan',
+          amount: curDeposit,
+          source: 'invoice',
+          bank: depBank,
+          rawInvoice: inv
+        });
+      }
+      // Situation B: Status 'Paid' (bayaran penuh)
+      else if (inv.status === 'Paid') {
+        const initDep = Number(inv.initial_deposit || 0);
+        // Jika ada deposit awal yang sah (bayaran 2 peringkat / split bank)
+        if (initDep > 0 && initDep < grandTotal) {
+          // Peringkat 1: Deposit awal
+          events.push({
+            id: `inv_in_dep_${inv.id}`,
+            date: inv.deposit_date || inv.date || '',
+            type: 'IN',
+            title: `Kutipan Deposit: ${inv.job_name || `Invois #${inv.invoice_no}`}`,
+            category: 'Invois Jualan (Deposit)',
+            payee: inv.client_name || 'Pelanggan',
+            amount: initDep,
+            source: 'invoice',
+            bank: depBank,
+            rawInvoice: inv
+          });
+          // Peringkat 2: Baki Bayaran
+          events.push({
+            id: `inv_in_bal_${inv.id}`,
+            date: inv.paid_date || inv.deposit_date || inv.date || '',
+            type: 'IN',
+            title: `Kutipan Baki: ${inv.job_name || `Invois #${inv.invoice_no}`}`,
+            category: 'Invois Jualan (Baki)',
+            payee: inv.client_name || 'Pelanggan',
+            amount: grandTotal - initDep,
+            source: 'invoice',
+            bank: balBank,
+            rawInvoice: inv
+          });
+        } else {
+          // Bayaran penuh sekaligus
+          events.push({
+            id: `inv_in_paid_${inv.id}`,
+            date: inv.paid_date || inv.deposit_date || inv.date || '',
+            type: 'IN',
+            title: `Kutipan Invois Penuh: ${inv.job_name || `Invois #${inv.invoice_no}`}`,
+            category: 'Invois Jualan',
+            payee: inv.client_name || 'Pelanggan',
+            amount: grandTotal > 0 ? grandTotal : curDeposit,
+            source: 'invoice',
+            bank: balBank,
+            rawInvoice: inv
+          });
+        }
+      }
+      // Situation C: Status lain tetapi ada kutipan deposit
+      else if (curDeposit > 0) {
+        events.push({
           id: `inv_in_${inv.id}`,
           date: inv.deposit_date || inv.date || '',
           type: 'IN',
-          title: inv.job_name || `Kutipan Invois #${inv.invoice_no}`,
+          title: `Kutipan Invois: ${inv.job_name || `Invois #${inv.invoice_no}`}`,
           category: 'Invois Jualan',
           payee: inv.client_name || 'Pelanggan',
-          amount: Number(inv.deposit || 0),
+          amount: curDeposit,
           source: 'invoice',
-          bank: b,
-          invoice: inv
-        };
-      });
+          bank: depBank,
+          rawInvoice: inv
+        });
+      }
+    });
+    return events;
   }, [invoices]);
 
   // 2. Duit Keluar (OUT): Kos Pengeluaran Kilang mengikut factory_payment_bank
   const factoryOutEvents = useMemo(() => {
     return invoices
-      .filter(inv => inv.status !== 'Void' && Number(inv.pengeluaran || 0) > 0)
+      .filter(inv => {
+        if (inv.status === 'Void') return false;
+        const kos = Number(inv.pengeluaran || 0);
+        if (kos <= 0) return false;
+        const hasPayment = Number(inv.deposit || 0) > 0 || inv.status === 'Deposit' || inv.status === 'Paid';
+        const isSentToFactory = inv.order_status && inv.order_status !== 'BELUM_DRAFT';
+        return hasPayment || isSentToFactory;
+      })
       .map(inv => {
         const b = inv.factory_payment_bank || 'Bank Islam';
+        const factoryDate = inv.factory_payment_date || inv.deposit_date || inv.date || '';
         return {
           id: `inv_mfg_${inv.id}`,
-          date: inv.date || '',
+          date: factoryDate,
           type: 'OUT',
           title: `Kos Kilang: ${inv.job_name || `Invois #${inv.invoice_no}`}`,
           category: 'Pengeluaran Kilang',
@@ -118,7 +210,7 @@ export default function WalletPage() {
     return invoices
       .filter(inv => inv.status !== 'Void' && inv.has_delivery && inv.delivery_payment_status === 'Paid' && inv.delivery_payment_method !== 'Termasuk Dalam Invois' && Number(inv.delivery_fee || 0) > 0)
       .map(inv => {
-        const b = inv.postage_payment_bank || inv.payment_bank || 'Bank Islam';
+        const b = inv.delivery_bank || inv.postage_payment_bank || inv.payment_bank || 'Bank Islam';
         return {
           id: `inv_del_in_${inv.id}`,
           date: inv.delivery_paid_date || inv.postage_date || inv.date || '',
@@ -137,8 +229,20 @@ export default function WalletPage() {
   const ledgerEvents = useMemo(() => {
     return ledger.map(e => {
       let b = e.bank;
+      let title = e.description || '';
+      if (title.includes('__METADATA__:')) {
+        const parts = title.split('__METADATA__:');
+        title = parts[0].trim();
+        try {
+          const meta = JSON.parse(parts[1]);
+          if (!b && meta.bank) b = meta.bank;
+        } catch (err) {}
+      }
+      if (!title) {
+        title = e.type === 'IN' ? 'Duit Masuk' : 'Duit Keluar';
+      }
       if (!b) {
-        const text = `${e.description || ''} ${e.payee || ''} ${e.category || ''}`.toLowerCase();
+        const text = `${title} ${e.payee || ''} ${e.category || ''}`.toLowerCase();
         if (text.includes('cimb') || text.includes('farhan') || text.includes('meta ads') || (e.date && e.date >= '2026-09-21')) {
           b = 'CIMB Bank';
         } else if (text.includes('islam')) {
@@ -153,19 +257,36 @@ export default function WalletPage() {
         id: `led_${e.id}`,
         date: e.date || '',
         type: e.type || 'OUT',
-        title: e.description || (e.type === 'IN' ? 'Duit Masuk' : 'Duit Keluar'),
+        title: title,
         category: e.category || 'Belanja',
         payee: e.payee || '',
         amount: Number(e.amount || 0),
         source: 'ledger',
         bank: b,
-        ledgerEntry: e
+        ledgerEntry: { ...e, description: title, bank: b }
       };
     });
   }, [ledger]);
 
+  const getEventPriority = (item) => {
+    // Urutan keutamaan bagi tarikh yang sama (Paling terkini / latest di atas):
+    // 4. Kutipan Baki / Bayaran Penuh (peringkat akhir)
+    // 3. Kos Pos Kurier & Caj Pos Pelanggan (peringkat penghantaran)
+    // 2. Kos Pengeluaran Kilang (peringkat kilang - berlaku selepas deposit)
+    // 1. Kutipan Deposit Pelanggan (peringkat mula-mula tempahan)
+    if (item.category === 'Invois Jualan (Baki)' || item.category === 'Invois Jualan') return 4;
+    if (item.source === 'postage' || item.source === 'delivery_in') return 3;
+    if (item.source === 'manufacturing') return 2;
+    if (item.category === 'Invois Jualan (Deposit)') return 1;
+    return 2.5;
+  };
+
   const allBankFeed = useMemo(() => {
-    return [...invoiceInEvents, ...factoryOutEvents, ...postageOutEvents, ...deliveryInEvents, ...ledgerEvents].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+    return [...invoiceInEvents, ...factoryOutEvents, ...postageOutEvents, ...deliveryInEvents, ...ledgerEvents].sort((a, b) => {
+      const dateDiff = String(b.date || '').localeCompare(String(a.date || ''));
+      if (dateDiff !== 0) return dateDiff;
+      return getEventPriority(b) - getEventPriority(a);
+    });
   }, [invoiceInEvents, factoryOutEvents, postageOutEvents, deliveryInEvents, ledgerEvents]);
 
   const isBankMatch = (itemBank, target) => {
@@ -438,8 +559,8 @@ export default function WalletPage() {
 
                       {/* 4. Nama */}
                       {item.payee && (
-                        <div style={{ fontSize: '11.5px', color: '#52525b', fontWeight: 600, marginTop: '3px', overflowWrap: 'anywhere' }}>
-                          👤 {item.payee}
+                        <div style={{ fontSize: '11.5px', color: '#52525b', fontWeight: 600, marginTop: '3px', overflowWrap: 'anywhere', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <User size={12} /> {item.payee}
                         </div>
                       )}
                     </div>

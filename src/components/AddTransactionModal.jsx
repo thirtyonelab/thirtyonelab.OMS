@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Save } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
-export default function AddTransactionModal({ isOpen, onClose, onSave, initialType = 'OUT', editEntry = null }) {
+export default function AddTransactionModal({ isOpen, onClose, onSave, initialType = 'OUT', editEntry = null, defaultBank = 'CIMB Bank' }) {
   const { tr } = useLanguage();
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState('');
@@ -10,19 +10,20 @@ export default function AddTransactionModal({ isOpen, onClose, onSave, initialTy
   const [category, setCategory] = useState(initialType === 'IN' ? 'Modal Tambahan' : 'Belanja Operasi');
   const [payee, setPayee] = useState('');
   const [amount, setAmount] = useState('');
-  const [bank, setBank] = useState('CIMB Bank');
+  const [bank, setBank] = useState(defaultBank);
   const [loading, setLoading] = useState(false);
 
   React.useEffect(() => {
     if (isOpen) {
       if (editEntry) {
+        const cleanDesc = (editEntry.description || '').split('__METADATA__:')[0].trim();
         setDate(editEntry.date || new Date().toISOString().split('T')[0]);
-        setDescription(editEntry.description || '');
+        setDescription(cleanDesc);
         setType(editEntry.type || 'OUT');
         setCategory(editEntry.category || (editEntry.type === 'IN' ? 'Modal Tambahan' : 'Belanja Operasi'));
         setPayee(editEntry.payee || '');
         setAmount(editEntry.amount !== undefined ? String(editEntry.amount) : '');
-        setBank(editEntry.bank || 'CIMB Bank');
+        setBank(editEntry.bank || defaultBank);
       } else {
         setDate(new Date().toISOString().split('T')[0]);
         setDescription('');
@@ -30,36 +31,43 @@ export default function AddTransactionModal({ isOpen, onClose, onSave, initialTy
         setCategory(initialType === 'IN' ? 'Modal Tambahan' : 'Belanja Operasi');
         setPayee('');
         setAmount('');
-        setBank('CIMB Bank');
+        setBank(defaultBank);
       }
     }
-  }, [isOpen, initialType, editEntry]);
+  }, [isOpen, initialType, editEntry, defaultBank]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
-    if (!description || !amount) {
+    const cleanDescription = (description || '').split('__METADATA__:')[0].trim();
+    if (!cleanDescription || !amount) {
       alert('Sila lengkapkan butiran dan jumlah transaksi.');
       return;
     }
 
     setLoading(true);
-    onSave({
-      ...(editEntry || {}),
-      date,
-      description,
-      type,
-      category,
-      payee: type === 'OUT' ? (payee || 'Tunai') : '',
-      amount: parseFloat(amount),
-      bank
-    });
+    try {
+      await onSave({
+        ...(editEntry || {}),
+        date,
+        description: cleanDescription,
+        type,
+        category,
+        payee: type === 'OUT' ? (payee || 'Tunai') : (payee || ''),
+        amount: parseFloat(amount),
+        bank
+      });
 
-    setDescription('');
-    setPayee('');
-    setAmount('');
-    setLoading(false);
+      setDescription('');
+      setPayee('');
+      setAmount('');
+    } catch (err) {
+      console.error('Error saving transaction in modal:', err);
+      alert('Ralat semasa menyimpan rekod transaksi.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleTypeChange = (newType) => {

@@ -2,11 +2,22 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getInvoices, deleteInvoice } from '../services/storage';
 import { Search, Plus, Eye, Edit2, RefreshCw, Trash2, LayoutGrid, List, Clock, FileText, CheckCircle2, AlertTriangle, Factory, Truck, ChevronRight, Calendar, SlidersHorizontal, Wallet } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
-import { money, balanceOf, quantityOf, productionStates, deliveryStates, needsAction } from '../utils/mobileOrders';
+import { money, balanceOf, quantityOf, productionStates, deliveryStates, needsAction, getOrderCategoryLabel } from '../utils/mobileOrders';
 
 export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpenInvoiceDetail }) {
   const { tr, language } = useLanguage();
-  const [invoices, setInvoices] = useState([]);
+  const [invoices, setInvoices] = useState(() => {
+    try {
+      const stored = localStorage.getItem('oms_invoices');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return parsed.sort((a, b) => (b.invoice_no || '').localeCompare(a.invoice_no || ''));
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [actionFilter, setActionFilter] = useState('all'); // 'all' | 'late' | 'draft' | 'balance' | 'unpaid'
@@ -19,10 +30,9 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
   }, []);
 
   const loadInvoices = async () => {
-    setLoading(true);
     try {
       const data = await getInvoices();
-      const sortedData = data.sort((a, b) => b.invoice_no.localeCompare(a.invoice_no));
+      const sortedData = data.sort((a, b) => (b.invoice_no || '').localeCompare(a.invoice_no || ''));
       setInvoices(sortedData);
     } catch (e) {
       console.error('Error loading invoices list:', e);
@@ -448,11 +458,11 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
                     {inv.client_name || 'Pelanggan'}
                   </h2>
                   <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '4px 0 0', lineHeight: 1.4 }}>
-                    {inv.job_name || 'Tempahan Pakaian / Percetakan'}
+                    {inv.job_name || getOrderCategoryLabel(inv)}
                   </p>
                   {inv.client_phone && (
                     <span style={{ fontSize: '11px', color: 'var(--text-light)', display: 'inline-block', marginTop: '2px' }}>
-                      📞 {inv.client_phone}
+                      Tel: {inv.client_phone}
                     </span>
                   )}
                 </div>
@@ -510,7 +520,7 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
                 </div>
 
                 {/* Card Action Buttons */}
-                <div style={{ display: 'grid', gridTemplateColumns: remaining > 0 ? '1fr 1fr auto auto' : '1fr auto auto', gap: '6px', marginTop: '4px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: '6px', marginTop: '4px' }}>
                   <button
                     onClick={() => onOpenInvoiceDetail(inv)}
                     className="btn btn-secondary"
@@ -519,15 +529,22 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
                     <Eye size={13} /> Lihat
                   </button>
 
-                  {remaining > 0 && (
-                    <button
-                      onClick={() => onOpenPaymentModal(inv)}
-                      className="btn btn-secondary"
-                      style={{ padding: '7px 10px', fontSize: '11.5px', fontWeight: 650, borderRadius: '6px', color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a' }}
-                    >
-                      <RefreshCw size={13} /> Bayar
-                    </button>
-                  )}
+                  <button
+                    onClick={() => onOpenPaymentModal(inv)}
+                    className="btn btn-secondary"
+                    style={{
+                      padding: '7px 10px',
+                      fontSize: '11.5px',
+                      fontWeight: 650,
+                      borderRadius: '6px',
+                      color: remaining > 0 ? '#92400e' : '#15803d',
+                      background: remaining > 0 ? '#fffbeb' : '#f0fdf4',
+                      border: remaining > 0 ? '1px solid #fde68a' : '1px solid #bbf7d0'
+                    }}
+                    title={remaining > 0 ? 'Kemas kini / Rekod Bayaran' : 'Kemas kini Tetapan Bayaran'}
+                  >
+                    <RefreshCw size={13} /> {remaining > 0 ? 'Bayar' : 'Setting Bayar'}
+                  </button>
 
                   <button
                     onClick={() => onOpenInvoiceModal(inv)}
@@ -571,7 +588,9 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
                   <td style={{ padding: '14px 16px', fontWeight: 800, fontSize: '13px' }}>{inv.invoice_no}</td>
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ fontWeight: 750, color: 'var(--text-dark)', fontSize: '14px' }}>{inv.client_name}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>{inv.job_name || inv.client_phone}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      {inv.job_name || getOrderCategoryLabel(inv)}{inv.client_phone ? ` · Tel: ${inv.client_phone}` : ''}
+                    </div>
                   </td>
                   <td style={{ padding: '14px 16px', textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>{inv.date}</td>
                   <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 800, fontSize: '14px' }}>
@@ -590,11 +609,20 @@ export default function Invoices({ onOpenInvoiceModal, onOpenPaymentModal, onOpe
                       <button onClick={() => onOpenInvoiceModal(inv)} className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', fontSize: '11px' }}>
                         <Edit2 size={12} /> Edit
                       </button>
-                      {balanceOf(inv) > 0 && (
-                        <button onClick={() => onOpenPaymentModal(inv)} className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', fontSize: '11px', color: '#92400e', background: '#fffbeb', borderColor: '#fde68a' }}>
-                          <RefreshCw size={12} /> Bayar
-                        </button>
-                      )}
+                      <button
+                        onClick={() => onOpenPaymentModal(inv)}
+                        className="btn btn-secondary btn-sm"
+                        style={{
+                          padding: '4px 8px',
+                          fontSize: '11px',
+                          color: balanceOf(inv) > 0 ? '#92400e' : '#15803d',
+                          background: balanceOf(inv) > 0 ? '#fffbeb' : '#f0fdf4',
+                          borderColor: balanceOf(inv) > 0 ? '#fde68a' : '#bbf7d0'
+                        }}
+                        title={balanceOf(inv) > 0 ? 'Kemas kini / Rekod Bayaran' : 'Kemas kini Tetapan Bayaran'}
+                      >
+                        <RefreshCw size={12} /> {balanceOf(inv) > 0 ? 'Bayar' : 'Setting Bayar'}
+                      </button>
                       <button onClick={() => handleDelete(inv.id, inv.invoice_no)} className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--primary-red)', borderColor: '#fecaca' }}>
                         <Trash2 size={12} />
                       </button>
