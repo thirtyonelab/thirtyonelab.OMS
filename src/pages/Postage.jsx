@@ -490,7 +490,7 @@ export default function Postage() {
           className="btn btn-primary btn-sm"
           style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, padding: '0.5rem 0.9rem', flexShrink: 0 }}
         >
-          <Plus size={15} /> + Kad Pos Baharu
+          <Plus size={15} /> Kad Pos Baharu
         </button>
       </div>
 
@@ -613,7 +613,7 @@ export default function Postage() {
             flexShrink: 0 
           }}
         >
-          <Plus size={15} /> + Kad Pos Baharu
+          <Plus size={15} /> Kad Pos Baharu
         </button>
       </div>
 
@@ -641,7 +641,7 @@ export default function Postage() {
               className="btn btn-primary btn-sm"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', margin: '0 auto' }}
             >
-              <Plus size={15} /> + Kad Pos Baharu
+              <Plus size={15} /> Kad Pos Baharu
             </button>
           </div>
         ) : (
