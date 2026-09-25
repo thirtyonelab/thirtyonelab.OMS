@@ -598,23 +598,6 @@ export default function Postage() {
           ))}
         </select>
 
-        <button
-          onClick={openAddModal}
-          className="btn btn-primary"
-          style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: '6px', 
-            padding: '7px 14px', 
-            borderRadius: '8px', 
-            fontSize: '12.5px', 
-            fontWeight: 750, 
-            whiteSpace: 'nowrap',
-            flexShrink: 0 
-          }}
-        >
-          <Plus size={15} /> Kad Pos Baharu
-        </button>
       </div>
 
       {/* Main Grid / Delivery Cards */}
